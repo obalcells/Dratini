@@ -1,1 +1,5 @@
+#ignore compiled programs
 *.o
+#ignore vim swap files
+*.swo
+
