@@ -3,7 +3,9 @@
 extern int color[64];
 extern int piece[64];
 extern int side;
-extern int flags;
+extern int xside;
+extern int castling;
+extern int enpassant;
 
 /* helper constants */
 extern int piece_value[6];

@@ -6,11 +6,11 @@ OBJECT_FILES = \
 all: obce
 
 obce: $(OBJECT_FILES)
-	g++ -O3 -o obce $(OBJECT_FILES)
+	g++ -O3 -o engine $(OBJECT_FILES)
 
 %.o: %.c data.h
 	g++ -O3 -c $< -o $@
 
 clean:
 	rm -f *.o
-	rm -f obce
+	rm -f engine

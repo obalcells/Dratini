@@ -3,115 +3,55 @@
 #include "data.h"
 #include "protos.h"
 
-void init_board() {
-	for(int i = 0; i < 64; i++) {
-		piece[i] = initial_piece[i];
-		color[i] = initial_color[i];
+int distance(int pos_1, int pos_2) { return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2)); }
+bool valid_pos(int pos) { return (pos >= 0 && pos < 64) ? true : false; }
+bool valid_move(int pos_1, int pos_2) { return pos_2 >= 0 && pos_2 < 64 && distance(pos_1, pos_2) <= 3; }
+
+// is position {pos} being attacked by color {e_color} ?
+bool is_attacked(int pos, int e_color = EMPTY) {
+
+	if(e_color == EMPTY) {
+		// we have to know who is the attacker
+		if(color[pos] != EMPTY) e_color = color[pos] == WHITE ? BLACK : WHITE;
+		else assert(e_color != EMPTY);
 	}
-	side = WHITE;
-	flags = 15;
-}
-
-void print_board() {
-	int i;
-	for(i = 56; i >= 0;) {
-		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
-		std::cout << " ";
-
-		if(color[i] == WHITE) {
-			std::cout << WHITE_COLOR;
-			if(piece[i] == PAWN) std::cout << 'P'; 
-			else if(piece[i] == KNIGHT) std::cout << 'N'; 
-			else if(piece[i] == BISHOP) std::cout << 'B';
-			else if(piece[i] == ROOK) std::cout << 'R';
-			else if(piece[i] == QUEEN) std::cout << 'Q';
-			else if(piece[i] == KING) std::cout << 'K';
-		} else if(color[i] == BLACK) {
-			std::cout << WHITE_COLOR;	
-			if(piece[i] == PAWN) std::cout << 'p'; 
-			else if(piece[i] == KNIGHT) std::cout << 'n'; 
-			else if(piece[i] == BISHOP) std::cout << 'b';
-			else if(piece[i] == ROOK) std::cout << 'r';
-			else if(piece[i] == QUEEN) std::cout << 'q';
-			else if(piece[i] == KING) std::cout << 'k';
-		} else if(color[i] == EMPTY) {
-			std::cout << EMPTY_COLOR << '.';
-		}
-
-		std::cout << RESET_COLOR;
-		if((i + 1) % 8 == 0) {
-			std::cout << '\n'; 
-			i -= 15;
-		} else {
-			i++;
-		}
-	}
- 
- 	std::cout << '\n' << "   ";
-	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
-	std::cout << "\n\n";
-}
-
-int distance(int pos_1, int pos_2) {
-	return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2));
-}
-
-bool valid_pos(int pos) {
-	return (pos >= 0 && pos < 64) ? true : false;
-}
-
-
-bool is_attacked(int pos, int s) {
-	int i;
 
 	//pawns
-	if(side == 1) {
-		if(pos + 7 < 64 && piece[pos + 7] == PAWN && color[pos + 7] == s) return true; 
-		if(pos + 9 < 64 && piece[pos + 9] == PAWN && color[pos + 9] == s) return true;
-	} else {
-		if(pos - 7 >= 0 && piece[pos - 7] == PAWN && color[pos - 7] == s) return true; 
-		if(pos - 9 >= 0 && piece[pos - 9] == PAWN && color[pos - 9] == s) return true;
+	if(e_color == BLACK) {
+		if(valid_move(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == e_color) return true;
+		if(valid_move(pos, pos + 9) && piece[pos + 9] == PAWN && color[pos + 9] == e_color) return true;
+	} else if(e_color == WHITE) {
+		if(valid_move(pos, pos - 7) && piece[pos + 7] == PAWN && color[pos + 7] == e_color) return true;
+		if(valid_move(pos, pos - 9) && piece[pos + 9] == PAWN && color[pos + 9] == e_color) return true;
 	}
-	
-	int new_pos = pos;
-	int prev_pos;
+
+	int new_pos = pos, prev_pos;
+
 	//knight's offset
-	for(i = 0; i < 8; i++) {
+	for(int i = 0; i < 8; i++) {
 		if(offset[KNIGHT][i] == 0) break;
-
-		new_pos = pos + offset[KNIGHT][i];
-		if(!valid_pos(new_pos) || distance(pos, new_pos) > 3) continue;
-
-		if(piece[new_pos] == KNIGHT && color[new_pos] == s) return true; 
-	}	
+		if(!valid_move(pos, pos + offset[KNIGHT][i])) continue;
+		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == e_color) return true;
+	}
 
 	//bishop's offset
-	for(i = 0; i < 8; i++) {
+	for(int i = 0; i < 8; i++) {
 		if(offset[BISHOP][i] == 0) break;
-
+		if(!valid_move(pos, pos + offset[BISHOP][i])) continue;
 		new_pos = pos + offset[BISHOP][i]; prev_pos = pos;
-		if(!valid_pos(new_pos) || distance(prev_pos, new_pos) != 2) continue;
-
-		while(valid_pos(new_pos) && color[new_pos] == EMPTY && distance(prev_pos, new_pos) == 2) {
-			prev_pos = new_pos;
-			new_pos += offset[BISHOP][i];
-		}
-
-		if(valid_pos(new_pos) && (piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == s) return true;
+		while(valid_move(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos] == EMPTY) new_pos += offset[BISHOP][i];
+		assert(valid_pos(new_pos));
+		if((piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == e_color) return true;
 	}
-	
-	//rook's offset
-	for(i = 0; i < 8; i++) {
-		if(offset[ROOK][i] == 0) break;		
-		new_pos = pos + offset[ROOK][i]; prev_pos = pos;
-		if(!valid_pos(new_pos) || distance(prev_pos, new_pos) != 1) continue;
-		
-		while(valid_pos(new_pos) && color[new_pos] == EMPTY && distance(prev_pos, new_pos) == 1) {
-			prev_pos = new_pos;
-			new_pos += offset[ROOK][i];
-		}
 
-		if(valid_pos(new_pos) && (piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == s) return true;
+	//rook's offset
+	for(int i = 0; i < 8; i++) {
+		if(offset[ROOK][i] == 0) break;
+		if(!valid_move(pos, pos + offset[ROOK][i])) continue;
+		new_pos = pos + offset[ROOK][i]; prev_pos = pos;
+		while(valid_move(new_pos, new_pos + offset[ROOK][i]) && color[new_pos] == EMPTY) new_pos += offset[ROOK][i];
+		assert(valid_pos(new_pos));
+		if((piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == e_color) return true;
 	}
 
 	return false;
@@ -127,214 +67,191 @@ bool is_check(int _side) {
 	}
 }
 
+/*
+struct Move {
+	char from;
+	char to;
+	char captured;
+	char info;
+}
+*/
+
+int get_index(int row, int col) { return row * 8 + col; }
+void disable_castling(int id) {
+}
+
+// we alter the state and return a struct representing the move
+// we assume that the movement is valid (but there are some asserts anyways)
+Move make_move(int from, int to, int promotion_piece = QUEEN) {
+	enpassant = 0; //reset the enpassant flag
+	int info = 0; //info char
+
+	if(piece[from] == PAWN && piece[to] == EMPTY && col(from) != col(to)) {
+		//ENPASSANT
+
+		int adjacent = get_index(row(from), col(to));
+		assert(piece[adjacent] == PAWN);
+		assert(color[adjacent] != color[from]);
+		piece[adjacent] = EMPTY;
+		color[adjacent] = EMPTY;
+		info = 1; //enpassant bit flag
+
+	} else if(piece[from] == PAWN && (row(to) == 0 || row(to) == 7)) {
+		//PROMOTION
+		piece[to] = promotion_piece;
+		color[to] = side;
+		info = 2; //pawn promotion bit flag
+
+	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
+		//CASTLING
+		int rook_prev = -1, rook_now = -1;
+		if(from == 4 && to == 2) { rook_prev = 0; rook_now = 3; castling ^= 1; castling ^= 4; }
+		else if(from == 4 && to == 6) { rook_prev = 7; rook_now = 5; castling ^= 2; castling ^= 4; }
+		else if(from == 60 && to == 58) { rook_prev = 56; rook_now = 59; castling ^= 8; castling ^= 32; }
+		else if(from == 60 && to == 62) { rook_prev = 63; rook_now = 61; castling ^= 16; castling ^= 32; }
+		else assert(false); // move shouldn't be valid if we got here
+
+		piece[rook_prev] = EMPTY;
+		color[rook_prev] = EMPTY;
+		piece[rook_now] = ROOK;
+		color[rook_now] = side;
+		info = 4; //castling flag
+
+	} else {
+		//ANYTHING ELSE
+		if(piece[from] == KING) {
+			//disable castling flag for the king
+			if(side == 0 && (castling & 4)) { info = 8; castling ^= 4; }
+			else if(side == 1 && (castling & 32)) { info = 8; castling ^= 32; }
+
+		} else if(piece[from] == ROOK) {
+			//disable castling flag for this rook
+			if(side == 0 && from == 0 && (castling << 1)) { info = 8; castling ^= 1; }
+			else if(side == 0 && from == 7 && (castling << 2)) { info = 8; castling ^= 2; }
+			else if(side == 1 && from == 54 && (castling << 8)) { info = 8; castling ^= 8; }
+			else if(side == 1 && from == 63 && (castling << 16)) { info = 8; castling ^= 16; }
+
+		} else if(piece[from] == PAWN && abs(row(from) - row(to)) == 2) {
+			if(side == 0) enpassant |= (1 << col(from));
+			else enpassant |= (1 << (8 + col(from)));
+		}
+	}
+
+	int captured = piece[to];
+	if(info == 2) captured = EMPTY; // it was our promotion pawn
+	else piece[to] = piece[from];
+	color[to] = side;
+	piece[from] = EMPTY;
+	color[from] = EMPTY;
+	return Move({ char(from), char(to), char(captured), char(info) });
+}
+
 void undo_move(Move m) {
+
+	// "info" var literally tells info about the move:
+	// (0) nothing
+	// (1) enpassant capture, (2) pawn promotion,
+	// (4) castling move, (8) first movement of king or rook
 
 	assert(piece[m.from] == EMPTY);
 	assert(color[m.from] == EMPTY);
 	assert(piece[m.to] != EMPTY);
 	assert(color[m.to] != EMPTY);
 
-	piece[m.from] = piece[m.to];
-	color[m.from] = color[m.to]; 
-	piece[m.to] = m.captured; 
-	if(m.captured != EMPTY) color[m.to] = (color[m.to] == BLACK ? WHITE : BLACK); 
-	
-	//promotions
-	//enpassant
-	//castling
+	if(m.info == 0 || m.info == 2 || m.info == 8) {
+		// NORMAL MOVEMENT OR PAWN PROMOTION
+		piece[m.from] = piece[m.to];
+		color[m.from] = color[m.to];
 
-	if(piece[m.to] == PAWN && abs(col(m.from) - col(m.to)) == 1 && m.captured == EMPTY) {
-		//ep
+		piece[m.to] = m.captured;
+		piece[m.to] = m.captured;
+		if(m.captured != EMPTY) color[m.to] = (color[m.from] == BLACK ? WHITE : BLACK);
+
+		if(m.info == 8) {
+			if(piece[m.from] == ROOK && m.from == 0) castling |= 1;
+			else if(piece[m.from] == ROOK && m.from == 7) castling |= 2;
+			else if(piece[m.from] == KING && color[m.from] == WHITE) castling |= 4;
+			else if(piece[m.from] == ROOK && m.from == 56) castling |= 8;
+			else if(piece[m.from] == ROOK && m.from == 63) castling |= 16;
+			else if(piece[m.from] == KING && color[m.from] == BLACK) castling |= 32;
+		}
+
+	} else if(m.info == 1) {
+		// ENPASSANT
+		assert(piece[m.to] == PAWN);
 		piece[m.from] = PAWN;
 		color[m.from] = color[m.to];
+
+		assert(m.captured == EMPTY); //enpassant captured is marked as empty
 		piece[m.to] = EMPTY;
 		color[m.to] = EMPTY;
-		piece[from + (side == 0 ? 8 : -8)] = PAWN;
-		color[from + (side == 0 ? 8 : -8)] = (color[m.from] == BLACK ? WHITE : BLACK);
 
-	} else if(m.promotion == true) {
-		//promotion
-		assert(piece[m.to] != EMPTY);
+		int adjacent = get_index(row(m.from), col(m.to));
+		piece[adjacent] = PAWN;
+		color[adjacent] = (color[m.from] == BLACK ? WHITE : BLACK);
 
-		piece[m.from] = PAWN;
+		//reactivate enpassant flag
+		if(color[m.from] == WHITE)
+			enpassant |= (1 << col(m.from));
+		else if(color[m.from] == BLACK) {
+			enpassant |= (1 << (col(m.from) + 8));
+
+	} else if(m.info == 4) {
+		// CASTLING
+		int rook_prev = -1, rook_now = -1;
+		if(m.from == 4 && m.to == 2) { rook_prev = 0; rook_now = 3; castling |= 1; castling |= 4; }
+		else if(m.from == 4 && m.to == 6) { rook_prev = 7; rook_now = 5; castling |= 2; castling |= 4; }
+		else if(m.from == 60 && m.to == 58) { rook_prev = 56; rook_now = 59; castling |= 8; castling |= 32; }
+		else if(m.from == 60 && m.to == 62) { rook_prev = 63; rook_now = 61; castling |= 16; castling |= 32; }
+
+		// Move back the king
+		assert(piece[m.to] == KING);
+		piece[m.from] = KING;
 		color[m.from] = color[m.to];
 		piece[m.to] = EMPTY;
 		color[m.to] = EMPTY;
-		
-	} else if(piece[m.to] == KING && row(m.from) == row(m.to) && abs(col(m.from) - col(m.to)) == 2) {
-		//castling
-		piece[m.from] = KING;	
-		color[m.from] = color[m.to];
-		piece[m.to] = EMPTY;
-		color[m.to] = EMPTY;
-		
-		if(m.to < m.from) { //castling to the left
-			piece[m.to + 1] = EMPTY;
-			color[m.to + 1] = EMPTY;
-			if(color[m.from] == WHITE) {
-				piece[0] = ROOK;
-				color[0] = WHITE;
-				flags |= (1 << 2);
-				flags |= (1 << 0); 
-			} else {
-				piece[54] = ROOK;
-				color[0] = BLACK;
-				flags |= (1 << 5);
-				flags |= (1 << 3); //i dont know if this is right
-			}
-		} else {
-			piece[m.to - 1] = EMPTY;
-			color[m.to - 1] = EMPTY;
-			if(color[m.from] == WHITE) {
-				piece[7] = ROOK;
-				color[7] = WHITE;
-				flags |= (1 << 2);
-				flags |= (1 << 1);
-			} else {
-				piece[63] = ROOK;
-				color[63] = BLACK;
-				flags |= (1 << 5);
-				flags |= (1 << 4);
-			}
-		}
-	} else if() {
+		// Move back the rook
+		assert(piece[rook_now] = ROOK);
+		piece[rook_prev] = ROOK;
+		color[rook_prev] = color[m.from]; //same color as king
+		piece[rook_now] = EMPTY;
+		color[rook_now] = EMPTY;
 
 	}
-
-}
-
-//alters the global board state with a new move
-//it is known that the move is valid 
-Move make_move(int from, int to, int promotion_piece=QUEEN) {
-
-	int captured = EMPTY;
-	bool promotion = false;
-
-	if(piece[from] == PAWN && piece[to] == EMPTY && row(from) != row(to)) {
-		//ENPASSANT
-		piece[from] = EMPTY;
-		color[from] = EMPTY;
-		piece[to] = PAWN;
-		color[to] = side;
-		piece[from + (side == WHITE ? 8 : -8)] = EMPTY;
-		color[from + (side == BLACK ? 8 : -8)] = EMPTY;
-
-	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
-		//CASTLING
-		piece[from] = EMPTY;
-		color[from] = EMPTY;
-		piece[to] = KING;
-		color[to] = side;
-		if(to < from) { //castling to the left
-			piece[row(from) * 8] = EMPTY;
-			color[row(from) * 8] = EMPTY;
-			piece[to + 1] = ROOK;
-			color[to + 1] = side;
-		} else {
-			piece[row(from) * 8 + 7] = EMPTY;
-			color[row(from) * 8 + 7] = EMPTY;
-			piece[to - 1] = ROOK;
-			color[to - 1] = side;
-		}
-
-		//disable the castling flag for this direction and the global for the side
-		if(side == 0) {
-			assert(flags & (1 << 2));
-			assert(flags & (1 << (to < from ? 0 : 1)));
-			flags ^= (1 << 2); 
-			flags ^= (1 << (to < from ? 0 : 1));
-		} else {
-			assert(flags & (1 << 5));
-			assert(flags & (1 << (to < from ? 0 : 1)));
-			flags ^= (1 << 5);
-			flags ^= (1 << (to < from ? 3 : 4));
-		}
-
-	} else if(piece[from] == PAWN && (row(to) == 0 || row(to) == 7)) {
-		//PROMOTION
-		promotion = true;
-		piece[from] = EMPTY;
-		color[from] = EMPTY;
-		piece[to] = promotion_piece; 
-		color[to] = side;
-	} else {
-		//ANYTHING ELSE
-		if(piece[from] == KING) {
-			//disable castling flag for the king
-			if(side == 0 && (flags & (1 << 2))) flags ^= (1 << 2);
-			else if(side == 1 && (flags & (1 << 5))) flags ^= (1 << 5);
-		} else if(piece[from] == ROOK) {
-			//disable castling flag for this rook
-			if(side == 0 && from == 0 && (flags << (1 << 0))) flags ^= (1 << 0);
-			else if(side == 0 && from == 7 && (flags << (1 << 1))) flags ^= (1 << 1);
-			else if(side == 1 && from == 54 && (flags << (1 << 3))) flags ^= (1 << 3);
-			else if(side == 1 && from == 63 && (flags << (1 << 4))) flags ^= (1 << 4);
-		} else if(piece[from] == PAWN && abs(row(from) - row(to)) == 2) {
-			//activate enpassant flag	
-			if(side == 0) {
-				flags |= (1 << (6 + col(from)));
-			} else {
-				flags |= (1 << (14 + col(from)));
-			}
-		}
-
-		captured = piece[to];
-		piece[to] = piece[from];
-		color[to] = side;
-		piece[from] = EMPTY;
-		color[from] = EMPTY;
-	}
-
-}
-
-void undo_move(Move m) {
-	assert(piece[to] != EMPTY);
-	assert(color[to] != EMPTY);
-	assert(piece[from] == EMPTY);
-	assert(color[from] == EMPTY);
-
-	piece[from] = piece[to];
-	color[from] = color[to];
-	if(captured != EMPTY) color[to] = (side == 0 ? 1 : 0);
-	else color[to] = EMPTY;
-	piece[to] = captured;
 }
 
 bool is_move_valid(int from, int to) {
-
-	//piece has to move
-	if(from == to) return false;
-	//the origin square can't be empty
-	if(piece[from] == EMPTY) return false;
-	//only friendly pieces can be moved
-	if(side != color[from]) return false;
-	//we can't move to squares occupied by friendly pieces
-	if(color[from] == color[to]) return false;
+	if(from == to || piece[from] == EMPTY || side != color[from] || color[from] == color[to]) return false;
 
 	if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
-		//CASTLING ONLY
+		// CASTLING
+		// Following conditions must hold:
+		// (1) King hasn't moved
+		// (2) Rook of specific side hasn't moved
+		// (3) King isn't in check
+		// (4) There are no pieces in between
+		// (5) The king can't be checked on the squares in between
 
-		//detect if castling is valid, following conditions must hold:
-		// 1) King hasn't moved
-		// 2) Rook of specific side hasn't moved
-		// 3) King isn't in check
-		// 4) There are no pieces in between
-		// 5) The king can't be checked on the squares in between
+		// check flags
+		int rook_pos = -1;
+		if(side == 0 && from == 4 && to == 2 && (castling & 1) && (castling & 4)) rook_pos = 0;
+		else if(side == 0 && from == 4 && to == 6 && (castling & 2) && (castling & 4)) rook_pos = 7;
+		else if(side == 1 && from == 60 && to == 58 && (castling & 8) && (castling & 32)) rook_pos = 56;
+		else if(side == 1 && from == 60 && to == 62 && (castling & 16) && (castling & 32)) rook_pos = 63;
+		else return false;
 
-		int castling_type = (to > from ? 1 : 0); //0 is left and 1 is right
-		if(!(flags & (1 << (side * 2 + castling_type)))) return false; //there is a castling flag in the game's state
-		if(is_attacked(from, side ^ 1)) return false; //king can't be under check
+		int direction = to > from ? 1 : -1;
 
-		if(castling_type == 0) {
-			if(is_attacked(from - 1, side ^ 1)) return false;	
-			if(piece[from - 1] != EMPTY) return false;
-			if(is_attacked(from - 2, side ^ 1)) return false;
-			if(piece[from - 2] != EMPTY) return false;
-		} else {
-			if(is_attacked(from + 1, side ^ 1)) return false;
-			else if(piece[from + 1] != EMPTY) return false;
-			if(is_attacked(from + 2, side ^ 1)) return false;
-			else if(piece[from + 2] != EMPTY) return false;
+		// no pieces in between
+		for(int pos = from + direction;; pos += direction) {
+			if(pos == rook_pos) break;
+			if(piece[pos] != EMPTY) return false;
+		}
+
+		// king isn't in check and can't be check on his way to "to"
+		for(int pos = from;; pos += direction) {
+			if(is_attacked(pos, xside)) return false;
+			if(pos == to) break;
 		}
 
 		return true;
@@ -342,25 +259,26 @@ bool is_move_valid(int from, int to) {
 	} else if(piece[from] == PAWN) {
 		//PAWN MOVEMENTS
 
-		//remember: side = 0 -> WHITE, side = 1 -> BLACK
-		if(side == 0 && to < from) return false; 
+		//remember: side = 0 -> WHITE and initial_color[0] = WHITE
+		if(side == 0 && to < from) return false;
 		else if(side == 1 && to > from) return false;
 
 		//difference in rows and cols
-		int dr = abs(row(to) - row(from));
-		int dc = abs(col(to) - col(from));
+		int delta_row = abs(row(to) - row(from));
+		int delta_col = abs(col(to) - col(from));
 
-		if(dr == 1 && dc == 1 && piece[to] == EMPTY && piece[row(from) * 8 + col(to)] == PAWN && color[row(from) * 8 + col(to)] == EMPTY) {
-			//enpassant flag-checking
-			if(side == 1 && !(flags & (1 << (6 + col(to))))) return false;
-			else if(side == 0 && !(flags & (1 << (14 + col(to))))) return false;
+		if(delta_row == 1 && delta_col == 1 && color[to] == EMPTY) {
+			int adjacent = get_index(row(from), col(to));
+			if(piece[to] != EMPTY || color[adjacent] != xside) return false;
+			if(side == 0 && !(enpassant & (1 << col(to)))) return false;
+			else if(side == 1 && !(enpassant & (1 << (8 + col(to))))) return false;
 		}
-		else if(dr == 1 && dc == 0 && piece[to] == EMPTY) {}
-		else if(dr == 2 && dc == 0 && piece[to] == EMPTY && piece[from + (side == 0 ? 8 : -8)] == EMPTY) {}
-		else if(dr == 1 && dc == 1 && color[to] != EMPTY && color[to] != color[from]) {}
-		else return false;
+		else if(delta_row == 1 && delta_col == 0 && piece[to] == EMPTY) { /* fine */ }
+		else if(delta_row == 2 && delta_col == 0 && piece[to] == EMPTY && piece[from + (side == 0 ? 8 : -8)] == EMPTY) { /* fine too */ }
+		else if(delta_row == 1 && delta_col == 1 && color[to] != EMPTY && color[to] == xside) { /* eating is fine */ }
+		else return false; /* not fine */
 
-		Move m = update_board(from, to);
+		Move m = make_move(from, to);
 		bool valid = true;
 		if(is_check(side)) valid = false;
 		undo_move(m);
@@ -388,7 +306,7 @@ bool is_move_valid(int from, int to) {
 
 		if(!valid) return false;
 		valid = true;
-		
+
 		Move m = update_board(from, to);
 		if(is_check(side)) valid = true;
 		undo_move(m);
@@ -398,3 +316,52 @@ bool is_move_valid(int from, int to) {
 }
 
 
+void init_board() {
+	for(int i = 0; i < 64; i++) {
+		piece[i] = initial_piece[i];
+		color[i] = initial_color[i];
+	}
+	side = WHITE;
+	castling = 63;
+	enpassant = 0;
+}
+
+void print_board() {
+	int i;
+	for(i = 56; i >= 0;) {
+		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
+		std::cout << " ";
+
+		if(color[i] == WHITE) {
+			std::cout << WHITE_COLOR;
+			if(piece[i] == PAWN) std::cout << 'P';
+			else if(piece[i] == KNIGHT) std::cout << 'N';
+			else if(piece[i] == BISHOP) std::cout << 'B';
+			else if(piece[i] == ROOK) std::cout << 'R';
+			else if(piece[i] == QUEEN) std::cout << 'Q';
+			else if(piece[i] == KING) std::cout << 'K';
+		} else if(color[i] == BLACK) {
+			std::cout << WHITE_COLOR;
+			if(piece[i] == PAWN) std::cout << 'p';
+			else if(piece[i] == KNIGHT) std::cout << 'n';
+			else if(piece[i] == BISHOP) std::cout << 'b';
+			else if(piece[i] == ROOK) std::cout << 'r';
+			else if(piece[i] == QUEEN) std::cout << 'q';
+			else if(piece[i] == KING) std::cout << 'k';
+		} else if(color[i] == EMPTY) {
+			std::cout << EMPTY_COLOR << '.';
+		}
+
+		std::cout << RESET_COLOR;
+		if((i + 1) % 8 == 0) {
+			std::cout << '\n';
+			i -= 15;
+		} else {
+			i++;
+		}
+	}
+
+ 	std::cout << '\n' << "   ";
+	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
+	std::cout << "\n\n";
+}

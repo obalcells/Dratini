@@ -2,12 +2,14 @@
 int color[64];
 int piece[64];
 int side;
-int flags; //stores castling as well as en-passant flags
+int xside;
+int castling;
+int enpassant;
 
 int piece_value[6] = { 100, 300, 300, 500, 900 };
-bool slide[6] = { false, false, true, true, true, false}; 
+bool slide[6] = { false, false, true, true, true, false};
 
-//inverted
+//WHITE -> 0, BLACK -> 1
 int initial_color[64] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
