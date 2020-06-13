@@ -3,7 +3,7 @@ OBJECT_FILES = \
 	data.o \
 	main.o
 
-all: obce
+all: engine
 
 obce: $(OBJECT_FILES)
 	g++ -O3 -o engine $(OBJECT_FILES)

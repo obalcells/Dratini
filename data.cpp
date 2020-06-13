@@ -3,8 +3,8 @@ int color[64];
 int piece[64];
 int side;
 int xside;
-int castling;
-int enpassant;
+char castling;
+char enpassant;
 
 int piece_value[6] = { 100, 300, 300, 500, 900 };
 bool slide[6] = { false, false, true, true, true, false};
