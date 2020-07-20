@@ -1,13 +1,23 @@
 #include <iostream>
+#include <vector>
+#include "defs.h"
 #include "data.h"
 #include "protos.h"
+#include "search.h"
 
 int main() {
 
 	init_board();
-	print_board();
+	//print_board();
 
 	for(;;) {
+
+    if(side == BLACK) {
+      std::cout << "THINKING..." << '\n';
+      think(0);
+      make_move((int)next_move.from, (int)next_move.to, QUEEN);
+      continue;
+    }
 
 		std::cout<< "\nengine> ";
 		std::string raw_input;
@@ -31,10 +41,13 @@ int main() {
 			if(from == -1) {
 				std::cout << "\nError at parsing input, try again\n";
 			} else {
-				make_move(from, to, QUEEN);
-				side ^= 1;
-				std::cout << '\n';
-				print_board();
+				int error_code = move_valid(from, to);
+				if(error_code != 0) {
+					std::cout << "Invalid move '" <<  raw_input << "' " << error_code << '\n';
+					std::cout << from << " "  << to << '\n';
+				} else {
+					make_move(from, to, QUEEN);
+				}
 			}
 		}
 	}

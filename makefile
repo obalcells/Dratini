@@ -1,11 +1,12 @@
 OBJECT_FILES = \
-	board.o \
 	data.o \
+	board.o \
+  search.o \
 	main.o
 
 all: engine
 
-obce: $(OBJECT_FILES)
+engine: $(OBJECT_FILES)
 	g++ -O3 -o engine $(OBJECT_FILES)
 
 %.o: %.c data.h

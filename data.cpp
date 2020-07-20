@@ -1,15 +1,25 @@
+#include <vector>
+#include "defs.h"
+#include "protos.h"
 
 int color[64];
 int piece[64];
 int side;
 int xside;
-char castling;
-char enpassant;
+int castling;
+int enpassant;
+
+int MAX_DEPTH = 3;
+Move next_move;
+
+int nodes = 0;
+
+std::vector<Move> move_stack;
 
 int piece_value[6] = { 100, 300, 300, 500, 900 };
 bool slide[6] = { false, false, true, true, true, false};
 
-//WHITE -> 0, BLACK -> 1
+// WHITE = 0, BLACK = 1
 int initial_color[64] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -38,8 +48,8 @@ int offset[6][8] = {
 	{  6, 15, 17, 10, -6, -15, -17, -10 },
 	{  7,  9, -7, -9,  0,   0,   0,   0 },
 	{ -1,  8,  1, -8,  0,   0,   0,   0 },
-	{ -1, -7,  8,  9,  1,  -7,  -8,  -9 },
-	{ -1, -7,  8,  9,  1,  -7,  -8,  -9 },
+	{ -1,  7,  8,  9,  1,  -7,  -8,  -9 },
+	{ -1,  7,  8,  9,  1,  -7,  -8,  -9 },
 };
 
 
