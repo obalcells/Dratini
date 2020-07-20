@@ -72,22 +72,25 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 	enpassant = 0; //reset the enpassant flag
 	int captured = EMPTY;
 
-  side ^= 1;
-  xside ^= 1;
-
 	if(piece[from] == PAWN && piece[to] == EMPTY && col(from) != col(to)) {
 		// eat enpassant
 		int adjacent = row(from) * 8 + col(to);
 		assert(piece[adjacent] == PAWN);
 		assert(color[adjacent] != color[from]);
 		piece[adjacent] = EMPTY;
-		color[adjacent] = EMPTY;
+	  color[adjacent] = EMPTY;
 
 	} else if(piece[from] == PAWN && (row(to) == 0 || row(to) == 7)) {
 		// promote a pawn
 		captured = PAWN;
 		piece[to] = promotion_piece;
 		color[to] = side;
+    piece[from] = EMPTY;
+    color[from] = EMPTY;
+
+    side ^= 1;
+    xside ^= 1;
+	  return Move({ char(from), char(to), char(PAWN), char(prev_castling), char(prev_enpassant) });
 
 	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
 		// castling
@@ -130,7 +133,10 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 	piece[from] = EMPTY;
 	color[from] = EMPTY;
 
-	return Move({ char(from), char(to), char(captured), char(prev_enpassant), char(prev_castling) });
+  xside = side;
+  side ^= 1;
+
+	return Move({ char(from), char(to), char(captured), char(prev_castling), char(prev_enpassant) });
 }
 
 void undo_move(Move m) {
@@ -139,9 +145,6 @@ void undo_move(Move m) {
 	assert(color[m.from] == EMPTY);
 	assert(piece[m.to] != EMPTY);
 	assert(color[m.to] != EMPTY);
-
-  side ^= 1;
-  xside ^= 1;
 
 	if(piece[m.to] == PAWN && col(m.from) != col(m.to) && m.captured == EMPTY) {
 		// eat enpassant
@@ -190,16 +193,17 @@ void undo_move(Move m) {
 	} else {
 		// anything else
 		piece[m.from] = piece[m.to];
-		color[m.from] = color[m.to];
-    assert(color[m.to] == side); 
+	  color[m.from] = color[m.to];
 
 		piece[m.to] = m.captured;
-		color[m.to] = (piece[m.from] == WHITE ? BLACK : WHITE);
+		color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
 		if(piece[m.to] == EMPTY) color[m.to] = EMPTY;
 	}
 
   castling = m.castling;
   enpassant = m.enpassant;
+  side ^= 1;
+  xside ^= 1;
 }
 
 int move_valid(int from, int to) {
@@ -298,11 +302,12 @@ void generate_moves() {
     assert(from >= 0 && to >= 0);
 		Move m = make_move(from, to);
 		if(!is_check(side)) {
-      undo_move(m);
+      undo_move(m); // wrong thing happens here!!!
       int error_code = move_valid(from, to);
       if(error_code != 0) {
-        std::cout << "Move " << from << " " << to << " isn't valid, error = " << error_code << "\n";
-        assert(false);
+        std::cout << "Generated move " << from << " " << to << " isn't valid, error = " << error_code << "\n";
+        print_board();
+        assert(error_code == 0);
       } 
       move_stack.push_back(m); // too slow? (is_check(...))
     } else {
@@ -347,11 +352,10 @@ void generate_moves() {
 			if(piece[pos] == KING) {
 				// castling
 				if(side == WHITE && castling & 4) {
-					if(castling & 1 && move_valid(4, 2)) add_move(4, 2);
-					if(castling & 2 && move_valid(4, 6)) add_move(4, 6);
-				} else if(side == BLACK && castling & 32) {
-					if(castling & 8 && move_valid(4, 2)) add_move(4, 2);
-					if(castling & 16 && move_valid(4, 2)) add_move(4, 2);
+					if(castling & 1 && move_valid(4, 2) == 0) add_move(4, 2);
+					if(castling & 2 && move_valid(4, 6) == 0) add_move(4, 6);
+					if(castling & 8 && move_valid(60, 58) == 0) add_move(60, 58);
+					if(castling & 16 && move_valid(60, 62) == 0) add_move(60, 62);
 				}
 			}
 
@@ -367,7 +371,7 @@ void generate_moves() {
 					new_pos += offset[piece[pos]][i];
 				}
 
-				if(color[new_pos] == xside) {
+				if(color[new_pos] != side) {
 					add_move(pos, new_pos);
 				}
 			}
@@ -423,5 +427,5 @@ void print_board() {
 
  	std::cout << '\n' << "   ";
 	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
-	std::cout << "\n Parameters: " << side << " " << xside << " " << castling << " " << enpassant << "\n\n";
+  std::cout << "\n\n"; //std::cout << "\n Parameters: " << side << " " << xside << " " << castling << " " << enpassant << "\n\n";
 }

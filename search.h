@@ -1,1 +1,1 @@
-extern void think(int)
+extern void think(int);

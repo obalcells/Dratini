@@ -8,12 +8,12 @@
 int main() {
 
 	init_board();
-	//print_board();
 
 	for(;;) {
 
+    print_board();
+
     if(side == BLACK) {
-      std::cout << "THINKING..." << '\n';
       think(0);
       make_move((int)next_move.from, (int)next_move.to, QUEEN);
       continue;
