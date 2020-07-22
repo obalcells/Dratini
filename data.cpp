@@ -10,10 +10,9 @@ int castling;
 int enpassant;
 
 int MAX_DEPTH = 3;
-Move next_move;
-
 int nodes = 0;
 
+Move next_move;
 std::vector<Move> move_stack;
 
 int piece_value[6] = { 100, 300, 300, 500, 900 };

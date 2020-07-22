@@ -13,6 +13,10 @@ void think(int seconds) {
 }
 
 int search(int depth, bool root = false) {
+  if(++nodes & 1023 == 0) {
+    std::cout << "Number of nodes: " << nodes << ", Sz of stack is " << move_stack.size() << '\n';
+  }
+
   if(depth <= 0) {
     return eval();
   }
@@ -22,22 +26,22 @@ int search(int depth, bool root = false) {
   int last_move = (int)move_stack.size() - 1;
 
   Move best_move;
-  int best_score = 0;
+  int best_score = 99999;
 
   for(int i = last_move; i >= first_move; i--) {
     int from_before = (int)move_stack[i].from;
     int to_before = (int)move_stack[i].to;
 
-    std::cout << "Making move " << from_before << " " << to_before << '\n';
-    print_board();
     make_move((int)move_stack[i].from, (int)move_stack[i].to, QUEEN);
+    //std::cout << from_before << " -> " << to_before << '\n'; 
+    //print_board();
 
     int score = search(depth - 1);
 
-    if(side == WHITE && score > best_score) {
+    if(side == WHITE && (score == 99999 || score > best_score)) {
       best_move = move_stack[i];
       best_score = score;
-    } else if(side == BLACK && score < best_score) {
+    } else if(side == BLACK && (score == 99999 || score < best_score)) {
       best_move = move_stack[i];
       best_score = score;
     }
@@ -45,7 +49,7 @@ int search(int depth, bool root = false) {
     assert(from_before == (int)move_stack[i].from);
     assert(to_before == (int)move_stack[i].to);
 
-    undo_move(move_stack[i]);
+    take_back(move_stack[i]);
     move_stack.pop_back();
   }
 

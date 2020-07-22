@@ -17,11 +17,29 @@
 #define BLACK_COLOR "\033[36m"
 #define WHITE_COLOR "\033[37m"
 
+#define endl '\n'
+
 struct Move {
-    char from;
-    char to;
-    char captured;
-    char castling;
-    char enpassant;
+    int from;
+    int to;
+    int captured;
+    int castling;
+    int enpassant;
+    bool promotion;
+
+    Move() {
+      from = -1; to = -1; captured = EMPTY;
+      castling = 0; enpassant = 0; promotion = false; 
+    }
+
+    Move(int _from, int _to, int _captured, int _castling, int _enpassant) {
+      from = _from; to = _to; captured = _captured;
+      castling = _castling; enpassant = _enpassant; promotion = false;
+    }
+
+    Move(int _from, int _to, int _captured, int _castling, int _enpassant, bool _promotion) {
+      from = _from; to = _to; captured = _captured;
+      castling = _castling; enpassant = _enpassant; promotion = _promotion;
+    }
 };
 

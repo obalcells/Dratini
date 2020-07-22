@@ -10,79 +10,96 @@ inline bool valid_pos(int x) { return x >= 0 && x < 64; }
 inline int distance(int pos_1, int pos_2) { return abs(row(pos_1)-row(pos_2)) + abs(col(pos_1)-col(pos_2)); }
 inline bool valid_distance(int pos_1, int pos_2) { return pos_1 >= 0 && pos_1 < 64 && pos_2 >= 0 && pos_2 < 64 && distance(pos_1, pos_2) <= 3; }
 
-bool is_attacked(int pos, int e_color = EMPTY) {
-	if(e_color == EMPTY) {
-		// we have to know who is the attacker
-		if(color[pos] != EMPTY) e_color = color[pos] == WHITE ? BLACK : WHITE;
-		else assert(e_color != EMPTY);
-	}
+bool is_attacked(int pos, int attacker_side) {
+  assert(attacker_side == WHITE || attacker_side == BLACK);
 
 	//pawns
-	if(e_color == BLACK) {
-		if(valid_distance(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == e_color) return true;
-		if(valid_distance(pos, pos + 9) && piece[pos + 9] == PAWN && color[pos + 9] == e_color) return true;
-	} else if(e_color == WHITE) {
-		if(valid_distance(pos, pos - 7) && piece[pos + 7] == PAWN && color[pos + 7] == e_color) return true;
-		if(valid_distance(pos, pos - 9) && piece[pos + 9] == PAWN && color[pos + 9] == e_color) return true;
+	if(attacker_side == BLACK) {
+		if(valid_distance(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == attacker_side) return true;
+		if(valid_distance(pos, pos + 9) && piece[pos + 9] == PAWN && color[pos + 9] == attacker_side) return true;
+	} else {
+		if(valid_distance(pos, pos - 7) && piece[pos - 7] == PAWN && color[pos - 7] == attacker_side) return true;
+		if(valid_distance(pos, pos - 9) && piece[pos - 9] == PAWN && color[pos - 9] == attacker_side) return true;
 	}
 
-  int new_pos = pos, prev_pos;
+  int i, new_pos = pos;
 
 	//knight's offset
-	for(int i = 0; i < 8; i++) {
-		if(offset[KNIGHT][i] == 0) break;
+	for(i = 0; i < 8; i++) { 
+		if(offset[KNIGHT][i] == 0) break; // done
 		if(!valid_distance(pos, pos + offset[KNIGHT][i])) continue;
-		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == e_color) return true;
+		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == attacker_side) return true;
 	}
 
-	//bishop's offset
-	for(int i = 0; i < 8; i++) {
-		if(offset[BISHOP][i] == 0) break;
-		if(!valid_distance(pos, pos + offset[BISHOP][i])) continue;
-		new_pos = pos + offset[BISHOP][i]; prev_pos = pos;
-		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos] == EMPTY) new_pos += offset[BISHOP][i];
-		assert(valid_pos(new_pos));
-		if((piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == e_color) return true;
+	//bishop's and queen's offset
+	for(int i = 0; i < 8; i++) if(offset[BISHOP][i] != 0) { 
+		new_pos = pos;
+		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos + offset[BISHOP][i]] == EMPTY) {
+      new_pos += offset[BISHOP][i];
+    }
+		if((piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
 	}
 
-	//rook's offset
-	for(int i = 0; i < 8; i++) {
-		if(offset[ROOK][i] == 0) break;
-		if(!valid_distance(pos, pos + offset[ROOK][i])) continue;
-		new_pos = pos + offset[ROOK][i]; prev_pos = pos;
-		while(valid_distance(new_pos, new_pos + offset[ROOK][i]) && color[new_pos] == EMPTY) new_pos += offset[ROOK][i];
-		assert(valid_pos(new_pos));
-		if((piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == e_color) return true;
+	//rook's and queen's offset
+	for(int i = 0; i < 8; i++) if(offset[ROOK][i] != 0) {
+		new_pos = pos;
+    while(valid_distance(new_pos, new_pos + offset[ROOK][i]) && color[new_pos + offset[ROOK][i]] == EMPTY) {
+      new_pos += offset[ROOK][i];
+    }
+		if((piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
 	}
+
+  for(int delta : { 8, 9, 1, -7, -8, -9, -1, 7}) {
+    if(valid_pos(pos + delta) && piece[pos + delta] == KING && color[pos + delta] == attacker_side) return true;
+  }
 
 	return false;
 }
 
-bool is_check(int _side) {
-	for(int i = 0; i < 64; i++) {
-		if(piece[i] == KING && color[i] == _side) {
-			return is_attacked(i, _side ^ 1);
+
+bool in_check(int _side) {
+	for(int pos = 0; pos < 64; pos++) {
+		if(piece[pos] == KING && color[pos] == _side) {
+			return is_attacked(pos, _side ^ 1);
 		}
 	}
 }
 
+// we assume that the move is valid
 Move make_move(int from, int to, int promotion_piece = QUEEN) {
-  int prev_enpassant = enpassant;
+  assert(piece[from] != EMPTY);
+
+  int prev_enpassant = enpassant; // store previous flags 
   int prev_castling = castling;
-	enpassant = 0; //reset the enpassant flag
+
 	int captured = EMPTY;
+	enpassant = 0; //reset the enpassant flag
 
 	if(piece[from] == PAWN && piece[to] == EMPTY && col(from) != col(to)) {
 		// eat enpassant
 		int adjacent = row(from) * 8 + col(to);
 		assert(piece[adjacent] == PAWN);
 		assert(color[adjacent] != color[from]);
+
 		piece[adjacent] = EMPTY;
 	  color[adjacent] = EMPTY;
+    piece[to] = piece[from];
+    color[to] = color[from];
+    piece[from] = EMPTY;
+    color[from] = EMPTY;
+
+    side ^= 1;
+    xside ^= 1;
+    return Move({ from, to, EMPTY, prev_castling, prev_enpassant });
 
 	} else if(piece[from] == PAWN && (row(to) == 0 || row(to) == 7)) {
-		// promote a pawn
-		captured = PAWN;
+    // promote a pawn
+    if(col(to) != col(from)) {
+      assert(abs(col(to) - col(from)) == 1); 
+      assert(color[from] != color[to]);
+    }
+   
+    captured = piece[to];
 		piece[to] = promotion_piece;
 		color[to] = side;
     piece[from] = EMPTY;
@@ -90,7 +107,7 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 
     side ^= 1;
     xside ^= 1;
-	  return Move({ char(from), char(to), char(PAWN), char(prev_castling), char(prev_enpassant) });
+	  return Move({ from, to, captured, prev_castling, prev_enpassant, true });
 
 	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
 		// castling
@@ -111,15 +128,15 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 		// anything else
 		if(piece[from] == KING) {
 			// disable castling flag for the king
-			if(side == 0 && (castling & 4)) castling ^= 4;
-			else if(side == 1 && (castling & 32)) castling ^= 32;
+			if(side == WHITE && (castling & 4)) castling ^= 4;
+			else if(side == BLACK && (castling & 32)) castling ^= 32;
 
 		} else if(piece[from] == ROOK) {
 			// disable castling flag for this rook
-			if(side == 0 && from == 0 && (castling << 1)) castling ^= 1;
-			else if(side == 0 && from == 7 && (castling << 2)) castling ^= 2;
-			else if(side == 1 && from == 54 && (castling << 8)) castling ^= 8;
-			else if(side == 1 && from == 63 && (castling << 16)) castling ^= 16;
+			if(side == WHITE && from == 0 && (castling << 1)) castling ^= 1;
+			else if(side == WHITE && from == 7 && (castling << 2)) castling ^= 2;
+			else if(side == BLACK && from == 54 && (castling << 8)) castling ^= 8;
+			else if(side == BLACK && from == 63 && (castling << 16)) castling ^= 16;
 
 		} else if(piece[from] == PAWN && abs(row(from) - row(to)) == 2) {
 			// pawn moving two squares
@@ -133,40 +150,35 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 	piece[from] = EMPTY;
 	color[from] = EMPTY;
 
-  xside = side;
   side ^= 1;
-
-	return Move({ char(from), char(to), char(captured), char(prev_castling), char(prev_enpassant) });
+  xside ^= 1;
+	return Move({ from, to, captured, prev_castling, prev_enpassant });
 }
 
-void undo_move(Move m) {
-
+void take_back(Move m) {
 	assert(piece[m.from] == EMPTY);
 	assert(color[m.from] == EMPTY);
 	assert(piece[m.to] != EMPTY);
 	assert(color[m.to] != EMPTY);
 
-	if(piece[m.to] == PAWN && col(m.from) != col(m.to) && m.captured == EMPTY) {
+  if(m.promotion) {
+    piece[m.from] = PAWN;
+    color[m.from] = color[m.to];
+    piece[m.to] = m.captured;
+    if(m.captured == EMPTY) color[m.to] = EMPTY;
+    else color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
+
+  } else if(piece[m.to] == PAWN && col(m.from) != col(m.to) && m.captured == EMPTY) {
 		// eat enpassant
 		assert(piece[m.to] == PAWN);
 		piece[m.from] = PAWN;
 		color[m.from] = color[m.to];
-
 		assert(m.captured == EMPTY); //enpassant captured is marked as empty
 		piece[m.to] = EMPTY;
 		color[m.to] = EMPTY;
-
 		int adjacent = 8 * row(m.from) + col(m.to);
 		piece[adjacent] = PAWN;
 		color[adjacent] = (color[m.from] == BLACK ? WHITE : BLACK);
-
-	} else if(m.captured == PAWN && (row(m.to) == 7 || row(m.to) == 0)) {
-		// promotion
-		assert(piece[m.to] == QUEEN);
-		piece[m.from] = PAWN;
-		color[m.from] = color[m.to];
-		piece[m.to] = EMPTY;
-		color[m.to] = EMPTY;
 
 	} else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) > 1) {
 		// castling
@@ -175,6 +187,7 @@ void undo_move(Move m) {
 		else if(m.from == 4 && m.to == 6) { rook_prev = 7; rook_now = 5; }
 		else if(m.from == 60 && m.to == 58) { rook_prev = 56; rook_now = 59; }
 		else if(m.from == 60 && m.to == 62) { rook_prev = 63; rook_now = 61; }
+    else assert(false); // if we get here, the move was invalid
 
 		// move back the king
 		assert(piece[m.to] == KING);
@@ -182,7 +195,6 @@ void undo_move(Move m) {
 		color[m.from] = color[m.to];
 		piece[m.to] = EMPTY;
 		color[m.to] = EMPTY;
-
 		// move back the rook
 		assert(piece[rook_now] = ROOK);
 		piece[rook_prev] = ROOK;
@@ -194,10 +206,9 @@ void undo_move(Move m) {
 		// anything else
 		piece[m.from] = piece[m.to];
 	  color[m.from] = color[m.to];
-
 		piece[m.to] = m.captured;
-		color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
-		if(piece[m.to] == EMPTY) color[m.to] = EMPTY;
+    if(m.captured == EMPTY) color[m.to] = EMPTY;
+    else color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
 	}
 
   castling = m.castling;
@@ -208,11 +219,11 @@ void undo_move(Move m) {
 
 int move_valid(int from, int to) {
 	if(from == to) return 1;
-	if(piece[from] == EMPTY) return 2;
-	if(side != color[from]) return 3;
-	if(color[from] == color[to]) return 4;
+  else if(piece[from] == EMPTY) return 2;
+  else if(side != color[from]) return 3;
+  else if(color[from] == color[to]) return 4;
 
-	if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
+  if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
 		// castling
 
 		// following conditions must hold:
@@ -230,16 +241,17 @@ int move_valid(int from, int to) {
 		else if(side == BLACK && from == 60 && to == 62 && (castling & 16) && (castling & 32)) rook_pos = 63;
 		else return 5;
 
-		int direction = (to > from) ? 1 : -1;
+		int pos = from, direction = (to > from ? 1 : -1);
+    bool done = false;
 
 		// no pieces should be in between
-		for(int pos = from + direction;; pos += direction) {
+		for(pos = from + direction; !done; pos += direction) {
 			if(pos == rook_pos) break;
 			if(piece[pos] != EMPTY) return 6;
 		}
 
 		// king isn't in check and can't be check on his way to "to"
-		for(int pos = from;; pos += direction) {
+		for(pos = from; !done; pos += direction) {
 			if(is_attacked(pos, xside)) return 7;
 			if(pos == to) break;
 		}
@@ -285,33 +297,33 @@ int move_valid(int from, int to) {
 
 			if(to == new_pos) valid = true;
 		}
-
 		if(!valid) return 14;
 	}
 
 	Move m = make_move(from, to);
-	bool valid = true; if(is_check(side)) valid = false;
-	undo_move(m);
+	bool valid = true;
+  if(in_check(side)) valid = false;
+	take_back(m);
 
 	if(valid) return 0; // move is valid
-	return 15;
+  else return 15;
 }
 
 void generate_moves() {
-	auto add_move = [&](int from, int to) {
+	auto add_move = [&](int from, int to) { // maybe too slow?
     assert(from >= 0 && to >= 0);
 		Move m = make_move(from, to);
-		if(!is_check(side)) {
-      undo_move(m); // wrong thing happens here!!!
+		if(!in_check(side)) {
+      take_back(m);
       int error_code = move_valid(from, to);
       if(error_code != 0) {
-        std::cout << "Generated move " << from << " " << to << " isn't valid, error = " << error_code << "\n";
+        std::cout << "Generated move " << from << " " << to << " is invalid, error = " << error_code << "\n";
         print_board();
         assert(error_code == 0);
       } 
-      move_stack.push_back(m); // too slow? (is_check(...))
+      move_stack.push_back(m); 
     } else {
-      undo_move(m);
+      take_back(m);
     }
 	};
 
@@ -341,14 +353,20 @@ void generate_moves() {
 			}
 
 			// enpassant
-			if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 5)) {
-				if(col(pos) > 0 && color[pos - 1] == xside && piece[pos - 1] == PAWN && enpassant == col(pos - 1)) {
-					add_move(pos, (side == WHITE ? 8 : -8) + one_forward  - 1);
+			if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
+        // to the left
+			  if(col(pos) > 0 && color[pos - 1] == xside && enpassant == col(pos - 1)) {
+          if(side == WHITE) add_move(pos, pos + 7);
+          else add_move(pos, pos - 9);
+        // to the right
 				} else if(col(pos) < 7 && color[pos + 1] == xside && piece[pos + 1] == PAWN && enpassant == col(pos + 1)) {
-					add_move(pos, (side == WHITE ? 8 : -8) + one_forward + 1);
+          if(side == WHITE) add_move(pos, pos + 9); 
+          else add_move(pos, pos - 7);
 				}
 			}
 		} else {
+      continue; // just generate pawn movements
+
 			if(piece[pos] == KING) {
 				// castling
 				if(side == WHITE && castling & 4) {

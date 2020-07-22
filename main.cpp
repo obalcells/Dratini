@@ -7,6 +7,7 @@
 
 int main() {
 
+  std::cout << '\n';
 	init_board();
 
 	for(;;) {
@@ -33,22 +34,22 @@ int main() {
 				int col_2 = raw_input[2] - 'a';
 				int row_2 = raw_input[3] - '1';
 
-				if(row_1 >= 0 && row_1 < 8 && col_1 >= 0 && col_1 < 8 && row_2 >= 0 && row_2 < 8 && col_2 >= 0 && col_2 < 8) {
+			 if(row_1 >= 0 && row_1 < 8 && col_1 >= 0 && col_1 < 8 && row_2 >= 0 && row_2 < 8 && col_2 >= 0 && col_2 < 8) {
 					from = row_1 * 8 + col_1; to = row_2 * 8 + col_2;
 				}
 			}
 
-			if(from == -1) {
-				std::cout << "\nError at parsing input, try again\n";
-			} else {
-				int error_code = move_valid(from, to);
-				if(error_code != 0) {
-					std::cout << "Invalid move '" <<  raw_input << "' " << error_code << '\n';
-					std::cout << from << " "  << to << '\n';
-				} else {
-					make_move(from, to, QUEEN);
-				}
-			}
+      if(from == -1) { 
+        std::cout << "\nError at parsing input, try again\n";
+        continue;
+      }
+
+      int error_code = move_valid(from, to);
+      if(error_code == 0) {
+        make_move(from, to, QUEEN);
+      } else {
+        std::cout << "Invalid move '" <<  raw_input << "' = " << from << " -> " << to << ". Error code is " << error_code << '\n';
+      }
 		}
 	}
 }
