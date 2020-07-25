@@ -11,6 +11,12 @@ int main();
 
 /* search.cpp */
 void think(int);
-int search(int, bool);
+int search(int, int, int);
+
+/* eval.cpp */
 int eval();
+int eval_white_pawn(int, bool);
+int eval_black_pawn(int, bool);
+int eval_king(int, bool);
+int eval_sorroundings(int, bool);
 

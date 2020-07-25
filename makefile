@@ -1,5 +1,6 @@
 OBJECT_FILES = \
 	data.o \
+	eval.o \
 	board.o \
   search.o \
 	main.o

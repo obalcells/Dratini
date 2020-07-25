@@ -1,6 +1,3 @@
-#define col(x) (x & 7)
-#define row(x) (x >> 3)
-
 #define EMPTY 6
 #define WHITE 0
 #define BLACK 1
@@ -18,6 +15,13 @@
 #define WHITE_COLOR "\033[37m"
 
 #define endl '\n'
+
+#define row(x) (x >> 3) 
+#define col(x) (x & 7)
+#define abs(x) (x < 0 ? -x : x)
+#define max(x, y) (x > y ? x : y)
+#define min(x, y) (x < y ? x : y)
+#define valid_pos(x) (x >= 0 && x < 64)
 
 struct Move {
     int from;

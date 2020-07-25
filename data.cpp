@@ -15,7 +15,6 @@ int nodes = 0;
 Move next_move;
 std::vector<Move> move_stack;
 
-int piece_value[6] = { 100, 300, 300, 500, 900 };
 bool slide[6] = { false, false, true, true, true, false};
 
 // WHITE = 0, BLACK = 1

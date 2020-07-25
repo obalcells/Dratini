@@ -5,14 +5,15 @@
 #include "protos.h"
 #include "data.h"
 
-inline int abs(int x) { return (x >= 0 ? x : -x); }
-inline bool valid_pos(int x) { return x >= 0 && x < 64; }
-inline int distance(int pos_1, int pos_2) { return abs(row(pos_1)-row(pos_2)) + abs(col(pos_1)-col(pos_2)); }
-inline bool valid_distance(int pos_1, int pos_2) { return pos_1 >= 0 && pos_1 < 64 && pos_2 >= 0 && pos_2 < 64 && distance(pos_1, pos_2) <= 3; }
+inline int distance(int pos_1, int pos_2) {
+  return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2)); 
+}
+
+inline bool valid_distance(int pos_1, int pos_2) {
+  return valid_pos(pos_1) && valid_pos(pos_2) && distance(pos_1, pos_2) <= 3;
+}
 
 bool is_attacked(int pos, int attacker_side) {
-  assert(attacker_side == WHITE || attacker_side == BLACK);
-
 	//pawns
 	if(attacker_side == BLACK) {
 		if(valid_distance(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == attacker_side) return true;
@@ -29,25 +30,29 @@ bool is_attacked(int pos, int attacker_side) {
 		if(offset[KNIGHT][i] == 0) break; // done
 		if(!valid_distance(pos, pos + offset[KNIGHT][i])) continue;
 		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == attacker_side) return true;
-	}
+	} 
 
 	//bishop's and queen's offset
-	for(int i = 0; i < 8; i++) if(offset[BISHOP][i] != 0) { 
+	for(int i = 0; i < 8; i++) { 
+    if(offset[BISHOP][i] == 0) break;
 		new_pos = pos;
-		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos + offset[BISHOP][i]] == EMPTY) {
+		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos + offset[BISHOP][i]] != (attacker_side ^ 1)) {
       new_pos += offset[BISHOP][i];
+      if((piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
+      else if(color[new_pos] == attacker_side) break;
     }
-		if((piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
-	}
+  }
 
 	//rook's and queen's offset
-	for(int i = 0; i < 8; i++) if(offset[ROOK][i] != 0) {
+	for(int i = 0; i < 8; i++) {
+    if(offset[ROOK][i] == 0) break;
 		new_pos = pos;
-    while(valid_distance(new_pos, new_pos + offset[ROOK][i]) && color[new_pos + offset[ROOK][i]] == EMPTY) {
+    while(valid_distance(new_pos, new_pos + offset[ROOK][i]) && color[new_pos + offset[ROOK][i]] != (attacker_side ^ 1)) {
       new_pos += offset[ROOK][i];
+      if((piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
+      else if(color[new_pos] == attacker_side) break;
     }
-		if((piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
-	}
+  }
 
   for(int delta : { 8, 9, 1, -7, -8, -9, -1, 7}) {
     if(valid_pos(pos + delta) && piece[pos + delta] == KING && color[pos + delta] == attacker_side) return true;
@@ -60,7 +65,7 @@ bool is_attacked(int pos, int attacker_side) {
 bool in_check(int _side) {
 	for(int pos = 0; pos < 64; pos++) {
 		if(piece[pos] == KING && color[pos] == _side) {
-			return is_attacked(pos, _side ^ 1);
+		  return is_attacked(pos, _side ^ 1);
 		}
 	}
 }
@@ -71,7 +76,6 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 
   int prev_enpassant = enpassant; // store previous flags 
   int prev_castling = castling;
-
 	int captured = EMPTY;
 	enpassant = 0; //reset the enpassant flag
 
@@ -180,7 +184,7 @@ void take_back(Move m) {
 		piece[adjacent] = PAWN;
 		color[adjacent] = (color[m.from] == BLACK ? WHITE : BLACK);
 
-	} else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) > 1) {
+  } else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) > 1) {
 		// castling
 		int rook_prev = -1, rook_now = -1;
 		if(m.from == 4 && m.to == 2) { rook_prev = 0; rook_now = 3; }
@@ -302,7 +306,7 @@ int move_valid(int from, int to) {
 
 	Move m = make_move(from, to);
 	bool valid = true;
-  if(in_check(side)) valid = false;
+  if(in_check(xside)) valid = false; // remember that side gets flipped
 	take_back(m);
 
 	if(valid) return 0; // move is valid
@@ -312,12 +316,14 @@ int move_valid(int from, int to) {
 void generate_moves() {
 	auto add_move = [&](int from, int to) { // maybe too slow?
     assert(from >= 0 && to >= 0);
-		Move m = make_move(from, to);
-		if(!in_check(side)) {
+    int _side = color[from];
+		Move m = make_move(from, to); 
+    assert(_side == xside);
+		if(!in_check(_side)) {
       take_back(m);
       int error_code = move_valid(from, to);
       if(error_code != 0) {
-        std::cout << "Generated move " << from << " " << to << " is invalid, error = " << error_code << "\n";
+        std::cout << "Generated move by " << piece[from] << " " << from << " " << to << " is invalid, error = " << error_code << "\n";
         print_board();
         assert(error_code == 0);
       } 
@@ -355,7 +361,7 @@ void generate_moves() {
 			// enpassant
 			if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
         // to the left
-			  if(col(pos) > 0 && color[pos - 1] == xside && enpassant == col(pos - 1)) {
+			  if(col(pos) > 0 && color[pos - 1] == xside && piece[pos - 1] == PAWN && enpassant == col(pos - 1)) {
           if(side == WHITE) add_move(pos, pos + 7);
           else add_move(pos, pos - 9);
         // to the right
@@ -365,8 +371,6 @@ void generate_moves() {
 				}
 			}
 		} else {
-      continue; // just generate pawn movements
-
 			if(piece[pos] == KING) {
 				// castling
 				if(side == WHITE && castling & 4) {
@@ -379,19 +383,21 @@ void generate_moves() {
 
 			for(int i = 0; i < 8; i++) {
 				if(offset[piece[pos]][i] == 0) break;
+        int new_pos = pos + offset[piece[pos]][i];
 
-				int prev_pos = pos, new_pos = pos + offset[piece[pos]][i];
-				if(!valid_pos(new_pos) || distance(prev_pos, new_pos) > 3) continue;
-
-				while(slide[piece[pos]] && valid_pos(new_pos) && distance(prev_pos, new_pos) <= 3 && color[new_pos] == EMPTY) {
-					add_move(pos, new_pos);
-					prev_pos = new_pos;
-					new_pos += offset[piece[pos]][i];
-				}
-
-				if(color[new_pos] != side) {
-					add_move(pos, new_pos);
-				}
+        if(!slide[piece[pos]]) {
+          if(valid_distance(pos, new_pos) && color[new_pos] != side) {
+            add_move(pos, new_pos);
+          }
+        } else {
+          int prev_pos = pos;
+          while(valid_distance(prev_pos, new_pos) && color[new_pos] != side) {
+            add_move(pos, new_pos);
+            if(color[new_pos] == xside) break;
+            prev_pos = new_pos;
+            new_pos += offset[piece[pos]][i];
+          }
+        }
 			}
 		}
 	}
