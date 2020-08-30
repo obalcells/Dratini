@@ -1,6 +1,6 @@
 OBJECT_FILES = \
 	data.o \
-	eval.o \
+	eval_tscp.o \
 	board.o \
   search.o \
 	main.o
@@ -8,7 +8,7 @@ OBJECT_FILES = \
 all: engine
 
 engine: $(OBJECT_FILES)
-	g++ -O3 -o engine $(OBJECT_FILES)
+	g++ -O3 -o e $(OBJECT_FILES)
 
 %.o: %.c data.h
 	g++ -O3 -c $< -o $@

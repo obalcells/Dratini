@@ -1,3 +1,6 @@
+#define ll long long
+#define endl '\n'
+
 #define EMPTY 6
 #define WHITE 0
 #define BLACK 1
@@ -14,11 +17,12 @@
 #define BLACK_COLOR "\033[36m"
 #define WHITE_COLOR "\033[37m"
 
-#define endl '\n'
+#define ENPASSANT_INDEX 6
+#define CASTLING_INDEX 7
 
-#define row(x) (x >> 3) 
+#define row(x) (x >> 3)
 #define col(x) (x & 7)
-#define abs(x) (x < 0 ? -x : x)
+inline int abs(int x) { if(x < 0) return x * (-1); return x; }
 #define max(x, y) (x > y ? x : y)
 #define min(x, y) (x < y ? x : y)
 #define valid_pos(x) (x >= 0 && x < 64)
@@ -33,7 +37,12 @@ struct Move {
 
     Move() {
       from = -1; to = -1; captured = EMPTY;
-      castling = 0; enpassant = 0; promotion = false; 
+      castling = 0; enpassant = 0; promotion = false;
+    }
+
+    Move(int _from, int _to) {
+      from = _from; to = _to; captured = EMPTY;
+      castling = 0; enpassant = 0; promotion = false;
     }
 
     Move(int _from, int _to, int _captured, int _castling, int _enpassant) {
@@ -45,5 +54,22 @@ struct Move {
       from = _from; to = _to; captured = _captured;
       castling = _castling; enpassant = _enpassant; promotion = _promotion;
     }
+};
+
+struct PV_Entry {
+  ll state_key;
+  int beta;
+  int from; int to;
+
+  PV_Entry() {
+    state_key = 0ll;
+    beta = 0;
+    from = -1; to = -1;
+  }
+
+  PV_Entry(ll _state_key, int _beta, int _from, int _to) {
+    state_key = _state_key;
+    from = _from; to = _to;
+  }
 };
 

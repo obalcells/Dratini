@@ -6,7 +6,7 @@
 #include "data.h"
 
 inline int distance(int pos_1, int pos_2) {
-  return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2)); 
+  return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2));
 }
 
 inline bool valid_distance(int pos_1, int pos_2) {
@@ -26,14 +26,14 @@ bool is_attacked(int pos, int attacker_side) {
   int i, new_pos = pos;
 
 	//knight's offset
-	for(i = 0; i < 8; i++) { 
+	for(i = 0; i < 8; i++) {
 		if(offset[KNIGHT][i] == 0) break; // done
 		if(!valid_distance(pos, pos + offset[KNIGHT][i])) continue;
 		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == attacker_side) return true;
-	} 
+	}
 
 	//bishop's and queen's offset
-	for(int i = 0; i < 8; i++) { 
+	for(int i = 0; i < 8; i++) {
     if(offset[BISHOP][i] == 0) break;
 		new_pos = pos;
 		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos + offset[BISHOP][i]] != (attacker_side ^ 1)) {
@@ -72,10 +72,10 @@ bool in_check(int _side) {
 
 // we assume that the move is valid
 Move make_move(int from, int to, int promotion_piece = QUEEN) {
-  assert(piece[from] != EMPTY);
+  	assert(piece[from] != EMPTY);
 
-  int prev_enpassant = enpassant; // store previous flags 
-  int prev_castling = castling;
+  	int prev_enpassant = enpassant; // store previous flags
+  	int prev_castling = castling;
 	int captured = EMPTY;
 	enpassant = 0; //reset the enpassant flag
 
@@ -86,32 +86,32 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 		assert(color[adjacent] != color[from]);
 
 		piece[adjacent] = EMPTY;
-	  color[adjacent] = EMPTY;
-    piece[to] = piece[from];
-    color[to] = color[from];
-    piece[from] = EMPTY;
-    color[from] = EMPTY;
+		color[adjacent] = EMPTY;
+		piece[to] = piece[from];
+		color[to] = color[from];
+		piece[from] = EMPTY;
+		color[from] = EMPTY;
 
-    side ^= 1;
-    xside ^= 1;
-    return Move({ from, to, EMPTY, prev_castling, prev_enpassant });
+		side ^= 1;
+		xside ^= 1;
+		return Move({ from, to, EMPTY, prev_castling, prev_enpassant });
 
 	} else if(piece[from] == PAWN && (row(to) == 0 || row(to) == 7)) {
-    // promote a pawn
-    if(col(to) != col(from)) {
-      assert(abs(col(to) - col(from)) == 1); 
-      assert(color[from] != color[to]);
-    }
-   
-    captured = piece[to];
+    	// promote a pawn
+		if(col(to) != col(from)) {
+			assert(abs(col(to) - col(from)) == 1);
+			assert(color[from] != color[to]);
+		}
+
+		captured = piece[to];
 		piece[to] = promotion_piece;
 		color[to] = side;
-    piece[from] = EMPTY;
-    color[from] = EMPTY;
+		piece[from] = EMPTY;
+		color[from] = EMPTY;
 
-    side ^= 1;
-    xside ^= 1;
-	  return Move({ from, to, captured, prev_castling, prev_enpassant, true });
+		side ^= 1;
+		xside ^= 1;
+		return Move({ from, to, captured, prev_castling, prev_enpassant, true });
 
 	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
 		// castling
@@ -150,12 +150,12 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 
 	captured = piece[to];
 	piece[to] = piece[from];
-  color[to] = color[from];
+	color[to] = color[from];
 	piece[from] = EMPTY;
 	color[from] = EMPTY;
 
-  side ^= 1;
-  xside ^= 1;
+	side ^= 1;
+	xside ^= 1;
 	return Move({ from, to, captured, prev_castling, prev_enpassant });
 }
 
@@ -166,6 +166,7 @@ void take_back(Move m) {
 	assert(color[m.to] != EMPTY);
 
   if(m.promotion) {
+    // promotion
     piece[m.from] = PAWN;
     color[m.from] = color[m.to];
     piece[m.to] = m.captured;
@@ -313,26 +314,78 @@ int move_valid(int from, int to) {
   else return 15;
 }
 
-void generate_moves() {
-	auto add_move = [&](int from, int to) { // maybe too slow?
-    assert(from >= 0 && to >= 0);
-    int _side = color[from];
-		Move m = make_move(from, to); 
-    assert(_side == xside);
-		if(!in_check(_side)) {
-      take_back(m);
-      int error_code = move_valid(from, to);
-      if(error_code != 0) {
-        std::cout << "Generated move by " << piece[from] << " " << from << " " << to << " is invalid, error = " << error_code << "\n";
-        print_board();
-        assert(error_code == 0);
-      } 
-      move_stack.push_back(m); 
-    } else {
-      take_back(m);
-    }
-	};
+void add_move(int from, int to) {
+  assert(from >= 0 && to >= 0);
 
+  Move m = make_move(from, to);
+
+  if(!in_check(xside)) {
+    take_back(m);
+
+    int error_code = move_valid(from, to);
+    if(error_code != 0) {
+      std::cout << "Generated move by " << piece[from] << " " << from << " " << to << " is invalid, error = " << error_code << "\n";
+      print_board();
+      assert(error_code == 0);
+    }
+
+    move_stack.push_back(m);
+
+  	} else {
+	  take_back(m);
+  	}
+}
+
+void generate_capture_moves() {
+  for(int pos = 0; pos < 64; pos++) if(color[pos] == side) {
+    if(piece[pos] == PAWN) {
+      // diagonal-capture
+      int one_forward = (side == WHITE ? pos + 8 : pos - 8);
+
+			if(valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside)
+				add_move(pos, one_forward - 1);
+
+			if(valid_distance(pos, one_forward + 1) && color[one_forward + 1] == xside)
+				add_move(pos, one_forward + 1);
+
+			// enpassant
+			if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
+        // to the left
+			  if(col(pos) > 0 && color[pos - 1] == xside && piece[pos - 1] == PAWN && enpassant == col(pos - 1)) {
+          if(side == WHITE) add_move(pos, pos + 7);
+          else add_move(pos, pos - 9);
+        // to the right
+				} else if(col(pos) < 7 && color[pos + 1] == xside && piece[pos + 1] == PAWN && enpassant == col(pos + 1)) {
+          if(side == WHITE) add_move(pos, pos + 9);
+          else add_move(pos, pos - 7);
+				}
+			}
+    } else {
+      for(int i = 0; i < 8; i++) {
+        if(offset[piece[pos]][i] == 0) break;
+        int new_pos = pos + offset[piece[pos]][i];
+
+        if(!slide[piece[pos]]) {
+          if(valid_distance(pos, new_pos) && color[new_pos] == xside) {
+            add_move(pos, new_pos);
+          }
+        } else {
+          int prev_pos = pos;
+          while(valid_distance(prev_pos, new_pos) && color[new_pos] != side) {
+            if(color[new_pos] == xside) {
+              add_move(pos, new_pos);
+              break;
+            }
+            prev_pos = new_pos;
+            new_pos += offset[piece[pos]][i];
+          }
+        }
+      }
+    }
+  }
+}
+
+void generate_moves() {
 	for(int pos = 0; pos < 64; pos++) if(color[pos] == side) {
 		if(piece[pos] == PAWN) {
 			// one forward
@@ -366,7 +419,7 @@ void generate_moves() {
           else add_move(pos, pos - 9);
         // to the right
 				} else if(col(pos) < 7 && color[pos + 1] == xside && piece[pos + 1] == PAWN && enpassant == col(pos + 1)) {
-          if(side == WHITE) add_move(pos, pos + 9); 
+          if(side == WHITE) add_move(pos, pos + 9);
           else add_move(pos, pos - 7);
 				}
 			}
@@ -453,3 +506,37 @@ void print_board() {
 	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
   std::cout << "\n\n"; //std::cout << "\n Parameters: " << side << " " << xside << " " << castling << " " << enpassant << "\n\n";
 }
+
+void save_snapshot(std::string snapshot_name) {
+  freopen((snapshot_name + ".snapshot").c_str(), "w", stdout);
+
+  std::cout << side << endl;
+  std::cout << castling << endl;
+  std::cout << enpassant << endl;
+
+  for(int i = 0; i < 64; i++) {
+    std::cout << color[i] << " " << piece[i] << endl;
+  }
+
+  freopen("/dev/tty", "w", stdout);
+  std::cout << "Snapshot made!" << endl; // this should be printed in console
+}
+
+void load_snapshot(std::string snapshot_name) {
+  freopen((snapshot_name + ".snapshot").c_str(), "r", stdin);
+
+  std::cin >> side;
+  xside = side ^ 1;
+  std::cin >> castling;
+  std::cin >> enpassant;
+
+  for(int i = 0; i < 64; i++) {
+    std::cin >> color[i];
+    std::cin >> piece[i];
+  }
+
+  freopen("/dev/tty", "r", stdin);
+  std::cout << "Snapshot loaded!" << endl;
+}
+
+

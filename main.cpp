@@ -5,28 +5,50 @@
 #include "protos.h"
 #include "search.h"
 #include "board.h"
+// #include "eval.h"
 
 int main() {
-
   std::cout << '\n';
   init_board();
+
+  // test why the knight won't escape
+  load_snapshot("knight");
 
   for(;;) {
     print_board();
 
     if(side == BLACK) {
       think(0);
-      make_move((int)next_move.from, (int)next_move.to, QUEEN);
+      std::cout << "Move made by computer is " << next_move.from << " " << next_move.to << endl;
+      make_move(next_move.from, next_move.to, QUEEN);
       continue;
     }
 
-    std::cout<< "\nengine> ";
+    if(side == WHITE) std::cout << "White's turn..." << endl;
+    else std::cout << "Black's turn..." << endl;
+    //std::cout << "Evaluation score for this state is " << eval() << endl;
+    std::cout << "\nengine> ";
     std::string raw_input;
     std::cin >> raw_input;
 
     if(raw_input == "exit") break;
     else {
       int from = -1, to = -1;
+
+      // save snapshot
+      if(int(raw_input.size()) == 1 && raw_input[0] == 's') {
+        std::string snapshot_name;
+        std::cin >> snapshot_name;
+        save_snapshot(snapshot_name);
+      }
+
+      // load snapshot
+      if(int(raw_input.size()) == 1 && raw_input[0] == 'l') {
+        std::string snapshot_name;
+        std::cin >> snapshot_name;
+        load_snapshot(snapshot_name);
+        continue;
+      }
 
       if(int(raw_input.size()) == 4) {
         int col_1 = raw_input[0] - 'a';
@@ -39,7 +61,7 @@ int main() {
 				}
 			}
 
-      if(from == -1) { 
+      if(from == -1) {
         std::cout << "\nError at parsing input, try again\n";
         continue;
       }
