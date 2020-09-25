@@ -1,3 +1,5 @@
+#include <vector>
+
 /* state of the game */
 extern int color[64];
 extern int piece[64];

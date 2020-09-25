@@ -1,10 +1,15 @@
-
 /* board.cpp */
 void init_board();
 void print_board();
+
+/* move.cpp */
 Move make_move(int, int, int);
 void undo_move(Move);
 int move_valid(int, int);int eval();
+
+/* gen.cpp */
+void generate_moves();
+void generate_capture_moves();
 
 /* eval_tscp.cpp */
 int eval_light_pawn(int sq);

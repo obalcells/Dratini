@@ -1,8 +1,11 @@
+/* This program belongs to Tom Kerrigan's TSCP */
+/* source code here: http://www.tckerrigan.com/Chess/TSCP/ */
+
 #include <vector>
 #include <string.h>
 #include "defs.h"
-#include "data.h"
 #include "protos.h"
+#include "data.h"
 
 #define DOUBLED_PAWN_PENALTY		  10
 #define ISOLATED_PAWN_PENALTY		  20

@@ -3,8 +3,8 @@
 #include <cassert>
 #include "defs.h"
 #include "protos.h"
-#include "board.h"
 #include "data.h"
+#include "board.h"
 
 // Things we should evaluate
 // 1 Pawn

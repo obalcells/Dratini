@@ -1,15 +1,16 @@
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <sys/timeb.h>
 #include "defs.h"
 #include "protos.h"
 #include "data.h"
 #include "board.h"
+#include "gen.h"
+#include "move.h"
 // #include "eval.h"
 #include "eval_tscp.h"
 #include "hash.h"
-
-#include <sys/timeb.h>
 
 int get_ms() {
 	struct timeb timebuffer;
@@ -51,7 +52,7 @@ int search(int alpha, int beta, int depth) {
 
   Move pv_move = Move();
   if(history[state_idx].state_key == state_key) {
-    pv_move = Move({ history[state_idx].from, history[state_idx].to });
+    pv_move = Move(history[state_idx].from, history[state_idx].to);
     move_stack.push_back(pv_move); // first move to be visited
   }
 
@@ -78,9 +79,9 @@ int search(int alpha, int beta, int depth) {
 
   if(history[state_idx].state_key == 0ll
     || (history[state_idx].state_key == state_key
-       && history[state_idx].beta < beta)) {
+        && history[state_idx].beta < beta)) {
     // hasn't been set before or our beta is higher
-    history[state_idx] = PV_Entry({ get_hash(), beta, best_move.from, best_move.to });
+    history[state_idx] = PV_Entry(get_hash(), beta, best_move.from, best_move.to);
   }
 
   next_move = best_move;

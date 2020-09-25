@@ -5,27 +5,23 @@
 #include "protos.h"
 #include "search.h"
 #include "board.h"
+#include "move.h"
+#include "gen.h"
 // #include "eval.h"
 
 int main() {
   std::cout << '\n';
   init_board();
 
-  // test why the knight won't escape
-  load_snapshot("knight");
-
   for(;;) {
     print_board();
 
     if(side == BLACK) {
       think(0);
-      std::cout << "Move made by computer is " << next_move.from << " " << next_move.to << endl;
       make_move(next_move.from, next_move.to, QUEEN);
       continue;
     }
 
-    if(side == WHITE) std::cout << "White's turn..." << endl;
-    else std::cout << "Black's turn..." << endl;
     //std::cout << "Evaluation score for this state is " << eval() << endl;
     std::cout << "\nengine> ";
     std::string raw_input;

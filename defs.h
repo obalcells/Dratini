@@ -22,10 +22,12 @@
 
 #define row(x) (x >> 3)
 #define col(x) (x & 7)
-inline int abs(int x) { if(x < 0) return x * (-1); return x; }
 #define max(x, y) (x > y ? x : y)
 #define min(x, y) (x < y ? x : y)
 #define valid_pos(x) (x >= 0 && x < 64)
+inline int abs(int x) { if(x < 0) return x * (-1); return x; }
+inline int distance(int pos_1, int pos_2) { return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2)); }
+inline bool valid_distance(int pos_1, int pos_2) { return valid_pos(pos_1) && valid_pos(pos_2) && distance(pos_1, pos_2) <= 3; }	
 
 struct Move {
     int from;
@@ -57,7 +59,7 @@ struct Move {
 };
 
 struct PV_Entry {
-  ll state_key;
+  int state_key;
   int beta;
   int from; int to;
 

@@ -3,28 +3,32 @@
 #include "protos.h"
 #include "data.h"
 
-long long random_value[8][64];
-PV_Entry history[(int)4e5 + 7];
-int n_entries = (int)4e5;
+int random_value[9][64];
+PV_Entry history[1 << 20];
+int n_entries = 1 << 20;
 
-ll random_long() {
+long long random_long() {
     int ans = 0;
-    for(int i = 0; i < 64; i++)
+    for(int i = 0; i < 64; i++) {
         ans ^= rand() << i;
+    }
     return ans;
 }
 
 int random_int() {
     int ans = 0;
-    for(int i = 0; i < 32; i++)
+    for(int i = 0; i < 32; i++) {
         ans ^= rand() << i;
-    return ans;
+    }
+    return ans & (n_entries - 1);
 }
 
 void init_zobrist() {
-    for(int piece = PAWN; piece <= KING; piece++)
-        for(int pos = 0; pos < 64; pos++)
+    for(int piece = PAWN; piece <= KING; piece++) {
+        for(int pos = 0; pos < 64; pos++) {
             random_value[piece][pos] = random_long();
+        }
+    }
 
     random_value[7][0] = random_long(); // enpassant index
     random_value[8][0] = random_long(); // castling index
@@ -34,8 +38,8 @@ void init_zobrist() {
     }
 }
 
-ll get_hash() {
-    ll hash = 0ll;
+int get_hash() {
+    long long hash = 0ll;
     for(int pos = 0; pos < 64; pos++)
         if(piece[pos] != EMPTY)
             hash ^= random_value[piece[pos]][pos];
@@ -46,3 +50,6 @@ ll get_hash() {
 
     return hash;
 }
+
+// set a new element as 
+
