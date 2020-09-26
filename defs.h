@@ -36,42 +36,38 @@ struct Move {
     int castling;
     int enpassant;
     bool promotion;
-
     Move() {
       from = -1; to = -1; captured = EMPTY;
       castling = 0; enpassant = 0; promotion = false;
     }
-
     Move(int _from, int _to) {
       from = _from; to = _to; captured = EMPTY;
       castling = 0; enpassant = 0; promotion = false;
     }
-
     Move(int _from, int _to, int _captured, int _castling, int _enpassant) {
       from = _from; to = _to; captured = _captured;
       castling = _castling; enpassant = _enpassant; promotion = false;
     }
-
     Move(int _from, int _to, int _captured, int _castling, int _enpassant, bool _promotion) {
       from = _from; to = _to; captured = _captured;
       castling = _castling; enpassant = _enpassant; promotion = _promotion;
     }
+    bool operator <(const Move & b) const {
+      return true; // we only sort using first value of pair
+    }
 };
 
 struct PV_Entry {
-  int state_key;
-  int beta;
-  int from; int to;
-
+  long long state_key;
+  int alpha;
+  Move move;
   PV_Entry() {
-    state_key = 0ll;
-    beta = 0;
-    from = -1; to = -1;
+    state_key = 0ll; alpha = 0;
+    move = Move();
   }
-
-  PV_Entry(ll _state_key, int _beta, int _from, int _to) {
+  PV_Entry(long long _state_key, int _alpha, Move _move) {
     state_key = _state_key;
-    from = _from; to = _to;
+    move = Move();
   }
 };
 

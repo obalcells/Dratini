@@ -14,6 +14,12 @@ int nodes = 0;
 
 Move next_move;
 std::vector<Move> move_stack;
+std::vector<std::pair<int,Move> > unordered_move_stack;
+
+long long random_value[9][64];
+int n_entries = 1 << 20;
+PV_Entry pv_table[1 << 20];
+int history[2][64][64];
 
 bool slide[6] = { false, false, true, true, true, false};
 
@@ -40,7 +46,7 @@ int initial_piece[64] = {
 	3, 1, 2, 4, 5, 2, 1, 3
 };
 
-//cw first-range movements available
+// cw first-range movements available
 int offset[6][8] = {
 	{  0,  0,  0,  0,  0,   0,   0,   0 },
 	{  6, 15, 17, 10, -6, -15, -17, -10 },

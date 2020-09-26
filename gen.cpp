@@ -7,38 +7,47 @@
 #include "board.h"
 
 void add_move(int from, int to) {
-  assert(from >= 0 && to >= 0);
-
-  Move m = make_move(from, to, QUEEN);
-
-  if(!in_check(xside)) {
-    take_back(m);
-
-    int error_code = move_valid(from, to);
-    if(error_code != 0) {
-      print_board();
-      assert(error_code == 0);
-    }
-
-    move_stack.push_back(m);
-
-  	} else {
-	  take_back(m);
+ 	assert(from >= 0 && to >= 0);
+ 	Move m = make_move(from, to, QUEEN);
+  	if(!in_check(xside)) {
+		take_back(m);
+		int error_code = move_valid(from, to); // this should be disabled for production
+		if(error_code != 0) {
+			print_board();
+			assert(error_code == 0);
+		}
+		int score;
+		if(piece[to] != EMPTY) {
+			score = 10000 + piece_value[piece[to]] - piece_value[piece[from]];
+		} else {
+			score = history[side][from][to];
+		}
+		unordered_move_stack.push_back(std::make_pair(score, m));
+	} else {
+		take_back(m);
   	}
+}
+
+void order_and_push() {
+	sort(unordered_move_stack.rbegin(), unordered_move_stack.rend());
+	for(int i = (int)unordered_move_stack.size() - 1; i >= 0; i--) {
+		move_stack.push_back(unordered_move_stack[i].second);
+		unordered_move_stack.pop_back();
+	}
 }
 
 void generate_capture_moves() {
   for(int pos = 0; pos < 64; pos++) if(color[pos] == side) {
     if(piece[pos] == PAWN) {
-      // diagonal-capture
+     	// diagonal-capture
         int one_forward = (side == WHITE ? pos + 8 : pos - 8);
 
-        if(valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside)
+        if(valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside) {
             add_move(pos, one_forward - 1);
-
-        if(valid_distance(pos, one_forward + 1) && color[one_forward + 1] == xside)
+		}	
+        if(valid_distance(pos, one_forward + 1) && color[one_forward + 1] == xside) {
             add_move(pos, one_forward + 1);
-
+		}
         // enpassant
         if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
             // to the left
@@ -75,6 +84,7 @@ void generate_capture_moves() {
       }
     }
   }
+  order_and_push();
 }
 
 void generate_moves() {
@@ -94,7 +104,6 @@ void generate_moves() {
 					add_move(pos, two_forward);
 				}
 			}
-
 			// eating
 			if(valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside) {
 				add_move(pos, one_forward - 1);
@@ -102,7 +111,6 @@ void generate_moves() {
 			if(valid_distance(pos, one_forward + 1) && color[one_forward + 1] == xside) {
 				add_move(pos, one_forward + 1);
 			}
-
 			// enpassant
 			if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
 				// to the left
@@ -146,4 +154,5 @@ void generate_moves() {
 			}
 		}
 	}
+	order_and_push();
 }

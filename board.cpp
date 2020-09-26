@@ -15,17 +15,14 @@ bool is_attacked(int pos, int attacker_side) {
 		if(valid_distance(pos, pos - 7) && piece[pos - 7] == PAWN && color[pos - 7] == attacker_side) return true;
 		if(valid_distance(pos, pos - 9) && piece[pos - 9] == PAWN && color[pos - 9] == attacker_side) return true;
 	}
-
  	int i, new_pos = pos;
-
-	//knight's offset
+	//knights
 	for(i = 0; i < 8; i++) {
 		if(offset[KNIGHT][i] == 0) break; // done
 		if(!valid_distance(pos, pos + offset[KNIGHT][i])) continue;
 		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == attacker_side) return true;
 	}
-
-	//bishop's and queen's offset
+	//bishops and queen
 	for(int i = 0; i < 8; i++) {
     if(offset[BISHOP][i] == 0) break;
 		new_pos = pos;
@@ -34,9 +31,8 @@ bool is_attacked(int pos, int attacker_side) {
 			if((piece[new_pos] == BISHOP || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
 			else if(color[new_pos] == attacker_side) break;
  	   }
- 	 }
-
-	//rook's and queen's offset
+ 	}
+	//rook and queen
 	for(int i = 0; i < 8; i++) {
     if(offset[ROOK][i] == 0) break;
 		new_pos = pos;
@@ -46,14 +42,10 @@ bool is_attacked(int pos, int attacker_side) {
 			else if(color[new_pos] == attacker_side) break;
    		 }
   	}
-
-	// for some reason my compiler forces me to declare it
-	int delta_moves[8] = { 8, 9, 1, -7, -8, -9, -1, 7 };
-
+	int delta_moves[8] = { 8, 9, 1, -7, -8, -9, -1, 7 }; // for some reason, my compiler wants me to declare this
   	for(int i = 0; i < 8; i++) {
     	if(valid_pos(pos + delta_moves[i]) && piece[pos + delta_moves[i]] == KING && color[pos + delta_moves[i]] == attacker_side) return true;
   	}
-
 	return false;
 }
 
@@ -82,7 +74,6 @@ void print_board() {
 	for(i = 56; i >= 0;) {
 		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
 		std::cout << " ";
-
 		if(color[i] == WHITE) {
 			std::cout << WHITE_COLOR;
 			if(piece[i] == PAWN) std::cout << 'P';
@@ -102,7 +93,6 @@ void print_board() {
 		} else if(color[i] == EMPTY) {
 			std::cout << EMPTY_COLOR << '.';
 		}
-
 		std::cout << RESET_COLOR;
 		if((i + 1) % 8 == 0) {
 			std::cout << '\n';
@@ -111,7 +101,6 @@ void print_board() {
 			i++;
 		}
 	}
-
  	std::cout << '\n' << "   ";
 	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
   	std::cout << "\n\n";
@@ -120,32 +109,26 @@ void print_board() {
 
 void save_snapshot(std::string snapshot_name) {
   freopen(("./snapshots" + snapshot_name + ".snapshot").c_str(), "w", stdout);
-
   std::cout << side << endl;
   std::cout << castling << endl;
   std::cout << enpassant << endl;
-
   for(int i = 0; i < 64; i++) {
     std::cout << color[i] << " " << piece[i] << endl;
   }
-
   freopen("/dev/tty", "w", stdout);
   std::cout << "Snapshot made!" << endl; // this should be printed in console
 }
 
 void load_snapshot(std::string snapshot_name) {
   freopen(("./snapshots" + snapshot_name + ".snapshot").c_str(), "r", stdin);
-
   std::cin >> side;
   xside = side ^ 1;
   std::cin >> castling;
   std::cin >> enpassant;
-
   for(int i = 0; i < 64; i++) {
     std::cin >> color[i];
     std::cin >> piece[i];
   }
-
   freopen("/dev/tty", "r", stdin);
   std::cout << "Snapshot loaded!" << endl;
 }

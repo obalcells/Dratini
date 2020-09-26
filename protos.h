@@ -23,6 +23,7 @@ int eval_dkp(int f);
 int main();
 
 /* search.cpp */
+void age_history();
 void think(int);
 int search(int, int, int);
 int quiescence_search(int, int);

@@ -38,7 +38,8 @@
         "sstream": "cpp",
         "stdexcept": "cpp",
         "streambuf": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "iterator": "cpp"
     },
     "explorer.sortOrder": "type",
     "workbench.colorCustomizations": {
