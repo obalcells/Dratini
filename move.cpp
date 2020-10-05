@@ -75,6 +75,13 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 			else if(side == WHITE && from == 7 && (castling << 2)) castling ^= 2;
 			else if(side == BLACK && from == 54 && (castling << 8)) castling ^= 8;
 			else if(side == BLACK && from == 63 && (castling << 16)) castling ^= 16;
+			
+		} else if(piece[to] == ROOK) {
+			// disable castling flag for this rook
+			if(to == 0 && (castling << 1)) castling ^= 1;
+			else if(to == 7 && (castling << 2)) castling ^= 2;
+			else if(to == 54 && (castling << 8)) castling ^= 8;
+			else if(to == 63 && (castling << 16)) castling ^= 16;
 
 		} else if(piece[from] == PAWN && abs(row(from) - row(to)) == 2) {
 			// pawn moving two squares
@@ -99,15 +106,15 @@ void take_back(Move m) {
 	assert(piece[m.to] != EMPTY);
 	assert(color[m.to] != EMPTY);
 
-  if(m.promotion) {
-    // promotion
-    piece[m.from] = PAWN;
-    color[m.from] = color[m.to];
-    piece[m.to] = m.captured;
-    if(m.captured == EMPTY) color[m.to] = EMPTY;
-    else color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
+  	if(m.promotion) {
+		// promotion
+		piece[m.from] = PAWN;
+		color[m.from] = color[m.to];
+		piece[m.to] = m.captured;
+		if(m.captured == EMPTY) color[m.to] = EMPTY;
+		else color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
 
-  } else if(piece[m.to] == PAWN && col(m.from) != col(m.to) && m.captured == EMPTY) {
+  	} else if(piece[m.to] == PAWN && col(m.from) != col(m.to) && m.captured == EMPTY) {
 		// eat enpassant
 		assert(piece[m.to] == PAWN);
 		piece[m.from] = PAWN;
@@ -119,7 +126,7 @@ void take_back(Move m) {
 		piece[adjacent] = PAWN;
 		color[adjacent] = (color[m.from] == BLACK ? WHITE : BLACK);
 
-  } else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) > 1) {
+  	} else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) == 2) {
 		// castling
 		int rook_prev = -1, rook_now = -1;
 		if(m.from == 4 && m.to == 2) { rook_prev = 0; rook_now = 3; }

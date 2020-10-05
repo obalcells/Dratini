@@ -22,17 +22,18 @@ void think(int seconds) {
     for(int initial_depth = MAX_DEPTH; initial_depth <= MAX_DEPTH; initial_depth += 2) {
         nodes = 0;
         int initial_time = get_ms();
-        std::cout << "Searching with initial depth = " << initial_depth << "..." << endl;
-        search(-999999, 999999, initial_depth);
-        std::cout << "Best move is: " << next_move.from << " -> " << next_move.to << endl;
-        std::cout << "Nodes searched: " << nodes << endl;
-        std::cout << "Time elapsed: " << get_ms() - initial_time << " ms";
         std::cout << "........................................" << endl;
+        std::cout << "Searching with initial depth = " << initial_depth << endl;
+        search(-999999, 999999, initial_depth);
+        std::cout << "Best move is: " << str_move(next_move.from, next_move.to) << endl;
+        std::cout << "Nodes searched: " << nodes << endl;
+        std::cout << "Time elapsed: " << get_ms() - initial_time << " ms" << endl;
+        std::cout << "........................................" << endl << endl;
     }
 }
 
 int search(int alpha, int beta, int depth) {
-  assert(alpha < beta);
+  ++nodes;
 
   if(in_check(side)) {
     depth++;
@@ -56,8 +57,10 @@ int search(int alpha, int beta, int depth) {
   for(int i = last_move; i >= first_move; i--) {
     Move move = move_stack[i];
     make_move(move.from, move.to, QUEEN); // this could be sped up
+    taken_moves.push_back(move);
     int score = -search(-beta, -alpha, depth - 1);
     take_back(move);
+    taken_moves.pop_back();
     move_stack.pop_back();
     // move increases the alpha-cutoff
     if(score > alpha) {
@@ -75,6 +78,7 @@ int search(int alpha, int beta, int depth) {
     }
   }
 
+  if(empty_move(best_move)) return alpha;
   history[side][best_move.from][best_move.to] += depth * depth;
   age_history();
   pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
@@ -90,17 +94,17 @@ int quiescence_search(int alpha, int beta) {
     alpha = score;
   }
 
-  // size of stack before
   int first_move = (int)move_stack.size();
   generate_capture_moves();
-  // size of stack after move generation
   int last_move = (int)move_stack.size() - 1;
 
   for(int i = last_move; i >= first_move; i--) {
     Move move = move_stack[i];
     make_move(move.from, move.to, QUEEN);
+    taken_moves.push_back(move);
     score = -quiescence_search(-beta, -alpha);
     take_back(move);
+    taken_moves.pop_back();
     move_stack.pop_back();
     // if score 
     if(score > alpha) {

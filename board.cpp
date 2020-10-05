@@ -70,6 +70,7 @@ void init_board() {
 }
 
 void print_board() {
+	std::cout << endl;
 	int i;
 	for(i = 56; i >= 0;) {
 		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
@@ -108,7 +109,7 @@ void print_board() {
 }
 
 void save_snapshot(std::string snapshot_name) {
-  freopen(("./snapshots" + snapshot_name + ".snapshot").c_str(), "w", stdout);
+  freopen(("./snapshots/" + snapshot_name + ".snapshot").c_str(), "w", stdout);
   std::cout << side << endl;
   std::cout << castling << endl;
   std::cout << enpassant << endl;
@@ -120,7 +121,7 @@ void save_snapshot(std::string snapshot_name) {
 }
 
 void load_snapshot(std::string snapshot_name) {
-  freopen(("./snapshots" + snapshot_name + ".snapshot").c_str(), "r", stdin);
+  freopen(("./snapshots/" + snapshot_name + ".snapshot").c_str(), "r", stdin);
   std::cin >> side;
   xside = side ^ 1;
   std::cin >> castling;
@@ -131,4 +132,63 @@ void load_snapshot(std::string snapshot_name) {
   }
   freopen("/dev/tty", "r", stdin);
   std::cout << "Snapshot loaded!" << endl;
+}
+
+bool parse_move(std::string raw_input, int & from, int & to) {
+	if((int)raw_input.size() != 4) return false;
+	int col_1 = raw_input[0] - 'a';
+	int row_1 = raw_input[1] - '1';
+	int col_2 = raw_input[2] - 'a';
+	int row_2 = raw_input[3] - '1';
+	if(row_1 >= 0 && row_1 < 8 && col_1 >= 0 && col_1 < 8 && row_2 >= 0 && row_2 < 8 && col_2 >= 0 && col_2 < 8) {
+		from = row_1 * 8 + col_1; to = row_2 * 8 + col_2;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+std::string str_move(int from, int to) {
+	std::string ans = "";
+	ans += char('a' + col(from));
+	ans += char('1' + row(from));
+	ans += char('a' + col(to));
+	ans += char('1' + row(to));
+	return ans;
+}
+
+bool empty_move(Move m) {
+	return m.from == -1 && m.to == -1;
+}
+
+void init_state(State & state) {
+    state._color.resize(64);
+    state._piece.resize(64);
+    state._side = side;
+    state._xside = xside;
+    state._castling = castling;
+    state._enpassant = enpassant;
+    for(int i = 0; i < 64; i++) {
+      state._color[i] = color[i];
+      state._piece[i] = piece[i];
+    }
+}
+
+void set_state(State & state) {
+	side = state._side;
+	xside = state._xside;
+	castling = state._castling;
+	enpassant = state._enpassant;
+	for(int i = 0; i < 64; i++) {
+		color[i] = state._color[i];
+		piece[i] = state._piece[i];
+	}
+}
+
+void print_state(State & state) {
+	State state_now = State();
+	init_state(state_now);
+	set_state(state);
+	print_board();
+	set_state(state_now); // reset the state to original value
 }

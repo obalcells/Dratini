@@ -1,4 +1,6 @@
+#pragma once
 #include <vector>
+#include "defs.h"
 
 /* state of the game */
 extern int color[64];
@@ -12,6 +14,7 @@ extern int nodes;
 
 extern Move next_move;
 extern std::vector<Move> move_stack;
+extern std::vector<Move> taken_moves;
 extern std::vector<std::pair<int,Move> > unordered_move_stack;
 
 extern long long random_value[9][64];

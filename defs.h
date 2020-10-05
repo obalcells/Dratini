@@ -1,3 +1,6 @@
+#pragma once
+#include <vector>
+
 #define ll long long
 #define endl '\n'
 
@@ -29,6 +32,23 @@ inline int abs(int x) { if(x < 0) return x * (-1); return x; }
 inline int distance(int pos_1, int pos_2) { return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2)); }
 inline bool valid_distance(int pos_1, int pos_2) { return valid_pos(pos_1) && valid_pos(pos_2) && distance(pos_1, pos_2) <= 3; }	
 
+struct State {
+  std::vector<int> _color, _piece; 
+  int _side, _xside, _castling, _enpassant;
+  State() {}
+  bool same(const State & other) const {
+    if(_side != other._side) return false;
+    if(_xside != other._xside) return false;
+    if(_castling != other._castling) return false; 
+    if(_enpassant != other._enpassant) return false;
+    for(int i = 0; i < 64; i++) {
+      if(_color[i] != other._color[i]) return false;
+      if(_piece[i] != other._piece[i]) return false;
+    }
+    return true;
+  }
+};
+
 struct Move {
     int from;
     int to;
@@ -53,7 +73,8 @@ struct Move {
       castling = _castling; enpassant = _enpassant; promotion = _promotion;
     }
     bool operator <(const Move & b) const {
-      return true; // we only sort using first value of pair
+      return false;
+      // return true; // we only sort using first value of pair
     }
 };
 
@@ -62,7 +83,7 @@ struct PV_Entry {
   int alpha;
   Move move;
   PV_Entry() {
-    state_key = 0ll; alpha = 0;
+    state_key = 0; alpha = 0;
     move = Move();
   }
   PV_Entry(long long _state_key, int _alpha, Move _move) {
@@ -70,4 +91,3 @@ struct PV_Entry {
     move = Move();
   }
 };
-

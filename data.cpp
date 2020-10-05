@@ -9,21 +9,22 @@ int xside;
 int castling;
 int enpassant;
 
-int MAX_DEPTH = 3;
+int MAX_DEPTH = 6;
 int nodes = 0;
 
 Move next_move;
 std::vector<Move> move_stack;
+std::vector<Move> taken_moves;
 std::vector<std::pair<int,Move> > unordered_move_stack;
 
 long long random_value[9][64];
-int n_entries = 1 << 20;
-PV_Entry pv_table[1 << 20];
+int n_entries = 1 << 15;
+PV_Entry pv_table[1 << 15];
 int history[2][64][64];
 
-bool slide[6] = { false, false, true, true, true, false};
+bool slide[6] = { false, false, true, true, true, false };
 
-// WHITE = 0, BLACK = 1
+// 0 -> WHITE
 int initial_color[64] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
