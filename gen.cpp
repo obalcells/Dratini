@@ -25,7 +25,6 @@ void add_move(int from, int to) {
 		} else {
 			score = history[side][from][to];
 		}
-		if(piece[from] == PAWN) std::cout << "Adding a pawn move" << endl;
 		unordered_move_stack.push_back(std::make_pair(score, m));
 	} else {
 		take_back(m);
@@ -132,7 +131,6 @@ void generate_moves() {
 			int captured = EMPTY;
 			if(row(one_forward) == 0 || row(one_forward) == 7) captured = PAWN;
 			if(color[one_forward] == EMPTY) add_move(pos, one_forward);
-
 			// two forward
 			if((side == WHITE && row(pos) == 1) || (side == BLACK && row(pos) == 7)) {
 				int two_forward = (side == WHITE ? pos + 16 : pos - 16);
@@ -162,12 +160,12 @@ void generate_moves() {
 		} else {
 			if(piece[pos] == KING) {
 				// castling
-				if(side == WHITE && castling & 4) {
-					if(castling & 1 && move_valid(4, 2) == 0) add_move(4, 2);
-					if(castling & 2 && move_valid(4, 6) == 0) add_move(4, 6);
+				if(side == WHITE && (castling & 4)) {
+					if((castling & 1) && move_valid(4, 2) == 0) add_move(4, 2);
+					if((castling & 2) && move_valid(4, 6) == 0) add_move(4, 6);
 				} else if(side == BLACK && castling & 32) {
-					if(castling & 8 && move_valid(60, 58) == 0) add_move(60, 58);
-					if(castling & 16 && move_valid(60, 62) == 0) add_move(60, 62);
+					if((castling & 8) && move_valid(60, 58) == 0) add_move(60, 58);
+					if((castling & 16) && move_valid(60, 62) == 0) add_move(60, 62);
 				}
 			}
 

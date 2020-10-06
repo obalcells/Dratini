@@ -1,4 +1,5 @@
 #include <cassert>
+#include <iostream>
 #include "defs.h"
 #include "protos.h"
 #include "data.h"
@@ -69,19 +70,12 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 			if(side == WHITE && (castling & 4)) castling ^= 4;
 			else if(side == BLACK && (castling & 32)) castling ^= 32;
 
-		} else if(piece[from] == ROOK) {
+		} else if(piece[from] == ROOK || piece[from] == ROOK) {
 			// disable castling flag for this rook
-			if(side == WHITE && from == 0 && (castling << 1)) castling ^= 1;
-			else if(side == WHITE && from == 7 && (castling << 2)) castling ^= 2;
-			else if(side == BLACK && from == 54 && (castling << 8)) castling ^= 8;
-			else if(side == BLACK && from == 63 && (castling << 16)) castling ^= 16;
-			
-		} else if(piece[to] == ROOK) {
-			// disable castling flag for this rook
-			if(to == 0 && (castling << 1)) castling ^= 1;
-			else if(to == 7 && (castling << 2)) castling ^= 2;
-			else if(to == 54 && (castling << 8)) castling ^= 8;
-			else if(to == 63 && (castling << 16)) castling ^= 16;
+			if((to == 0 || from == 0) && (castling & 1)) castling ^= 1;
+			else if((to == 7 || from == 7) && (castling & 2)) castling ^= 2;
+			else if((to == 54 || from == 54) && (castling & 8)) castling ^= 8;
+			else if((to == 63 || from == 63) && (castling & 16)) castling ^= 16;
 
 		} else if(piece[from] == PAWN && abs(row(from) - row(to)) == 2) {
 			// pawn moving two squares
