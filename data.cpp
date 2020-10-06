@@ -9,7 +9,7 @@ int xside;
 int castling;
 int enpassant;
 
-int MAX_DEPTH = 6;
+int MAX_DEPTH = 4;
 int nodes = 0;
 
 Move next_move;

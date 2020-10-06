@@ -70,7 +70,7 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 			if(side == WHITE && (castling & 4)) castling ^= 4;
 			else if(side == BLACK && (castling & 32)) castling ^= 32;
 
-		} else if(piece[from] == ROOK || piece[from] == ROOK) {
+		} else if(piece[from] == ROOK || piece[to] == ROOK) {
 			// disable castling flag for this rook
 			if((to == 0 || from == 0) && (castling & 1)) castling ^= 1;
 			else if((to == 7 || from == 7) && (castling & 2)) castling ^= 2;
@@ -81,6 +81,14 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 			// pawn moving two squares
 			enpassant = col(from);
 		}
+	}
+
+	// why isn't the castling flag being disabled?
+	if(piece[from] == ROOK || piece[to] == ROOK) {
+		if((to == 0 || from == 0) && (castling & 1)) castling ^= 1;
+		else if((to == 7 || from == 7) && (castling & 2)) castling ^= 2;
+		else if((to == 54 || from == 54) && (castling & 8)) castling ^= 8;
+		else if((to == 63 || from == 63) && (castling & 16)) castling ^= 16;
 	}
 
 	captured = piece[to];
