@@ -15,7 +15,7 @@ int main() {
   init_zobrist();
 
   for(;;) {
-    // print_board();
+    print_board();
 
     if(side == BLACK) {
       think(0);
@@ -45,7 +45,7 @@ int main() {
         std::string snapshot_name;
         std::cin >> snapshot_name;
         load_snapshot(snapshot_name);
-        std::cout << "Side is now: " << side << endl;
+        std::cout << "Side is now: " << (side == WHITE ? "WHITE" : "BLACK") << endl;
         continue;
       }
   

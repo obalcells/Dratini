@@ -83,19 +83,16 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 		}
 	}
 
-	// why isn't the castling flag being disabled?
-	if(piece[from] == ROOK || piece[to] == ROOK) {
-		if((to == 0 || from == 0) && (castling & 1)) castling ^= 1;
-		else if((to == 7 || from == 7) && (castling & 2)) castling ^= 2;
-		else if((to == 54 || from == 54) && (castling & 8)) castling ^= 8;
-		else if((to == 63 || from == 63) && (castling & 16)) castling ^= 16;
-	}
-
 	captured = piece[to];
 	piece[to] = piece[from];
 	color[to] = color[from];
 	piece[from] = EMPTY;
 	color[from] = EMPTY;
+
+	if(piece[0] != ROOK && (castling & 1)) castling ^= 1;
+	if(piece[7] != ROOK && (castling & 2)) castling ^= 2;
+	if(piece[56] != ROOK && (castling & 8)) castling ^= 8;
+	if(piece[63] != ROOK && (castling & 16)) castling ^= 16;
 
 	side ^= 1;
 	xside ^= 1;
