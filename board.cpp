@@ -5,6 +5,7 @@
 #include "defs.h"
 #include "protos.h"
 #include "data.h"
+#include "hash.h"
 
 bool is_attacked(int pos, int attacker_side) {
 	//pawns
@@ -58,6 +59,7 @@ bool in_check(int _side) {
 	return false;
 }
 
+// we reset every single game variable
 void init_board() {
 	for(int i = 0; i < 64; i++) {
 		piece[i] = initial_piece[i];
@@ -67,6 +69,12 @@ void init_board() {
 	xside = BLACK;
 	castling = 63;
 	enpassant = 0;
+	nodes = 0;
+	next_move = Move();
+	while(!move_stack.empty()) move_stack.pop_back();
+	while(!taken_moves.empty()) taken_moves.pop_back();
+	while(!unordered_move_stack.empty()) unordered_move_stack.pop_back();
+	init_zobrist();
 }
 
 void print_board() {
@@ -112,6 +120,22 @@ void print_board() {
 	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
   	std::cout << "\n\n";
 	// std::cout << "\n Parameters: " << side << " " << xside << " " << castling << " " << enpassant << "\n\n";
+}
+
+int game_over() {
+	int n_moves_prev = (int)move_stack.size();
+	generate_moves();
+	int n_moves_now = (int)move_stack.size();
+	if(n_moves_prev != n_moves_now) {
+		return -1; // not over
+	} else {
+		bool white_in_check = in_check(WHITE);
+		bool black_in_check = in_check(BLACK);
+		assert(!(white_in_check && black_in_check)); // both can't be true at the same time
+		if(white_in_check) return BLACK; // BLACK WON
+		else if(black_in_check) return WHITE; // WHITE WON
+		else return EMPTY; // DRAW
+	}
 }
 
 void save_snapshot(std::string snapshot_name) {

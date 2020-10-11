@@ -4,4 +4,3 @@ engine
 #ignore vim swap files
 *.swo
 .vscode
-

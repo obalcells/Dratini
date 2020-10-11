@@ -24,6 +24,12 @@ void init_zobrist() {
     for(int entry_idx = 0; entry_idx < n_entries; entry_idx++) {
         pv_table[entry_idx] = PV_Entry();
     }
+    for(int from = 0; from < 64; from++) {
+        for(int to = 0; to < 64; to++) {
+            history[0][from][to] = 0;
+            history[1][from][to] = 0;
+        }
+    }
 }
 
 long long get_hash() {

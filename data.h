@@ -9,7 +9,6 @@ extern int side;
 extern int xside;
 extern int castling;
 extern int enpassant;
-extern int MAX_DEPTH;
 extern int nodes;
 
 extern Move next_move;
@@ -21,6 +20,8 @@ extern long long random_value[9][64];
 extern int n_entries;
 extern PV_Entry pv_table[1 << 20];
 extern int history[2][64][64];
+
+extern int MAX_DEPTH;
 
 /* helper constants */
 extern int piece_value[6];

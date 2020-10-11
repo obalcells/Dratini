@@ -20,10 +20,9 @@ void add_move(int from, int to) {
 			assert(error_code == 0);
 		}
 		int score;
+		score += history[side][from][to];
 		if(piece[to] != EMPTY) {
 			score = 10000 + piece_value[piece[to]] - piece_value[piece[from]];
-		} else {
-			score = history[side][from][to];
 		}
 		unordered_move_stack.push_back(std::make_pair(score, m));
 	} else {

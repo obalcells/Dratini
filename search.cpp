@@ -52,6 +52,16 @@ int search(int alpha, int beta, int depth) {
   int first_move = (int)move_stack.size();
   generate_moves(); // moves are already sorted
   int last_move = (int)move_stack.size() - 1;
+
+  // no moves were generated
+  if(first_move == last_move + 1) {
+    if(in_check(side)) {
+      return -999999;
+    } else {
+      return 0;
+    }
+  }
+
   Move best_move;
 
   for(int i = last_move; i >= first_move; i--) {
@@ -62,6 +72,7 @@ int search(int alpha, int beta, int depth) {
     take_back(move);
     taken_moves.pop_back();
     move_stack.pop_back();
+
     // move increases the alpha-cutoff
     if(score > alpha) {
       best_move = move;
@@ -83,6 +94,7 @@ int search(int alpha, int beta, int depth) {
   age_history();
   pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
   next_move = best_move;
+
   return alpha;
 }
 

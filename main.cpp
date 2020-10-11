@@ -7,14 +7,24 @@
 #include "board.h"
 #include "move.h"
 #include "gen.h"
-#include "hash.h"
 // #include "eval.h"
 
 int main() {
   init_board();
-  init_zobrist();
 
   for(;;) {
+    int game_result = game_over();
+
+    if(game_result != -1) {
+      if(game_result == WHITE) {
+        std::cout << "White wins" << '\n';
+      } else if(game_result == BLACK) {
+        std::cout << "Black wins" << '\n';
+      } else {
+        std::cout << "Draw" << '\n';
+      } 
+    }
+
     print_board();
 
     if(side == BLACK) {
@@ -64,4 +74,27 @@ int main() {
       }
 		}
 	}
+}
+
+// the computer plays against itself to find errors quicker
+void test() {
+	init_board();	
+
+	for(;;) {
+		int game_result = game_over();
+		
+		if(game_result != -1) {
+		if(game_result == WHITE) {
+			test(); // recursively executed
+		} else if(game_result == BLACK) {
+			test();
+		} else {
+			test();
+		} 
+	}
+
+	think(0);
+	Move move = make_move(next_move.from, next_move.to, QUEEN);
+	taken_moves.push_back(move);
+  }
 }
