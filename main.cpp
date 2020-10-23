@@ -26,7 +26,7 @@ int main() {
 		// std::cout << "Estimated score for white: " << eval() << " " << my_eval() << '\n';
 		print_board();
 		if(side == BLACK) {
-			think(0);
+			think();
 			Move move = make_move(next_move.from, next_move.to, QUEEN);
 			taken_moves.push_back(move);
 			continue;
@@ -78,7 +78,7 @@ void test() {
 		while(n_moves < 200) {
 			int game_result = game_over();
 			if(game_result != -1) break; 
-			think(0);
+			think();
 			Move move = make_move(next_move.from, next_move.to, QUEEN);
 			taken_moves.push_back(move);
 			n_moves++;

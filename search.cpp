@@ -1,4 +1,5 @@
 #include <vector>
+#include <chrono>
 #include <iostream>
 #include <cassert>
 #include <sys/timeb.h>
@@ -12,31 +13,51 @@
 #include "eval_tscp.h"
 #include "hash.h"
 
-int get_ms() {
-    struct timeb timebuffer;
-    ftime(&timebuffer);
-    return (timebuffer.time * 1000) + timebuffer.millitm;
+std::chrono::time_point<std::chrono::system_clock> initial_time;
+int nodes, printed_points;
+bool stop_search;
+
+float ellapsed_time() {
+  auto time_now = std::chrono::system_clock::now();
+  std::chrono::duration<float, std::milli> duration = time_now - initial_time;
+  return duration.count();
 }
 
-void think(int seconds) {
-    for(int initial_depth = MAX_DEPTH; initial_depth <= MAX_DEPTH; initial_depth += 2) {
-        nodes = 0;
-        int initial_time = get_ms();
-        if(!TESTING) { 
-          std::cout << "........................................" << endl;
-          std::cout << "Searching with initial depth = " << initial_depth << endl;
-        }
-        search(-999999, 999999, initial_depth);
-        if(!TESTING) {
-          std::cout << "Best move is: " << str_move(next_move.from, next_move.to) << endl;
-          std::cout << "Nodes searched: " << nodes << endl;
-          std::cout << "Time elapsed: " << get_ms() - initial_time << " ms" << endl;
-          std::cout << "........................................" << endl << endl;
-        }
+void think() {
+  initial_time = std::chrono::system_clock::now();
+  nodes = 0;
+  printed_points = 0;
+  int depth = 0;
+  stop_search = false;
+  Move best_move; 
+  for(depth = 4; !stop_search; depth += 2) {
+    nodes = 0;
+    search(-999999, 999999, depth);
+    if(!timeout()) best_move = next_move;
+    if(stop_search == true) {
+      depth -= 2; // max-depth where we did full-search
     }
+  }
+  std::cout << '\n'; // .....
+  next_move = best_move; 
+  if(!TESTING) {
+    std::cout << "Searched a maximum depth of: " << depth << endl;
+    std::cout << "Best move is: " << str_move(next_move.from, next_move.to) << endl;
+    std::cout << "Nodes searched: " << nodes << endl;
+    std::cout << "Ellapsed time: " << ellapsed_time() << " ms" << endl;
+    std::cout << "Avg time per node: " << double(nodes) / ellapsed_time() << " ms" << endl;
+    std::cout << "........................................" << endl << endl;
+  }
+  while(!move_stack.empty()) {
+    move_stack.pop_back();
+  }
 }
 
 int search(int alpha, int beta, int depth) {
+  if(timeout()) {
+    return alpha;
+  }
+
   ++nodes;
 
   if(in_check(side)) {
@@ -78,6 +99,10 @@ int search(int alpha, int beta, int depth) {
     take_back(move);
     taken_moves.pop_back();
     move_stack.pop_back();
+
+    if(stop_search) {
+      return alpha;
+    }
 
     // move increases the alpha-cutoff
     if(score > alpha) {
@@ -124,7 +149,10 @@ int quiescence_search(int alpha, int beta) {
     take_back(move);
     taken_moves.pop_back();
     move_stack.pop_back();
-    // if score 
+
+    if(stop_search) {
+      return alpha;
+    }
     if(score > alpha) {
       alpha = score;
       if(beta <= alpha) {
@@ -145,4 +173,19 @@ void age_history() {
       }
     }
   }
+}
+
+bool timeout() {
+  float et = ellapsed_time(); 
+  if(et >= MAX_SEARCH_TIME) {
+    stop_search = true;
+    return true;
+  }
+  float threshold_time = float(printed_points) * (MAX_SEARCH_TIME / 40.0);
+  if(et >= threshold_time) {
+    std::cout << ".";
+    std::cout.flush();
+    printed_points++;
+  }  
+  return false;
 }

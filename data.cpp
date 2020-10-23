@@ -8,10 +8,10 @@ int side;
 int xside;
 int castling;
 int enpassant;
-int nodes = 0;
 
 bool TESTING = false;
-int MAX_DEPTH = 7;
+float MAX_SEARCH_TIME = 5000.0; // ms // ms
+int MAX_DEPTH = 5;
 
 Move next_move;
 std::vector<Move> move_stack;

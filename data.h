@@ -9,7 +9,6 @@ extern int side;
 extern int xside;
 extern int castling;
 extern int enpassant;
-extern int nodes;
 
 extern Move next_move;
 extern std::vector<Move> move_stack;
@@ -23,6 +22,7 @@ extern int history[2][64][64];
 
 extern int MAX_DEPTH;
 extern bool TESTING;
+extern float MAX_SEARCH_TIME;
 
 /* helper constants */
 extern int piece_value[6];

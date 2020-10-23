@@ -69,7 +69,6 @@ void init_board() {
 	xside = BLACK;
 	castling = 63;
 	enpassant = 0;
-	nodes = 0;
 	next_move = Move();
 	while(!move_stack.empty()) move_stack.pop_back();
 	while(!taken_moves.empty()) taken_moves.pop_back();

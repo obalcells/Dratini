@@ -12,7 +12,7 @@ void init_state(State &);
 void set_state(State &);
 void print_state(State &);
 int game_over();
-bool isDraw();
+bool is_draw();
 
 /* move.cpp */
 Move make_move(int, int, int);
@@ -37,9 +37,10 @@ void test();
 
 /* search.cpp */
 void age_history();
-void think(int);
+void think();
 int search(int, int, int);
 int quiescence_search(int, int);
+bool timeout();
 
 /* eval.cpp Temporarily disabled
 int eval();
