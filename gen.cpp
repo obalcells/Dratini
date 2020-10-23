@@ -6,11 +6,11 @@
 #include "data.h"
 #include "move.h"
 #include "board.h"
+#include "state.h"
 
 void add_move(int from, int to) {
  	assert(from >= 0 && to >= 0);
 	State state_before = State();
-	init_state(state_before);
  	Move m = make_move(from, to, QUEEN);
   	if(!in_check(xside)) {
 		take_back(m);
@@ -29,21 +29,21 @@ void add_move(int from, int to) {
 		take_back(m);
   	}
 	State state_after = State();
-	init_state(state_after);
 	if(!state_before.same(state_after)) {
 		std::cout << "State is different after taking back." << endl;
 		std::cout << "Move is " << str_move(from, to) << endl << endl;
+		std::cout << m.captured << endl; 
 		std::cout << "State before: " << endl;
-		print_state(state_before);	
+		state_before.print();
 		std::cout << "State now is: " << endl;
-		print_state(state_after);
+		state_after.print();
 		std::cout << "Move stack:" << endl << endl;
 		for(Move move : taken_moves) {
 			std::cout << str_move(move.from, move.to) << " ";
 		}
 		std::cout << endl << endl;
 		std::cout << "Saving state with name: error-" + str_move(from, to) << endl << endl;
-		set_state(state_before);
+		state_before.set();
 		save_snapshot("error-" + str_move(from, to));
 		assert(state_before.same(state_after));
 	} 

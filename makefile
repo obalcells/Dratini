@@ -5,7 +5,7 @@ OBJECT_FILES = \
 	hash.o \
 	eval_tscp.o \
 	board.o \
-  	search.o \
+ 	search.o \
 	main.o
 
 all: engine

@@ -192,35 +192,3 @@ std::string str_move(int from, int to) {
 bool empty_move(Move m) {
 	return m.from == -1 && m.to == -1;
 }
-
-void init_state(State & state) {
-    state._color.resize(64);
-    state._piece.resize(64);
-    state._side = side;
-    state._xside = xside;
-    state._castling = castling;
-    state._enpassant = enpassant;
-    for(int i = 0; i < 64; i++) {
-      state._color[i] = color[i];
-      state._piece[i] = piece[i];
-    }
-}
-
-void set_state(State & state) {
-	side = state._side;
-	xside = state._xside;
-	castling = state._castling;
-	enpassant = state._enpassant;
-	for(int i = 0; i < 64; i++) {
-		color[i] = state._color[i];
-		piece[i] = state._piece[i];
-	}
-}
-
-void print_state(State & state) {
-	State state_now = State();
-	init_state(state_now);
-	set_state(state);
-	print_board();
-	set_state(state_now); // reset the state to original value
-}
