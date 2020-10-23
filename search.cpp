@@ -22,13 +22,17 @@ void think(int seconds) {
     for(int initial_depth = MAX_DEPTH; initial_depth <= MAX_DEPTH; initial_depth += 2) {
         nodes = 0;
         int initial_time = get_ms();
-        std::cout << "........................................" << endl;
-        std::cout << "Searching with initial depth = " << initial_depth << endl;
+        if(!TESTING) { 
+          std::cout << "........................................" << endl;
+          std::cout << "Searching with initial depth = " << initial_depth << endl;
+        }
         search(-999999, 999999, initial_depth);
-        std::cout << "Best move is: " << str_move(next_move.from, next_move.to) << endl;
-        std::cout << "Nodes searched: " << nodes << endl;
-        std::cout << "Time elapsed: " << get_ms() - initial_time << " ms" << endl;
-        std::cout << "........................................" << endl << endl;
+        if(!TESTING) {
+          std::cout << "Best move is: " << str_move(next_move.from, next_move.to) << endl;
+          std::cout << "Nodes searched: " << nodes << endl;
+          std::cout << "Time elapsed: " << get_ms() - initial_time << " ms" << endl;
+          std::cout << "........................................" << endl << endl;
+        }
     }
 }
 
@@ -60,6 +64,8 @@ int search(int alpha, int beta, int depth) {
     } else {
       return 0;
     }
+  } else if(is_draw()) {
+    return 0;
   }
 
   Move best_move;

@@ -79,12 +79,6 @@ void init_board() {
 
 void print_board() {
 	std::cout << endl;
-	std::cout << "Castling flag: "; 
-	for(int i = 32; ; i /= 2) {
-		std::cout << ((castling & i) ? 1 : 0);
-		if(i == 1) break;
-	}
-	std::cout << endl;
 	int i;
 	for(i = 56; i >= 0;) {
 		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
@@ -122,7 +116,16 @@ void print_board() {
 	// std::cout << "\n Parameters: " << side << " " << xside << " " << castling << " " << enpassant << "\n\n";
 }
 
+// I guess you will draw with just a bishop, but whatever
+bool is_draw() {
+	for(int i = 0; i < 64; i++) {
+		if(piece[i] != KING) return false;
+	}
+	return true;
+}
+
 int game_over() {
+	if(is_draw()) return EMPTY;
 	int n_moves_prev = (int)move_stack.size();
 	generate_moves();
 	int n_moves_now = (int)move_stack.size();

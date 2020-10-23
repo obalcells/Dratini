@@ -8,9 +8,10 @@ int side;
 int xside;
 int castling;
 int enpassant;
-
-int MAX_DEPTH = 4;
 int nodes = 0;
+
+bool TESTING = false;
+int MAX_DEPTH = 7;
 
 Move next_move;
 std::vector<Move> move_stack;

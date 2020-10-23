@@ -13,3 +13,4 @@ void init_state(State &);
 void set_state(State &);
 void print_state(State &);
 int game_over();
+bool is_draw();

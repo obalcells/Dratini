@@ -12,6 +12,7 @@ void init_state(State &);
 void set_state(State &);
 void print_state(State &);
 int game_over();
+bool isDraw();
 
 /* move.cpp */
 Move make_move(int, int, int);
