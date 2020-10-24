@@ -1,1 +1,1 @@
-extern void think();
+extern Move think();

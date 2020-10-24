@@ -12,6 +12,7 @@ int game_over();
 bool is_draw();
 
 /* move.cpp */
+void make_move(Move);
 Move make_move(int, int, int);
 void undo_move(Move);
 int move_valid(int, int);int eval();
@@ -34,7 +35,7 @@ void test();
 
 /* search.cpp */
 void age_history();
-void think();
+Move think();
 int search(int, int, int);
 int quiescence_search(int, int);
 bool timeout();

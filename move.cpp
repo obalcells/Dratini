@@ -5,6 +5,10 @@
 #include "data.h"
 #include "board.h"
 
+void make_move(Move move) {
+	make_move(move.from, move.to, QUEEN);
+}
+
 // we assume that the move is valid (because we have checked for validity before)
 Move make_move(int from, int to, int promotion_piece = QUEEN) {
   	assert(piece[from] != EMPTY);
@@ -151,10 +155,15 @@ void take_back(Move m) {
 		// anything else
 		piece[m.from] = piece[m.to];
 	  	color[m.from] = color[m.to];
-		piece[m.to] = m.captured;
 
+		piece[m.to] = m.captured;
 		if(m.captured == EMPTY) color[m.to] = EMPTY;
 		else color[m.to] = (color[m.from] == WHITE ? BLACK : WHITE);
+	}
+
+	if(m.captured != EMPTY) {
+		assert(piece[m.to] != EMPTY);
+		assert(color[m.to] != EMPTY);
 	}
 
 	castling = m.castling;

@@ -14,7 +14,8 @@
 #include "hash.h"
 
 std::chrono::time_point<std::chrono::system_clock> initial_time;
-int nodes, printed_points;
+int nodes, printed_points, depth;
+Move move_root;
 bool stop_search;
 
 float ellapsed_time() {
@@ -23,26 +24,27 @@ float ellapsed_time() {
   return duration.count();
 }
 
-void think() {
+Move think() {
   initial_time = std::chrono::system_clock::now();
-  nodes = 0;
-  printed_points = 0;
-  int depth = 0;
+  nodes = printed_points = depth = 0;
   stop_search = false;
-  Move best_move; 
-  for(depth = 4; !stop_search; depth += 2) {
-    nodes = 0;
+  Move move_root_non_timeout = Move(); 
+  move_root = Move();
+  for(depth = 4; !stop_search;) {
     search(-999999, 999999, depth);
-    if(!timeout()) best_move = next_move;
-    if(stop_search == true) {
+    if(!stop_search) {
+      move_root_non_timeout = move_root;
+      depth += 2;
+    } else if(stop_search) {
       depth -= 2; // max-depth where we did full-search
     }
   }
   std::cout << '\n'; // .....
-  next_move = best_move; 
+  // in case that move_root was assigned after timeout
+  move_root = move_root_non_timeout;
   if(!TESTING) {
     std::cout << "Searched a maximum depth of: " << depth << endl;
-    std::cout << "Best move is: " << str_move(next_move.from, next_move.to) << endl;
+    std::cout << "Best move is: " << str_move(move_root.from, move_root.to) << endl;
     std::cout << "Nodes searched: " << nodes << endl;
     std::cout << "Ellapsed time: " << ellapsed_time() << " ms" << endl;
     std::cout << "Avg time per node: " << double(nodes) / ellapsed_time() << " ms" << endl;
@@ -51,6 +53,7 @@ void think() {
   while(!move_stack.empty()) {
     move_stack.pop_back();
   }
+  return move_root;
 }
 
 int search(int alpha, int beta, int depth) {
@@ -70,7 +73,12 @@ int search(int alpha, int beta, int depth) {
   long long state_key = get_hash();
   int state_idx = state_key & (n_entries - 1);
   if(pv_table[state_idx].state_key == state_key && pv_table[state_idx].alpha >= alpha && pv_table[state_idx].alpha <= beta) {
-    next_move = pv_table[state_idx].move; // what if there is a collision and we are at the root?    
+    move_root = pv_table[state_idx].move; // what if there is a collision and we are at the root?    
+    if(empty_move(move_root)) {
+      std::cout << "State key is: " << state_key << endl;
+      std::cout << str_move(move_root.from, move_root.to) << endl;
+      assert(!empty_move(move_root));
+    }
     return pv_table[state_key].alpha;
   }
 
@@ -114,17 +122,21 @@ int search(int alpha, int beta, int depth) {
         // the move caused a beta-cutoff so it must be good
         // but it won't be picked by parent
         while(i-- > first_move) move_stack.pop_back();
-        next_move = best_move;
+        move_root = best_move;
         return beta;
       }
     }
   }
 
   if(empty_move(best_move)) return alpha;
+
   history[side][best_move.from][best_move.to] += depth * depth;
   age_history();
+
+  assert(!empty_move(best_move));
+
   pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
-  next_move = best_move;
+  move_root = best_move;
 
   return alpha;
 }
@@ -178,6 +190,7 @@ void age_history() {
 bool timeout() {
   float et = ellapsed_time(); 
   if(et >= MAX_SEARCH_TIME) {
+    if(depth == 4) return false; // we want to search at least depth 4
     stop_search = true;
     return true;
   }

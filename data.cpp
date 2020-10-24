@@ -13,7 +13,6 @@ bool TESTING = false;
 float MAX_SEARCH_TIME = 5000.0; // ms // ms
 int MAX_DEPTH = 5;
 
-Move next_move;
 std::vector<Move> move_stack;
 std::vector<Move> taken_moves;
 std::vector<std::pair<int,Move> > unordered_move_stack;

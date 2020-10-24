@@ -69,7 +69,6 @@ void init_board() {
 	xside = BLACK;
 	castling = 63;
 	enpassant = 0;
-	next_move = Move();
 	while(!move_stack.empty()) move_stack.pop_back();
 	while(!taken_moves.empty()) taken_moves.pop_back();
 	while(!unordered_move_stack.empty()) unordered_move_stack.pop_back();
@@ -101,7 +100,7 @@ void print_board() {
 		} else if(color[i] == EMPTY) {
 			std::cout << EMPTY_COLOR << '.';
 		}
-		std::cout << RESET_COLOR;
+		// std::cout << RESET_COLOR;
 		if((i + 1) % 8 == 0) {
 			std::cout << '\n';
 			i -= 15;
