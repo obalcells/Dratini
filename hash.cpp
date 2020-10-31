@@ -4,12 +4,11 @@
 #include "data.h"
 
 long long random_long() {
-    int ans = 0;
+    long long ans = 0;
     for(int i = 0; i < 64; i++) {
         ans ^= rand() << i;
     }
-    // return rand() << 32 | rand();
-    return ans;
+    return ans << 32 | rand();
 }
 
 void init_zobrist() {

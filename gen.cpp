@@ -8,7 +8,7 @@
 #include "board.h"
 #include "state.h"
 
-void add_move(int from, int to) {
+void add_move(char from, char to) {
  	assert(from >= 0 && to >= 0);
 	State state_before = State();
  	Move m = make_move(from, to, QUEEN);
@@ -58,11 +58,11 @@ void order_and_push() {
 }
 
 void generate_capture_moves() {
-	for (int pos = 0; pos < 64; pos++)
+	for (char pos = 0; pos < 64; pos++)
 		if (color[pos] == side) {
 			if (piece[pos] == PAWN) {
 				// diagonal-capture
-				int one_forward = (side == WHITE ? pos + 8 : pos - 8);
+				char one_forward = (side == WHITE ? pos + 8 : pos - 8);
 
 				if (valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside) {
 					add_move(pos, one_forward - 1);
@@ -92,7 +92,7 @@ void generate_capture_moves() {
 			} else {
 				for (int i = 0; i < 8; i++) {
 					if (offset[piece[pos]][i] == 0) break;
-					int new_pos = pos + offset[piece[pos]][i];
+					char new_pos = pos + offset[piece[pos]][i];
 
 					if (!slide[piece[pos]])
 					{
@@ -103,7 +103,7 @@ void generate_capture_moves() {
 					}
 					else
 					{
-						int prev_pos = pos;
+						char prev_pos = pos;
 						while (valid_distance(prev_pos, new_pos) && color[new_pos] != side)
 						{
 							if (color[new_pos] == xside)
@@ -125,14 +125,13 @@ void generate_moves() {
 	for(int pos = 0; pos < 64; pos++) if(color[pos] == side) {
 		if(piece[pos] == PAWN) {
 			// one forward
-			int one_forward = (side == WHITE ? pos + 8 : pos - 8);
-			assert(one_forward >= 0 && one_forward <= 63);
+			char one_forward = (side == WHITE ? pos + 8 : pos - 8);
 			int captured = EMPTY;
 			if(row(one_forward) == 0 || row(one_forward) == 7) captured = PAWN;
 			if(color[one_forward] == EMPTY) add_move(pos, one_forward);
 			// two forward
 			if((side == WHITE && row(pos) == 1) || (side == BLACK && row(pos) == 7)) {
-				int two_forward = (side == WHITE ? pos + 16 : pos - 16);
+				char two_forward = (side == WHITE ? pos + 16 : pos - 16);
 				if(color[one_forward] == EMPTY && color[two_forward] == EMPTY) {
 					add_move(pos, two_forward);
 				}

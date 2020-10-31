@@ -13,7 +13,6 @@ If you are looking to better understand chess engines or even code your own, the
 - [x] Add checkmate detection
 - [x] Test castling bug
 - [x] Change eval to incentivise pawn openings
-- [ ] Simplify flagging (?)
 - [ ] Make it faster
 
 ## Long-term

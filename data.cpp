@@ -2,12 +2,12 @@
 #include "defs.h"
 #include "protos.h"
 
-int color[64];
-int piece[64];
-int side;
-int xside;
-int castling;
-int enpassant;
+char color[64];
+char piece[64];
+bool side;
+bool xside;
+char castling;
+char enpassant;
 
 bool TESTING = false;
 float MAX_SEARCH_TIME = 5000.0; // ms // ms
@@ -18,8 +18,8 @@ std::vector<Move> taken_moves;
 std::vector<std::pair<int,Move> > unordered_move_stack;
 
 long long random_value[9][64];
-int n_entries = 1 << 15;
-PV_Entry pv_table[1 << 15];
+int n_entries = 1 << 24;
+PV_Entry pv_table[1 << 24];
 int history[2][64][64];
 
 bool slide[6] = { false, false, true, true, true, false };

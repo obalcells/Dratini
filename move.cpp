@@ -10,17 +10,17 @@ void make_move(Move move) {
 }
 
 // we assume that the move is valid (because we have checked for validity before)
-Move make_move(int from, int to, int promotion_piece = QUEEN) {
+Move make_move(char from, char to, char promotion_piece = QUEEN) {
   	assert(piece[from] != EMPTY);
 
-  	int prev_enpassant = enpassant; // store previous flags
-  	int prev_castling = castling;
-	int captured = EMPTY;
+  	char prev_enpassant = enpassant; // store previous flags
+  	char prev_castling = castling;
+	char captured = EMPTY;
 	enpassant = 0; //reset the enpassant flag
 
 	if(piece[from] == PAWN && piece[to] == EMPTY && col(from) != col(to)) {
 		// eat enpassant
-		int adjacent = row(from) * 8 + col(to);
+		char adjacent = row(from) * 8 + col(to);
 		assert(piece[adjacent] == PAWN);
 		assert(color[adjacent] != color[from]);
 
@@ -54,7 +54,7 @@ Move make_move(int from, int to, int promotion_piece = QUEEN) {
 
 	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
 		// castling
-		int rook_prev = 0, rook_now = -1;
+		char rook_prev = 0, rook_now = -1;
 
 		if(from == 4 && to == 2) { rook_prev = 0; rook_now = 3; castling ^= 1; castling ^= 4; }
 		else if(from == 4 && to == 6) { rook_prev = 7; rook_now = 5; castling ^= 2; castling ^= 4; }
@@ -125,13 +125,13 @@ void take_back(Move m) {
 		assert(m.captured == EMPTY); //enpassant captured is marked as empty
 		piece[m.to] = EMPTY;
 		color[m.to] = EMPTY;
-		int adjacent = 8 * row(m.from) + col(m.to);
+		char adjacent = 8 * row(m.from) + col(m.to);
 		piece[adjacent] = PAWN;
 		color[adjacent] = (color[m.from] == BLACK ? WHITE : BLACK);
 
   	} else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) == 2) {
 		// castling
-		int rook_prev = -1, rook_now = -1;
+		char rook_prev = -1, rook_now = -1;
 		if(m.from == 4 && m.to == 2) { rook_prev = 0; rook_now = 3; }
 		else if(m.from == 4 && m.to == 6) { rook_prev = 7; rook_now = 5; }
 		else if(m.from == 60 && m.to == 58) { rook_prev = 56; rook_now = 59; }
@@ -172,7 +172,7 @@ void take_back(Move m) {
 	xside ^= 1;
 }
 
-int move_valid(int from, int to) {
+int move_valid(char from, char to) {
 	if(from == to) return 1;
 	else if(piece[from] == EMPTY) return 2;
 	else if(side != color[from]) return 3;
@@ -189,14 +189,15 @@ int move_valid(int from, int to) {
 		// (5) The king can't be checked on the squares in between
 
 		// check flags
-		int rook_pos = -1;
+		char rook_pos;
 		if(side == WHITE && from == 4 && to == 2 && (castling & 1) && (castling & 4)) rook_pos = 0;
 		else if(side == WHITE && from == 4 && to == 6 && (castling & 2) && (castling & 4)) rook_pos = 7;
 		else if(side == BLACK && from == 60 && to == 58 && (castling & 8) && (castling & 32)) rook_pos = 56;
 		else if(side == BLACK && from == 60 && to == 62 && (castling & 16) && (castling & 32)) rook_pos = 63;
 		else return 5;
 
-		int pos = from, direction = (to > from ? 1 : -1);
+		char pos = from;
+		int direction = (to > from ? 1 : -1);
     	bool done = false;
 
 		// no pieces should be in between
@@ -225,7 +226,7 @@ int move_valid(int from, int to) {
 
 		if(delta_row == 1 && delta_col == 1 && color[to] == EMPTY) {
       		// eat enpassant
-			int adjacent = row(from) * 8 + col(to);
+			char adjacent = row(from) * 8 + col(to);
 			if(piece[to] != EMPTY || color[adjacent] != xside) return 10;
 			else if(enpassant != col(to)) return 11;
 		}
@@ -243,7 +244,7 @@ int move_valid(int from, int to) {
 		for(int i = 0; i < 8 && !valid; i++) {
 			if(offset[piece[from]][i] == 0) break;
 
-			int prev_pos = from, new_pos = from + offset[piece[from]][i];
+			char prev_pos = from, new_pos = from + offset[piece[from]][i];
 			if(!valid_pos(new_pos) || distance(prev_pos, new_pos) > 3) continue;
 
 			while(slide[piece[from]] && valid_pos(new_pos) && new_pos != to && color[new_pos] == EMPTY && distance(prev_pos, new_pos) <= 3) {

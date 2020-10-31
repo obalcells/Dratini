@@ -72,6 +72,7 @@ int search(int alpha, int beta, int depth) {
   // we check if search has already been performed for this state
   long long state_key = get_hash();
   int state_idx = state_key & (n_entries - 1);
+
   if(pv_table[state_idx].state_key == state_key && pv_table[state_idx].alpha >= alpha && pv_table[state_idx].alpha <= beta) {
     move_root = pv_table[state_idx].move; // what if there is a collision and we are at the root?    
     if(empty_move(move_root)) {
@@ -190,7 +191,7 @@ void age_history() {
 bool timeout() {
   float et = ellapsed_time(); 
   if(et >= MAX_SEARCH_TIME) {
-    if(depth == 4) return false; // we want to search at least depth 4
+    if(depth <= 4) return false; // we want to search at least depth 4
     stop_search = true;
     return true;
   }

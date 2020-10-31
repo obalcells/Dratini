@@ -35,7 +35,7 @@ int main() {
 		std::string raw_input;
 		std::cin >> raw_input;
 		if(raw_input == "exit") break;
-		int from = -1, to = -1;
+		char from = -1, to = -1;
 		// save snapshot
 		if(int(raw_input.size()) == 1 && raw_input[0] == 's') {
 			std::string snapshot_name;

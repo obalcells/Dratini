@@ -28,36 +28,46 @@
 #define max(x, y) (x > y ? x : y)
 #define min(x, y) (x < y ? x : y)
 #define valid_pos(x) (x >= 0 && x < 64)
-inline int abs(int x) { if(x < 0) return x * (-1); return x; }
-inline int distance(int pos_1, int pos_2) { return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2)); }
-inline bool valid_distance(int pos_1, int pos_2) { return valid_pos(pos_1) && valid_pos(pos_2) && distance(pos_1, pos_2) <= 3; }	
+
+inline int abs(int x) { 
+  if(x < 0)
+    return x * (-1);
+  return x;
+}
+
+inline int distance(char pos_1, char pos_2) {
+  return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2));
+}
+
+inline bool valid_distance(char pos_1, char pos_2) {
+  return valid_pos(pos_1) && valid_pos(pos_2) && distance(pos_1, pos_2) <= 3; 
+}	
 
 struct Move {
-    int from;
-    int to;
-    int captured;
-    int castling;
-    int enpassant;
+    char from;
+    char to;
+    char captured;
+    char castling;
+    char enpassant;
     bool promotion;
     Move() {
       from = -1; to = -1; captured = EMPTY;
       castling = 0; enpassant = 0; promotion = false;
     }
-    Move(int _from, int _to) {
+    Move(char _from, char _to) {
       from = _from; to = _to; captured = EMPTY;
       castling = 0; enpassant = 0; promotion = false;
     }
-    Move(int _from, int _to, int _captured, int _castling, int _enpassant) {
+    Move(char _from, char _to, char _captured, char _castling, char _enpassant) {
       from = _from; to = _to; captured = _captured;
       castling = _castling; enpassant = _enpassant; promotion = false;
     }
-    Move(int _from, int _to, int _captured, int _castling, int _enpassant, bool _promotion) {
+    Move(char _from, char _to, char _captured, char _castling, char _enpassant, bool _promotion) {
       from = _from; to = _to; captured = _captured;
       castling = _castling; enpassant = _enpassant; promotion = _promotion;
     }
     bool operator <(const Move & b) const {
       return false;
-      // return true; // we only sort using first value of pair
     }
 };
 

@@ -7,8 +7,8 @@
 #include "data.h"
 #include "hash.h"
 
-bool is_attacked(int pos, int attacker_side) {
-	//pawns
+bool is_attacked(char pos, bool attacker_side) {
+	// pawns
 	if(attacker_side == BLACK) {
 		if(valid_distance(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == attacker_side) return true;
 		if(valid_distance(pos, pos + 9) && piece[pos + 9] == PAWN && color[pos + 9] == attacker_side) return true;
@@ -16,15 +16,18 @@ bool is_attacked(int pos, int attacker_side) {
 		if(valid_distance(pos, pos - 7) && piece[pos - 7] == PAWN && color[pos - 7] == attacker_side) return true;
 		if(valid_distance(pos, pos - 9) && piece[pos - 9] == PAWN && color[pos - 9] == attacker_side) return true;
 	}
- 	int i, new_pos = pos;
-	//knights
+
+	int i;
+	char new_pos = pos;
+	// knights
 	for(i = 0; i < 8; i++) {
 		if(offset[KNIGHT][i] == 0) break; // done
 		if(!valid_distance(pos, pos + offset[KNIGHT][i])) continue;
 		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == attacker_side) return true;
 	}
-	//bishops and queen
-	for(int i = 0; i < 8; i++) {
+
+	// bishops and queen
+	for(i = 0; i < 8; i++) {
     if(offset[BISHOP][i] == 0) break;
 		new_pos = pos;
 		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos + offset[BISHOP][i]] != (attacker_side ^ 1)) {
@@ -33,25 +36,31 @@ bool is_attacked(int pos, int attacker_side) {
 			else if(color[new_pos] == attacker_side) break;
  	   }
  	}
-	//rook and queen
-	for(int i = 0; i < 8; i++) {
-    if(offset[ROOK][i] == 0) break;
+
+	// rook and queen
+	for(i = 0; i < 8; i++) {
+		if(offset[ROOK][i] == 0) break;
 		new_pos = pos;
-    	while(valid_distance(new_pos, new_pos + offset[ROOK][i]) && color[new_pos + offset[ROOK][i]] != (attacker_side ^ 1)) {
+		while(valid_distance(new_pos, new_pos + offset[ROOK][i]) && color[new_pos + offset[ROOK][i]] != (attacker_side ^ 1)) {
 			new_pos += offset[ROOK][i];
 			if((piece[new_pos] == ROOK || piece[new_pos] == QUEEN) && color[new_pos] == attacker_side) return true;
 			else if(color[new_pos] == attacker_side) break;
-   		 }
-  	}
-	int delta_moves[8] = { 8, 9, 1, -7, -8, -9, -1, 7 }; // for some reason, my compiler wants me to declare this
-  	for(int i = 0; i < 8; i++) {
-    	if(valid_pos(pos + delta_moves[i]) && piece[pos + delta_moves[i]] == KING && color[pos + delta_moves[i]] == attacker_side) return true;
-  	}
+		}
+	}
+
+	//	king
+	char delta_moves[8] = { 8, 9, 1, -7, -8, -9, -1, 7 }; // for some reason, my compiler wants me to declare this
+	for(i = 0; i < 8; i++) {
+		if(valid_pos(pos + delta_moves[i])
+		&& piece[pos + delta_moves[i]] == KING
+		&& color[pos + delta_moves[i]] == attacker_side)
+			return true;
+	}
 	return false;
 }
 
-bool in_check(int _side) {
-	for(int pos = 0; pos < 64; pos++) {
+bool in_check(bool _side) {
+	for(char pos = 0; pos < 64; pos++) {
 		if(piece[pos] == KING && color[pos] == _side) {
 		  return is_attacked(pos, _side ^ 1);
 		}
@@ -111,12 +120,12 @@ void print_board() {
  	std::cout << '\n' << "   ";
 	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
   	std::cout << "\n\n";
-	// std::cout << "\n Parameters: " << side << " " << xside << " " << castling << " " << enpassant << "\n\n";
 }
 
-// I guess you will draw with just a bishop, but whatever
+// There should be some more checks here
+// For instance, you can't mate just with bishop
 bool is_draw() {
-	for(int i = 0; i < 64; i++) {
+	for(char i = 0; i < 64; i++) {
 		if(piece[i] != KING) return false;
 	}
 	return true;
@@ -165,21 +174,23 @@ void load_snapshot(std::string snapshot_name) {
   std::cout << "Snapshot loaded!" << endl;
 }
 
-bool parse_move(std::string raw_input, int & from, int & to) {
+bool parse_move(std::string raw_input, char & from, char & to) {
 	if((int)raw_input.size() != 4) return false;
 	int col_1 = raw_input[0] - 'a';
 	int row_1 = raw_input[1] - '1';
 	int col_2 = raw_input[2] - 'a';
 	int row_2 = raw_input[3] - '1';
-	if(row_1 >= 0 && row_1 < 8 && col_1 >= 0 && col_1 < 8 && row_2 >= 0 && row_2 < 8 && col_2 >= 0 && col_2 < 8) {
+	if(row_1 >= 0 && row_1 < 8
+	&& col_1 >= 0 && col_1 < 8
+	&& row_2 >= 0 && row_2 < 8
+	&& col_2 >= 0 && col_2 < 8) {
 		from = row_1 * 8 + col_1; to = row_2 * 8 + col_2;
 		return true;
-	} else {
-		return false;
 	}
+	return false;
 }
 
-std::string str_move(int from, int to) {
+std::string str_move(char from, char to) {
 	std::string ans = "";
 	ans += char('a' + col(from));
 	ans += char('1' + row(from));
