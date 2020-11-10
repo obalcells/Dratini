@@ -8,6 +8,7 @@ void save_snapshot(std::string snapshot_name);
 void load_snapshot(std::string snapshot_name);
 bool parse_move(std::string, char &, char &);
 std::string str_move(char, char);
+std::string str_move(Move);
 bool empty_move(Move);
 int game_over();
 bool is_draw();

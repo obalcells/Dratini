@@ -16,7 +16,6 @@ bool is_attacked(char pos, bool attacker_side) {
 		if(valid_distance(pos, pos - 7) && piece[pos - 7] == PAWN && color[pos - 7] == attacker_side) return true;
 		if(valid_distance(pos, pos - 9) && piece[pos - 9] == PAWN && color[pos - 9] == attacker_side) return true;
 	}
-
 	int i;
 	char new_pos = pos;
 	// knights
@@ -25,7 +24,6 @@ bool is_attacked(char pos, bool attacker_side) {
 		if(!valid_distance(pos, pos + offset[KNIGHT][i])) continue;
 		if(piece[pos + offset[KNIGHT][i]] == KNIGHT && color[pos + offset[KNIGHT][i]] == attacker_side) return true;
 	}
-
 	// bishops and queen
 	for(i = 0; i < 8; i++) {
     if(offset[BISHOP][i] == 0) break;
@@ -36,7 +34,6 @@ bool is_attacked(char pos, bool attacker_side) {
 			else if(color[new_pos] == attacker_side) break;
  	   }
  	}
-
 	// rook and queen
 	for(i = 0; i < 8; i++) {
 		if(offset[ROOK][i] == 0) break;
@@ -47,7 +44,6 @@ bool is_attacked(char pos, bool attacker_side) {
 			else if(color[new_pos] == attacker_side) break;
 		}
 	}
-
 	//	king
 	char delta_moves[8] = { 8, 9, 1, -7, -8, -9, -1, 7 }; // for some reason, my compiler wants me to declare this
 	for(i = 0; i < 8; i++) {
@@ -123,7 +119,6 @@ void print_board() {
 }
 
 // There should be some more checks here
-// For instance, you can't mate just with bishop
 bool is_draw() {
 	for(char i = 0; i < 64; i++) {
 		if(piece[i] != KING) return false;
@@ -199,6 +194,10 @@ std::string str_move(char from, char to) {
 	return ans;
 }
 
+std::string str_move(Move m) {
+	str_move(m.from, m.to);
+}
+
 bool empty_move(Move m) {
-	return m.from == -1 && m.to == -1;
+	return m.from == 64 && m.to == 64;
 }

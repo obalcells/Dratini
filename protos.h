@@ -7,6 +7,7 @@ void save_snapshot(std::string snapshot_name);
 void load_snapshot(std::string snapshot_name);
 bool parse_move(std::string, char &, char &);
 std::string str_move(char, char);
+std::string str_move(Move);
 bool empty_move(Move);
 int game_over();
 bool is_draw();
@@ -32,7 +33,6 @@ int eval_dkp(int f);
 
 /* main.cpp */
 int main();
-void test();
 
 /* search.cpp */
 void age_history();
@@ -48,3 +48,13 @@ int eval_black_pawn(int, bool);
 int eval_king(int, bool);
 int eval_sorroundings(int, bool);
 */
+
+/* book.cpp */
+void init_book();
+bool is_move_str_valid(std::string);
+short int encode_move_str(std::string);
+Move get_book_move();
+void book_addline(std::string);
+void book_addline(int, std::string);
+void load_external();
+void load_internal();

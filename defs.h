@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <iostream>
 
 #define ll long long
 #define endl '\n'
@@ -51,7 +52,7 @@ struct Move {
     char enpassant;
     bool promotion;
     Move() {
-      from = -1; to = -1; captured = EMPTY;
+      from = 64; to = 64; captured = EMPTY;
       castling = 0; enpassant = 0; promotion = false;
     }
     Move(char _from, char _to) {
@@ -81,6 +82,6 @@ struct PV_Entry {
   }
   PV_Entry(long long _state_key, int _alpha, Move _move) {
     state_key = _state_key;
-    move = Move();
+    move = _move;
   }
 };

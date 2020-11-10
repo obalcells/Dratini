@@ -25,11 +25,22 @@ float ellapsed_time() {
 }
 
 Move think() {
+  // get a move from the book if we can
+  Move book_move = get_book_move();
+  if(!empty_move(book_move)) { 
+    std::cout << "Returning book move" << '\n';
+    return book_move;
+  } else {
+    std::cout << "No book move available" << '\n';
+  }
+  // reset statistics and vars...
   initial_time = std::chrono::system_clock::now();
   nodes = printed_points = depth = 0;
   stop_search = false;
   Move move_root_non_timeout = Move(); 
   move_root = Move();
+  age_history();
+  // we search iteratively with increasing depth until we run out of time
   for(depth = 4; !stop_search;) {
     search(-999999, 999999, depth);
     if(!stop_search) {
@@ -42,7 +53,7 @@ Move think() {
   std::cout << '\n'; // .....
   // in case that move_root was assigned after timeout
   move_root = move_root_non_timeout;
-  if(!TESTING) {
+  if(!is_testing) {
     std::cout << "Searched a maximum depth of: " << depth << endl;
     std::cout << "Best move is: " << str_move(move_root.from, move_root.to) << endl;
     std::cout << "Nodes searched: " << nodes << endl;
@@ -74,7 +85,12 @@ int search(int alpha, int beta, int depth) {
   int state_idx = state_key & (n_entries - 1);
 
   if(pv_table[state_idx].state_key == state_key && pv_table[state_idx].alpha >= alpha && pv_table[state_idx].alpha <= beta) {
-    move_root = pv_table[state_idx].move; // what if there is a collision and we are at the root?    
+    std::cout << "State already visited" << '\n';
+    std::cout << pv_table[state_idx].state_key << '\n';
+    std::cerr << "State_idx is " << state_idx << '\n';
+    std::cerr << "Move that we have to make: " << str_move(pv_table[state_idx].move.from, pv_table[state_idx].move.to) << '\n';
+    move_root.from = pv_table[state_idx].move.from; // what if there is a collision and we are at the root?    
+    move_root.to = pv_table[state_idx].move.to; // what if there is a collision and we are at the root?    
     if(empty_move(move_root)) {
       std::cout << "State key is: " << state_key << endl;
       std::cout << str_move(move_root.from, move_root.to) << endl;
@@ -104,10 +120,12 @@ int search(int alpha, int beta, int depth) {
     Move move = move_stack[i];
     make_move(move.from, move.to, QUEEN); // this could be sped up
     taken_moves.push_back(move);
+    bool book_state_before = book_deactivated;
     int score = -search(-beta, -alpha, depth - 1);
     take_back(move);
     taken_moves.pop_back();
     move_stack.pop_back();
+    book_deactivated = book_state_before;
 
     if(stop_search) {
       return alpha;
@@ -130,12 +148,16 @@ int search(int alpha, int beta, int depth) {
   }
 
   if(empty_move(best_move)) return alpha;
+  assert(!empty_move(best_move));
 
   history[side][best_move.from][best_move.to] += depth * depth;
   age_history();
 
-  assert(!empty_move(best_move));
-
+  if(state_key == 4520243133300601772) {
+    std::cout << "State with same key found" << '\n';
+    std::cout << (int)best_move.from << " " << (int)best_move.to << '\n';
+  }
+  // std::cout << "Storing move " << str_move(best_move.from, best_move.to) << " at " << state_key << " at tt" << '\n';
   pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
   move_root = best_move;
 
@@ -190,12 +212,12 @@ void age_history() {
 
 bool timeout() {
   float et = ellapsed_time(); 
-  if(et >= MAX_SEARCH_TIME) {
+  if(et >= max_search_time) {
     if(depth <= 4) return false; // we want to search at least depth 4
     stop_search = true;
     return true;
   }
-  float threshold_time = float(printed_points) * (MAX_SEARCH_TIME / 40.0);
+  float threshold_time = float(printed_points) * (max_search_time / 40.0);
   if(et >= threshold_time) {
     std::cout << ".";
     std::cout.flush();

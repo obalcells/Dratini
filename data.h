@@ -20,9 +20,12 @@ extern int n_entries;
 extern PV_Entry pv_table[1 << 20];
 extern int history[2][64][64];
 
-extern int MAX_DEPTH;
-extern bool TESTING;
-extern float MAX_SEARCH_TIME;
+extern std::vector<std::vector<short int> > book;
+extern bool book_deactivated;
+
+extern int max_depth;
+extern bool is_testing;
+extern float max_search_time;
 
 /* helper constants */
 extern int piece_value[6];

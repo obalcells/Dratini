@@ -9,17 +9,20 @@ bool xside;
 char castling;
 char enpassant;
 
-bool TESTING = false;
-float MAX_SEARCH_TIME = 5000.0; // ms // ms
-int MAX_DEPTH = 5;
+bool is_testing = false;
+float max_search_time = 5000.0; // ms // ms
+int max_depth = 5;
 
 std::vector<Move> move_stack;
 std::vector<Move> taken_moves;
 std::vector<std::pair<int,Move> > unordered_move_stack;
 
+std::vector<std::vector<short int> > book;
+bool book_deactivated;
+
 long long random_value[9][64];
-int n_entries = 1 << 24;
-PV_Entry pv_table[1 << 24];
+int n_entries = 1 << 20;
+PV_Entry pv_table[1 << 20];
 int history[2][64][64];
 
 bool slide[6] = { false, false, true, true, true, false };

@@ -6,6 +6,7 @@ OBJECT_FILES = \
 	eval_tscp.o \
 	board.o \
  	search.o \
+	book.o \
 	main.o
 
 all: engine

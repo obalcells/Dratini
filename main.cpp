@@ -7,10 +7,12 @@
 #include "board.h"
 #include "move.h"
 #include "gen.h"
+#include "book.h"
 // #include "eval.h"
 
 int main() {
 	// test(); 
+	init_book();
  	init_board();
  	for(;;) {
 		int game_result = game_over();
@@ -35,7 +37,7 @@ int main() {
 		std::string raw_input;
 		std::cin >> raw_input;
 		if(raw_input == "exit") break;
-		char from = -1, to = -1;
+		char from = 64, to = 64;
 		// save snapshot
 		if(int(raw_input.size()) == 1 && raw_input[0] == 's') {
 			std::string snapshot_name;
@@ -62,26 +64,6 @@ int main() {
 			if(in_check(side)) std::cout << "IN CHECK!" << endl;
 		} else {
 			std::cout << "Invalid move '" <<  raw_input << "' = " << from << " -> " << to << ". Error code is " << error_code << '\n';
-		}
-	}
-}
-
-// the computer plays against itself to find errors quicker
-void test() {
-	TESTING = true;
-	MAX_DEPTH = 4; // so we can go faster
-	// MAX_DEPTH = 20
-	while(true) {
-		init_board();	
-		int n_moves = 0;
-		std::cout << "Testing new game..." << endl;
-		while(n_moves < 200) {
-			int game_result = game_over();
-			if(game_result != -1) break; 
-			Move next_move = think();
-			make_move(next_move);
-			taken_moves.push_back(next_move);
-			n_moves++;
 		}
 	}
 }

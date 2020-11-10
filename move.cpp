@@ -54,7 +54,7 @@ Move make_move(char from, char to, char promotion_piece = QUEEN) {
 
 	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
 		// castling
-		char rook_prev = 0, rook_now = -1;
+		char rook_prev, rook_now;
 
 		if(from == 4 && to == 2) { rook_prev = 0; rook_now = 3; castling ^= 1; castling ^= 4; }
 		else if(from == 4 && to == 6) { rook_prev = 7; rook_now = 5; castling ^= 2; castling ^= 4; }
@@ -131,7 +131,7 @@ void take_back(Move m) {
 
   	} else if(piece[m.to] == KING && abs(col(m.to) - col(m.from)) == 2) {
 		// castling
-		char rook_prev = -1, rook_now = -1;
+		char rook_prev, rook_now;
 		if(m.from == 4 && m.to == 2) { rook_prev = 0; rook_now = 3; }
 		else if(m.from == 4 && m.to == 6) { rook_prev = 7; rook_now = 5; }
 		else if(m.from == 60 && m.to == 58) { rook_prev = 56; rook_now = 59; }
@@ -225,16 +225,15 @@ int move_valid(char from, char to) {
 		int delta_col = abs(col(to) - col(from));
 
 		if(delta_row == 1 && delta_col == 1 && color[to] == EMPTY) {
-      		// eat enpassant
+      // eat enpassant
 			char adjacent = row(from) * 8 + col(to);
 			if(piece[to] != EMPTY || color[adjacent] != xside) return 10;
 			else if(enpassant != col(to)) return 11;
 		}
-
 		else if(delta_row == 1 && delta_col == 0 && piece[to] == EMPTY) { /* fine */ }
 		else if(delta_row == 2 && delta_col == 0 && piece[to] == EMPTY && piece[from + (side == WHITE ? 8 : -8)] == EMPTY) { /* fine too */ }
 		else if(delta_row == 1 && delta_col == 1 && color[to] != EMPTY && color[to] == xside) { /* fine too */ }
-		else return 13; /* not fine */
+		else return 13; /* not fine -> the move is invalid */
 
 	} else {
 		// any other movement
