@@ -7,6 +7,23 @@
 #include "protos.h"
 #include "data.h"
 
+/*
+Move decode_move_int(short int encoded_move) {
+  char from = encoded_move & 63; 
+  char to = (encoded_move >> 6) & 63; 
+  return Move(from, to);
+}
+*/
+
+void print_move_seq(const std::vector<short int> & state) {
+  for(int i = 0; i < (int)state.size(); i++) {
+    char from = (int)state[i] & 63;
+    char to = int(state[i]) >> 6;
+    std::cout << str_move(from, to) << ' ';
+  }
+  std::cout << '\n';
+}
+
 // lexicographically compare two different states
 bool state_compare(const std::vector<short int> & a, const std::vector<short int> & b) {
   int sz = (int)min(a.size(), b.size());
@@ -46,7 +63,7 @@ short int encode_move_str(std::string move) {
   return encoded_move; 
 }
 
-Move decode_move_int(short int encoded_move) {
+Move decode_move_int(const short int encoded_move) {
   char from = encoded_move & 63; 
   char to = (encoded_move >> 6) & 63; 
   return Move(from, to);
@@ -65,6 +82,7 @@ bool state_matches(const int idx, const std::vector<short int> & current_state) 
 // this function will be called from outside
 // and it will return a move from the book which fits the current state
 Move get_book_move() {
+  std::cerr << "Book deactivated " << book_deactivated << '\n';
   if(book_deactivated)
     return Move();
   std::vector<short int> current_state; 
@@ -78,7 +96,10 @@ Move get_book_move() {
     else
       low = middle + 1;
   }
-  if(low == high || !state_matches(low, current_state)) {
+  std::cerr << "Low is " << low << '\n';
+  std::cout << "State now is: "; print_move_seq(current_state); 
+  std::cout << "State at low is: "; print_move_seq(book[low]);
+  if(low == (int)book.size() || !state_matches(low, current_state)) {
     book_deactivated = true;
     std::cout << "Returning empty move" << '\n';
     assert(empty_move(Move()));

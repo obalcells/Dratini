@@ -78,6 +78,7 @@ void init_board() {
 	while(!taken_moves.empty()) taken_moves.pop_back();
 	while(!unordered_move_stack.empty()) unordered_move_stack.pop_back();
 	init_zobrist();
+	book_deactivated = false;
 }
 
 void print_board() {
@@ -194,7 +195,7 @@ std::string str_move(char from, char to) {
 	return ans;
 }
 
-std::string str_move(Move m) {
+std::string str_move(Move m) {
 	str_move(m.from, m.to);
 }
 

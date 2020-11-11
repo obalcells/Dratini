@@ -79,7 +79,7 @@ int search(int alpha, int beta, int depth) {
   } else if(depth == 0) {
     return quiescence_search(alpha, beta);
   }
-
+  
   // we check if search has already been performed for this state
   long long state_key = get_hash();
   int state_idx = state_key & (n_entries - 1);
@@ -96,6 +96,9 @@ int search(int alpha, int beta, int depth) {
       std::cout << str_move(move_root.from, move_root.to) << endl;
       assert(!empty_move(move_root));
     }
+    std::cerr << "Before" << '\n';
+    std::cerr << pv_table[state_key].alpha << '\n';
+    std::cerr << "After" << '\n';
     return pv_table[state_key].alpha;
   }
 
@@ -141,6 +144,20 @@ int search(int alpha, int beta, int depth) {
         // the move caused a beta-cutoff so it must be good
         // but it won't be picked by parent
         while(i-- > first_move) move_stack.pop_back();
+        /*
+        if(state_key == -7145734984389955738) {
+          std::cerr << "Storing move with alpha = " << alpha << '\n';
+          std::cerr << "Move is " << (int)best_move.from << " " << (int)best_move.to << '\n';
+        }
+        pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
+        if(state_key == -7145734984389955738) {
+          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
+          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
+          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
+          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
+          std::cerr << "Retrieving move " << (int)pv_table[state_idx].move.from << " " << (int)pv_table[state_idx].move.to << '\n';
+        }
+        */
         move_root = best_move;
         return beta;
       }
@@ -153,12 +170,17 @@ int search(int alpha, int beta, int depth) {
   history[side][best_move.from][best_move.to] += depth * depth;
   age_history();
 
-  if(state_key == 4520243133300601772) {
-    std::cout << "State with same key found" << '\n';
-    std::cout << (int)best_move.from << " " << (int)best_move.to << '\n';
-  }
+  /*
   // std::cout << "Storing move " << str_move(best_move.from, best_move.to) << " at " << state_key << " at tt" << '\n';
+  if(state_key == -7145734984389955738) {
+    std::cerr << "Storing move with alpha = " << alpha << '\n';
+    std::cerr << "Move is " << (int)best_move.from << " " << (int)best_move.to << '\n';
+  }
   pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
+  if(state_key == -7145734984389955738) {
+    std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
+  }
+  */
   move_root = best_move;
 
   return alpha;

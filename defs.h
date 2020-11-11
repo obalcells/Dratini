@@ -77,11 +77,13 @@ struct PV_Entry {
   int alpha;
   Move move;
   PV_Entry() {
-    state_key = 0; alpha = 0;
+    state_key = 0;
+    alpha = 0;
     move = Move();
   }
   PV_Entry(long long _state_key, int _alpha, Move _move) {
     state_key = _state_key;
+    alpha = 0;
     move = _move;
   }
 };
