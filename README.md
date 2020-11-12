@@ -15,3 +15,7 @@ If you kept reading until here, you might find the following sites useful:
 ## TO-DO List
 
 - [ ] Speed statistics
+
+## Why 'Dratini'?
+
+I used to like Pokémon when I was young. Dratini is the name of a very weak Pokémon whose image you can find [here](https://www.pokemon.com/es/pokedex/dratini). The important thing about the name isn't only that Dratini is weak, but also that its evolution ([Dragonite](https://www.pokemon.com/es/pokedex/dragonite)) is one of the strongest Pokémons in the game. Metaphorically, this represents that Dratini is version I of the chess engine, and I'll eventually develop an improved version of the engine once I become better at programming.
