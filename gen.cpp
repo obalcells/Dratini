@@ -7,6 +7,7 @@
 #include "move.h"
 #include "board.h"
 #include "state.h"
+#include "stats.h"
 
 void add_move(char from, char to) {
  	assert(from >= 0 && to >= 0);
@@ -58,6 +59,8 @@ void order_and_push() {
 }
 
 void generate_capture_moves() {
+	// stats::activate(GENERATE_CAPTURES);
+
 	for (char pos = 0; pos < 64; pos++)
 		if (color[pos] == side) {
 			if (piece[pos] == PAWN) {

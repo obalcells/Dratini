@@ -7,6 +7,7 @@ OBJECT_FILES = \
 	board.o \
  	search.o \
 	book.o \
+	stats.o \
 	main.o
 
 all: engine

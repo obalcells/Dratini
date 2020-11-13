@@ -12,17 +12,11 @@
 // #include "eval.h"
 #include "eval_tscp.h"
 #include "hash.h"
+#include "stats.h"
 
-std::chrono::time_point<std::chrono::system_clock> initial_time;
-int nodes, printed_points, depth;
+int printed_points, depth;
 Move move_root;
 bool stop_search;
-
-float ellapsed_time() {
-  auto time_now = std::chrono::system_clock::now();
-  std::chrono::duration<float, std::milli> duration = time_now - initial_time;
-  return duration.count();
-}
 
 Move think() {
   // get a move from the book if we can
@@ -34,8 +28,7 @@ Move think() {
     std::cout << "No book move available" << '\n';
   }
   // reset statistics and vars...
-  initial_time = std::chrono::system_clock::now();
-  nodes = printed_points = depth = 0;
+  stats::init();
   stop_search = false;
   Move move_root_non_timeout = Move(); 
   move_root = Move();
@@ -56,9 +49,12 @@ Move think() {
   if(!is_testing) {
     std::cout << "Searched a maximum depth of: " << depth << endl;
     std::cout << "Best move is: " << str_move(move_root.from, move_root.to) << endl;
+    stats::display();
+    /*
     std::cout << "Nodes searched: " << nodes << endl;
     std::cout << "Ellapsed time: " << ellapsed_time() << " ms" << endl;
     std::cout << "Avg time per node: " << double(nodes) / ellapsed_time() << " ms" << endl;
+    */
     std::cout << "........................................" << endl << endl;
   }
   while(!move_stack.empty()) {
@@ -68,16 +64,17 @@ Move think() {
 }
 
 int search(int alpha, int beta, int depth) {
+  stats::search();
+
   if(timeout()) {
     return alpha;
   }
 
-  ++nodes;
-
   if(in_check(side)) {
     depth++;
   } else if(depth == 0) {
-    return quiescence_search(alpha, beta);
+    int score = quiescence_search(alpha, beta);
+    return score;
   }
   
   // we check if search has already been performed for this state
@@ -187,6 +184,8 @@ int search(int alpha, int beta, int depth) {
 }
 
 int quiescence_search(int alpha, int beta) {
+  stats::q_search();
+
   int score = eval_tscp();
   if(score >= beta) {
     return beta;
@@ -233,14 +232,14 @@ void age_history() {
 }
 
 bool timeout() {
-  float et = ellapsed_time(); 
-  if(et >= max_search_time) {
+  float ellapsed_time = stats::ellapsed_time(); 
+  if(ellapsed_time >= max_search_time) {
     if(depth <= 4) return false; // we want to search at least depth 4
     stop_search = true;
     return true;
   }
   float threshold_time = float(printed_points) * (max_search_time / 40.0);
-  if(et >= threshold_time) {
+  if(ellapsed_time >= threshold_time) {
     std::cout << ".";
     std::cout.flush();
     printed_points++;

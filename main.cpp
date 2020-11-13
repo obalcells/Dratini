@@ -8,7 +8,10 @@
 #include "move.h"
 #include "gen.h"
 #include "book.h"
+#include "stats.h"
 // #include "eval.h"
+
+Statistics stats;
 
 int main() {
 	// test(); 
