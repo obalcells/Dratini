@@ -11,21 +11,18 @@ void TranspositionTable::allocate(int mb_size) {
     tt_size = ((tt_size / 2) << 20) / sizeof(Entry);
     free(tt);
     tt = (Entry *) malloc(tt_size * sizeof(Entry));
-    // we clear the table
-    Entry* entry;
-    for(entry = tt; entry < tt + tt_size; entry++)
-        entry->clear();
+    clear();
 }
 
-float TranspositionTable::how_full() {
+void TranspositionTable::clear() {
     Entry* entry;
-    int n_full = 0, n_checks = 1;
-    for(entry = tt; entry < tt + 6000 && entry < tt + tt_size; entry++) {
-        n_checks++;
-        if(entry->move != 0)
-            n_full++;
+    for(entry = tt; entry < tt + tt_size; entry++) {
+        entry->key = 0;
+        entry->depth = 0;
+        entry->flags = 0;
+        entry->move = 0;
+        entry->score = 0;
     }
-    return float(n_full) / float(n_checks); // percentage of occupied
 }
 
 // returns true/false if the move will fail high or low
@@ -34,7 +31,7 @@ bool TranspositionTable::retrieve_data(uint64_t key, int& move, int& score, int&
     entry = tt + (key & tt_mask);
     for(int cnt = 0; cnt < 4; cnt++) {
         if(entry->key == key) {
-            entry->flags = (entry->flags ^ date_mask) & tt_date; // this may not work
+            entry->flags = (entry->flags & EXACT_BOUND) | tt_date;
             move = entry->move;
             if(entry->depth >= depth) {
                 flags = entry->flags;
@@ -58,6 +55,7 @@ bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
+            entry->flags = (entry->flags & EXACT_BOUND) | tt_date;
             move = entry->move;
             return true;
         }
@@ -65,14 +63,42 @@ bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
     return false;
 } 
 
-void TranspositionTable::save(uint64_t key, int move, int score, int flags, int depth, int ply) {
-    Entry* entry;
+void TranspositionTable::save(uint64_t key, int move, int score, int bound, int depth, int ply) {
+    Entry *entry, *replace = NULL;
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
-        continue;
+        if(entry->key == key) {
+            if(!entry->move || bound == EXACT_BOUND) {
+                entry->key = key;
+                entry->depth = depth;
+                entry->flags = bound | (tt_date << 2);
+                entry->move = move;
+                entry->score = score;
+            }
+            break;
+        }
+        // we determine which entry is more valuable
+        int age = entry->depth + tt_date - get_date(entry->flags);
+        if(tt_date < get_date(entry->flags)) // ?
+            age += 256;
+        if(age > depth) {
+            entry->key = key;
+            entry->depth = depth;
+            entry->flags = bound | (tt_date << 2);
+            entry->move = move;
+            entry->score = score;
+            break;
+        } 
     }
 }
 
-int main() {
-    return 0;
+float TranspositionTable::how_full() const {
+    Entry* entry;
+    int n_full = 0, n_checks = 1;
+    for(entry = tt; entry < tt + 6000 && entry < tt + tt_size; entry++) {
+        n_checks++;
+        if(entry->move != 0)
+            n_full++;
+    }
+    return float(n_full) / float(n_checks); // percentage of occupied
 }
