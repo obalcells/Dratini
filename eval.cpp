@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cassert>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
 #include "board.h"
 

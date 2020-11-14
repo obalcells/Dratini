@@ -4,8 +4,13 @@
 #include <cassert>
 #include <sstream>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
+#include "board.h"
+
+bool is_move_str_valid(std::string);
+short int encode_move_str(std::string);
+void load_external();
+void load_internal();
 
 /*
 Move decode_move_int(short int encoded_move) {

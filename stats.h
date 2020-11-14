@@ -16,16 +16,18 @@ enum phase {
 class Statistics {
 public:
     void init();
-    void activate(int new_phase);
+    void change_phase(int new_phase);
+    void revert_phase();
     void display();
-    float ellapsed_time();
+    float elapsed_time();
     Statistics() { init(); }
     ~Statistics() {}
 private:
-    static std::chrono::time_point<std::chrono::system_clock> initial_time;
-    static int active_phase, nodes, q_nodes;
-    static std::vector<float> ellapsed_time_in_phase;
-    static float last_checked_time;
+    std::chrono::time_point<std::chrono::system_clock> initial_time;
+    int active_phase, prev_phase;
+    int nodes, q_nodes;
+    std::vector<float> elapsed_time_in_phase;
+    float last_checked_time;
 };
 
 extern Statistics stats;

@@ -1,4 +1,5 @@
 OBJECT_FILES = \
+	main.o \
 	data.o \
 	gen.o \
 	move.o \
@@ -7,8 +8,7 @@ OBJECT_FILES = \
 	board.o \
  	search.o \
 	book.o \
-	stats.o \
-	main.o
+	stats.o
 
 all: engine
 

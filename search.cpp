@@ -4,15 +4,21 @@
 #include <cassert>
 #include <sys/timeb.h>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
 #include "board.h"
+#include "book.h"
 #include "gen.h"
 #include "move.h"
 // #include "eval.h"
 #include "eval_tscp.h"
 #include "hash.h"
 #include "stats.h"
+
+void age_history();
+Move think();
+int search(int, int, int);
+int quiescence_search(int, int);
+bool timeout();
 
 int printed_points, depth;
 Move move_root;
@@ -28,7 +34,7 @@ Move think() {
     std::cout << "No book move available" << '\n';
   }
   // reset statistics and vars...
-  stats::init();
+  stats.init();
   stop_search = false;
   Move move_root_non_timeout = Move(); 
   move_root = Move();
@@ -49,13 +55,13 @@ Move think() {
   if(!is_testing) {
     std::cout << "Searched a maximum depth of: " << depth << endl;
     std::cout << "Best move is: " << str_move(move_root.from, move_root.to) << endl;
-    stats::display();
+    stats.display();
     /*
     std::cout << "Nodes searched: " << nodes << endl;
-    std::cout << "Ellapsed time: " << ellapsed_time() << " ms" << endl;
-    std::cout << "Avg time per node: " << double(nodes) / ellapsed_time() << " ms" << endl;
+    std::cout << "elapsed time: " << elapsed_time() << " ms" << endl;
+    std::cout << "Avg time per node: " << double(nodes) / elapsed_time() << " ms" << endl;
     */
-    std::cout << "........................................" << endl << endl;
+    std::cout << "................................................................................" << endl << endl;
   }
   while(!move_stack.empty()) {
     move_stack.pop_back();
@@ -64,7 +70,7 @@ Move think() {
 }
 
 int search(int alpha, int beta, int depth) {
-  stats::search();
+  stats.change_phase(SEARCH);
 
   if(timeout()) {
     return alpha;
@@ -184,7 +190,7 @@ int search(int alpha, int beta, int depth) {
 }
 
 int quiescence_search(int alpha, int beta) {
-  stats::q_search();
+  stats.change_phase(Q_SEARCH);
 
   int score = eval_tscp();
   if(score >= beta) {
@@ -232,14 +238,14 @@ void age_history() {
 }
 
 bool timeout() {
-  float ellapsed_time = stats::ellapsed_time(); 
-  if(ellapsed_time >= max_search_time) {
+  float elapsed_time = stats.elapsed_time(); 
+  if(elapsed_time >= max_search_time) {
     if(depth <= 4) return false; // we want to search at least depth 4
     stop_search = true;
     return true;
   }
-  float threshold_time = float(printed_points) * (max_search_time / 40.0);
-  if(ellapsed_time >= threshold_time) {
+  float threshold_time = float(printed_points) * (max_search_time / 80.0);
+  if(elapsed_time >= threshold_time) {
     std::cout << ".";
     std::cout.flush();
     printed_points++;

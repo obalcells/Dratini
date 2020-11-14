@@ -1,6 +1,5 @@
 #include <vector>
 #include "defs.h"
-#include "protos.h"
 
 char color[64];
 char piece[64];

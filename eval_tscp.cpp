@@ -4,8 +4,14 @@
 #include <vector>
 #include <string.h>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
+
+int eval_light_pawn(int);
+int eval_dark_pawn(int);
+int eval_light_king(int);
+int eval_lkp(int);
+int eval_dark_king(int);
+int eval_dkp(int);
 
 #define DOUBLED_PAWN_PENALTY		  10
 #define ISOLATED_PAWN_PENALTY		  20

@@ -1,13 +1,8 @@
 #include <cassert>
 #include <iostream>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
 #include "board.h"
-
-void make_move(Move move) {
-	make_move(move.from, move.to, QUEEN);
-}
 
 // we assume that the move is valid (because we have checked for validity before)
 Move make_move(char from, char to, char promotion_piece = QUEEN) {
@@ -101,6 +96,10 @@ Move make_move(char from, char to, char promotion_piece = QUEEN) {
 	side ^= 1;
 	xside ^= 1;
 	return Move(from, to, captured, prev_castling, prev_enpassant);
+}
+
+void make_move(Move move) {
+	make_move(move.from, move.to, QUEEN);
 }
 
 void take_back(Move m) {

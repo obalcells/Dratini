@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cassert>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
 #include "move.h"
 #include "board.h"
@@ -11,6 +10,7 @@
 
 void add_move(char from, char to) {
  	assert(from >= 0 && to >= 0);
+	stats.change_phase(CHECK);
 	State state_before = State();
  	Move m = make_move(from, to, QUEEN);
   	if(!in_check(xside)) {
@@ -29,6 +29,7 @@ void add_move(char from, char to) {
 	} else {
 		take_back(m);
   	}
+	/*
 	State state_after = State();
 	if(!state_before.same(state_after)) {
 		std::cout << "State is different after taking back." << endl;
@@ -47,10 +48,13 @@ void add_move(char from, char to) {
 		state_before.set();
 		save_snapshot("error-" + str_move(from, to));
 		assert(state_before.same(state_after));
-	} 
+	}
+	*/
+	stats.revert_phase();
 }
 
 void order_and_push() {
+	stats.change_phase(MOVE_ORD);
 	sort(unordered_move_stack.rbegin(), unordered_move_stack.rend());
 	while(!unordered_move_stack.empty()) {
 		move_stack.push_back(unordered_move_stack.back().second);
@@ -59,8 +63,7 @@ void order_and_push() {
 }
 
 void generate_capture_moves() {
-	// stats::activate(GENERATE_CAPTURES);
-
+	stats.change_phase(CAP_MOVE_GEN);
 	for (char pos = 0; pos < 64; pos++)
 		if (color[pos] == side) {
 			if (piece[pos] == PAWN) {
@@ -125,6 +128,7 @@ void generate_capture_moves() {
 }
 
 void generate_moves() {
+	stats.change_phase(MOVE_GEN);
 	for(int pos = 0; pos < 64; pos++) if(color[pos] == side) {
 		if(piece[pos] == PAWN) {
 			// one forward

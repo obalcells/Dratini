@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include "defs.h"
-#include "protos.h"
 #include "data.h"
 
 long long random_long() {

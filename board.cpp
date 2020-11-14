@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include "defs.h"
-#include "protos.h"
+#include "gen.h"
 #include "data.h"
 #include "hash.h"
 
