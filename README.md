@@ -9,7 +9,7 @@ Dratini might be slow. However, it's still not easy to defeat it. I would guess 
 If you kept reading until here, you might find the following sites useful:
 
 1. [Chessprogramming Wiki](https://www.chessprogramming.org/Main_Page).
-2. [Tom Kerrigan's Simple Chess Programm Source Code](http://www.tckerrigan.com/Chess/TSCP/)
+2. [Tom Kerrigan's Simple Chess Program Source Code](http://www.tckerrigan.com/Chess/TSCP/)
 3. [TSCP's unofficial guide](https://sites.google.com/site/tscpchess/home)
 
 ## TO-DO List
