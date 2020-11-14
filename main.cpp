@@ -2,7 +2,6 @@
 #include <vector>
 #include "defs.h"
 #include "data.h"
-#include "protos.h"
 #include "search.h"
 #include "board.h"
 #include "move.h"

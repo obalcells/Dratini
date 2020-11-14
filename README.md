@@ -14,7 +14,8 @@ If you kept reading until here, you might find the following sites useful:
 
 ## TO-DO List
 
-- [ ] Speed statistics
+- [X] Speed statistics
+- [ ] More efficient bug-free transposition table
 
 ## Why 'Dratini'?
 
