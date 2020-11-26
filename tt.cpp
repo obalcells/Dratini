@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include "tt.h"
 
+namespace {
+    const int bound_mask = 3;
+    const int date_mask  = ((1 << 8) - 1) ^ 3;  
+}
+
 void TranspositionTable::allocate(int mb_size) {
     // we want the size of the table to be a power of two
     for(tt_size = 2; tt_size <= mb_size; tt_size *= 2);
@@ -31,7 +36,7 @@ bool TranspositionTable::retrieve_data(uint64_t key, int& move, int& score, int&
     entry = tt + (key & tt_mask);
     for(int cnt = 0; cnt < 4; cnt++) {
         if(entry->key == key) {
-            entry->flags = (entry->flags & EXACT_BOUND) | tt_date;
+            entry->flags = (entry->flags & EXACT_BOUND) | (tt_date << 2);
             move = entry->move;
             if(entry->depth >= depth) {
                 flags = entry->flags;
@@ -55,7 +60,7 @@ bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
-            entry->flags = (entry->flags & EXACT_BOUND) | tt_date;
+            entry->flags = (entry->flags & EXACT_BOUND) | (tt_date << 2);
             move = entry->move;
             return true;
         }
@@ -66,29 +71,29 @@ bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
 void TranspositionTable::save(uint64_t key, int move, int score, int bound, int depth, int ply) {
     Entry *entry, *replace = NULL;
     entry = tt + (key & tt_mask);
+    int oldest = -1, age;
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
             if(!entry->move || bound == EXACT_BOUND) {
-                entry->key = key;
-                entry->depth = depth;
-                entry->flags = bound | (tt_date << 2);
-                entry->move = move;
-                entry->score = score;
+                replace = entry;
             }
             break;
         }
         // we determine which entry is more valuable
-        int age = entry->depth + tt_date - get_date(entry->flags);
-        if(tt_date < get_date(entry->flags)) // ?
+        age = entry->depth + tt_date - get_date(entry->flags) + 256;
+        if(tt_date < get_date(entry->flags))
             age += 256;
-        if(age > depth) {
-            entry->key = key;
-            entry->depth = depth;
-            entry->flags = bound | (tt_date << 2);
-            entry->move = move;
-            entry->score = score;
-            break;
+        if(age > oldest) {
+            replace = entry;
+            oldest = age;
         } 
+    }
+    if(oldest != -1) {
+        replace->key = key;
+        replace->depth = depth;
+        replace->flags = bound | (tt_date << 2);
+        replace->move = move;
+        replace->score = score;
     }
 }
 

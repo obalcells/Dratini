@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "defs.h"
 #include "data.h"
+#include "board.h"
 
 long long random_long() {
     long long ans = 0;
@@ -19,9 +20,6 @@ void init_zobrist() {
     // enpassant and castling index
     random_value[7][0] = random_long();
     random_value[8][0] = random_long();
-    for(int entry_idx = 0; entry_idx < n_entries; entry_idx++) {
-        pv_table[entry_idx] = PV_Entry();
-    }
     for(int from = 0; from < 64; from++) {
         for(int to = 0; to < 64; to++) {
             history[0][from][to] = 0;
@@ -30,16 +28,16 @@ void init_zobrist() {
     }
 }
 
-long long get_hash() {
+long long get_hash(const Position& position) {
     long long hash = 0ll;
     for(int pos = 0; pos < 64; pos++) {
-        if(piece[pos] != EMPTY) {
-            hash ^= random_value[piece[pos]][pos];
+        if(position.piece[pos] != EMPTY) {
+            hash ^= random_value[position.piece[pos]][pos];
         }
     }
     // enpassant and castling idx
     hash ^= random_value[7][0];
     hash ^= random_value[8][0];
-    hash ^= side;
+    hash ^= position.side;
     return hash;
 }

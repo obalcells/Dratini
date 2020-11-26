@@ -5,7 +5,7 @@
 #include "board.h"
 
 // we assume that the move is valid (because we have checked for validity before)
-Move make_move(char from, char to, char promotion_piece = QUEEN) {
+Move Position::make_move(char from, char to, char promotion_piece = QUEEN) {
   	assert(piece[from] != EMPTY);
 
   	char prev_enpassant = enpassant; // store previous flags
@@ -98,11 +98,11 @@ Move make_move(char from, char to, char promotion_piece = QUEEN) {
 	return Move(from, to, captured, prev_castling, prev_enpassant);
 }
 
-void make_move(Move move) {
+void Position::make_move(Move move) {
 	make_move(move.from, move.to, QUEEN);
 }
 
-void take_back(Move m) {
+void Position::take_back(Move m) {
 	assert(piece[m.from] == EMPTY);
 	assert(color[m.from] == EMPTY);
 	assert(piece[m.to] != EMPTY);
@@ -171,7 +171,7 @@ void take_back(Move m) {
 	xside ^= 1;
 }
 
-int move_valid(char from, char to) {
+int Position::move_valid(char from, char to) {
 	if(from == to) return 1;
 	else if(piece[from] == EMPTY) return 2;
 	else if(side != color[from]) return 3;
@@ -215,7 +215,6 @@ int move_valid(char from, char to) {
 
 	} else if(piece[from] == PAWN) {
 		// pawn
-
 		if(side == WHITE && to < from) return 8;
 		else if(side == BLACK && to > from) return 9;
 
@@ -224,7 +223,7 @@ int move_valid(char from, char to) {
 		int delta_col = abs(col(to) - col(from));
 
 		if(delta_row == 1 && delta_col == 1 && color[to] == EMPTY) {
-      // eat enpassant
+      		// eat enpassant
 			char adjacent = row(from) * 8 + col(to);
 			if(piece[to] != EMPTY || color[adjacent] != xside) return 10;
 			else if(enpassant != col(to)) return 11;

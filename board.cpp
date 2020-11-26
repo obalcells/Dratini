@@ -2,12 +2,30 @@
 #include <cassert>
 #include <vector>
 #include <string>
+#include "board.h"
 #include "defs.h"
 #include "gen.h"
 #include "data.h"
 #include "hash.h"
 
-bool is_attacked(char pos, bool attacker_side) {
+// we reset every single game variable
+void Position::init_board() {
+	for(int i = 0; i < 64; i++) {
+		piece[i] = initial_piece[i];
+		color[i] = initial_color[i];
+	}
+	side = WHITE;
+	xside = BLACK;
+	castling = 63;
+	enpassant = 0;
+	while(!move_stack.empty()) move_stack.pop_back();
+	while(!taken_moves.empty()) taken_moves.pop_back();
+	while(!unordered_move_stack.empty()) unordered_move_stack.pop_back();
+	init_zobrist();
+	book_deactivated = false;
+}
+
+bool Position::is_attacked(char pos, bool attacker_side) {
 	// pawns
 	if(attacker_side == BLACK) {
 		if(valid_distance(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == attacker_side) return true;
@@ -55,33 +73,16 @@ bool is_attacked(char pos, bool attacker_side) {
 	return false;
 }
 
-bool in_check(bool _side) {
+bool Position::in_check(bool defender_side) {
 	for(char pos = 0; pos < 64; pos++) {
-		if(piece[pos] == KING && color[pos] == _side) {
-		  return is_attacked(pos, _side ^ 1);
+		if(piece[pos] == KING && color[pos] == defender_side) {
+		  return is_attacked(pos, defender_side ^ 1);
 		}
 	}
 	return false;
 }
 
-// we reset every single game variable
-void init_board() {
-	for(int i = 0; i < 64; i++) {
-		piece[i] = initial_piece[i];
-		color[i] = initial_color[i];
-	}
-	side = WHITE;
-	xside = BLACK;
-	castling = 63;
-	enpassant = 0;
-	while(!move_stack.empty()) move_stack.pop_back();
-	while(!taken_moves.empty()) taken_moves.pop_back();
-	while(!unordered_move_stack.empty()) unordered_move_stack.pop_back();
-	init_zobrist();
-	book_deactivated = false;
-}
-
-void print_board() {
+void Position::print_board() {
 	std::cout << endl;
 	int i;
 	for(i = 56; i >= 0;) {
@@ -120,17 +121,17 @@ void print_board() {
 }
 
 // There should be some more checks here
-bool is_draw() {
+bool Position::is_draw() {
 	for(char i = 0; i < 64; i++) {
 		if(piece[i] != KING) return false;
 	}
 	return true;
 }
 
-int game_over() {
+int Position::game_over() {
 	if(is_draw()) return EMPTY;
 	int n_moves_prev = (int)move_stack.size();
-	generate_moves();
+	generate_moves(*this);
 	int n_moves_now = (int)move_stack.size();
 	if(n_moves_prev != n_moves_now) {
 		return -1; // not over
@@ -144,7 +145,7 @@ int game_over() {
 	}
 }
 
-void save_snapshot(std::string snapshot_name) {
+void Position::save_snapshot(std::string snapshot_name) {
   freopen(("./snapshots/" + snapshot_name + ".snapshot").c_str(), "w", stdout);
   std::cout << side << endl;
   std::cout << castling << endl;
@@ -156,7 +157,7 @@ void save_snapshot(std::string snapshot_name) {
   std::cout << "Snapshot made!" << endl; // this should be printed in console
 }
 
-void load_snapshot(std::string snapshot_name) {
+void Position::load_snapshot(std::string snapshot_name) {
   freopen(("./snapshots/" + snapshot_name + ".snapshot").c_str(), "r", stdin);
   std::cin >> side;
   xside = side ^ 1;
@@ -168,37 +169,4 @@ void load_snapshot(std::string snapshot_name) {
   }
   freopen("/dev/tty", "r", stdin);
   std::cout << "Snapshot loaded!" << endl;
-}
-
-bool parse_move(std::string raw_input, char & from, char & to) {
-	if((int)raw_input.size() != 4) return false;
-	int col_1 = raw_input[0] - 'a';
-	int row_1 = raw_input[1] - '1';
-	int col_2 = raw_input[2] - 'a';
-	int row_2 = raw_input[3] - '1';
-	if(row_1 >= 0 && row_1 < 8
-	&& col_1 >= 0 && col_1 < 8
-	&& row_2 >= 0 && row_2 < 8
-	&& col_2 >= 0 && col_2 < 8) {
-		from = row_1 * 8 + col_1; to = row_2 * 8 + col_2;
-		return true;
-	}
-	return false;
-}
-
-std::string str_move(char from, char to) {
-	std::string ans = "";
-	ans += char('a' + col(from));
-	ans += char('1' + row(from));
-	ans += char('a' + col(to));
-	ans += char('1' + row(to));
-	return ans;
-}
-
-std::string str_move(Move m) {
-	str_move(m.from, m.to);
-}
-
-bool empty_move(Move m) {
-	return m.from == 64 && m.to == 64;
 }

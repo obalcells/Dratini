@@ -26,23 +26,6 @@
 
 #define row(x) (x >> 3)
 #define col(x) (x & 7)
-#define max(x, y) (x > y ? x : y)
-#define min(x, y) (x < y ? x : y)
-#define valid_pos(x) (x >= 0 && x < 64)
-
-inline int abs(int x) { 
-  if(x < 0)
-    return x * (-1);
-  return x;
-}
-
-inline int distance(char pos_1, char pos_2) {
-  return abs(row(pos_1) - row(pos_2)) + abs(col(pos_1) - col(pos_2));
-}
-
-inline bool valid_distance(char pos_1, char pos_2) {
-  return valid_pos(pos_1) && valid_pos(pos_2) && distance(pos_1, pos_2) <= 3; 
-}	
 
 struct Move {
     char from;
@@ -72,18 +55,48 @@ struct Move {
     }
 };
 
-struct PV_Entry {
-  long long state_key;
-  int alpha;
-  Move move;
-  PV_Entry() {
-    state_key = 0;
-    alpha = 0;
-    move = Move();
-  }
-  PV_Entry(long long _state_key, int _alpha, Move _move) {
-    state_key = _state_key;
-    alpha = 0;
-    move = _move;
-  }
-};
+/* These helper functions will be removed from here very soon */
+inline bool valid_pos(const int x) {
+  return (x >= 0 && x < 64);
+}
+
+inline int abs(const int x) {
+  return ((x >= 0) ? x : -x);
+}
+
+inline int distance(const int x, const int y) {
+  return (abs(row(x) - row(y)) + abs(col(x) - col(y)));
+}
+
+inline bool valid_distance(const int x, const int y) {
+  return valid_pos(x) && valid_pos(y) && (distance(x, y) <= 3);
+}
+
+inline std::string str_move(char from, char to) {
+	std::string ans = "";
+	ans += char('a' + col(from));
+	ans += char('1' + row(from));
+	ans += char('a' + col(to));
+	ans += char('1' + row(to));
+	return ans;
+}
+
+inline bool empty_move(Move m) {
+	return m.from == 64 && m.to == 64;
+}
+
+inline bool parse_move(std::string raw_input, char & from, char & to) {
+	if((int)raw_input.size() != 4) return false;
+	int col_1 = raw_input[0] - 'a';
+	int row_1 = raw_input[1] - '1';
+	int col_2 = raw_input[2] - 'a';
+	int row_2 = raw_input[3] - '1';
+	if(row_1 >= 0 && row_1 < 8
+	&& col_1 >= 0 && col_1 < 8
+	&& row_2 >= 0 && row_2 < 8
+	&& col_2 >= 0 && col_2 < 8) {
+		from = row_1 * 8 + col_1; to = row_2 * 8 + col_2;
+		return true;
+	}
+	return false;
+}

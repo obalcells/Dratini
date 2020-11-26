@@ -247,7 +247,7 @@ int eval_king(int pos, bool late_game = false) {
   };
 
   int score = 0;
-  for(int c = max(0, col(pos) - 2); c < min(7, col(pos) + 2); c++) {
+  for(int c = std::max(0, col(pos) - 2); c < std::min(7, col(pos) + 2); c++) {
     // i guess that open files are much worse at the beginning
     if(color[pos] == WHITE) score += (late_game ? eval_white_col(c) : 2 * eval_white_col(c));
     else score += (late_game ? eval_black_col(c) : 2 * eval_black_col(c));

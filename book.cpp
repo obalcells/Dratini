@@ -31,7 +31,7 @@ void print_move_seq(const std::vector<short int> & state) {
 
 // lexicographically compare two different states
 bool state_compare(const std::vector<short int> & a, const std::vector<short int> & b) {
-  int sz = (int)min(a.size(), b.size());
+  int sz = std::min(a.size(), b.size());
   for(int i = 0; i < sz; i++) {
     if(a[i] < b[i]) return true;
     if(a[i] > b[i]) return false;
@@ -114,7 +114,6 @@ Move get_book_move() {
   assert(current_state.size() < book[low].size());
   // TO-DO: Pick a random move if we can choose between different ones
   // we return the next move in the book line
-  std::cout << "Low is " << low << '\n';
   return decode_move_int(book[low][(int)current_state.size()]);
 }
 

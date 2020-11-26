@@ -1,4 +1,5 @@
 #pragma once
+/*
 #include <vector>
 #include "defs.h"
 #include "data.h"
@@ -47,3 +48,4 @@ struct State {
     return true;
   }
 };
+*/

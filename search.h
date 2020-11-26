@@ -1,3 +1,4 @@
 #pragma once
+#include "board.h"
 
-extern Move think();
+extern Move think(Position& position);

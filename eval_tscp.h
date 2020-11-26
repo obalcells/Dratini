@@ -1,1 +1,1 @@
-extern int eval_tscp();
+extern int eval_tscp(const Position&);

@@ -3,31 +3,29 @@
 #include <cassert>
 #include "defs.h"
 #include "data.h"
-#include "move.h"
 #include "board.h"
-#include "state.h"
 #include "stats.h"
 
-void add_move(char from, char to) {
+void add_move(Position& position, char from, char to) {
  	assert(from >= 0 && to >= 0);
 	stats.change_phase(CHECK);
-	State state_before = State();
- 	Move m = make_move(from, to, QUEEN);
-  	if(!in_check(xside)) {
-		take_back(m);
-		int error_code = move_valid(from, to); // this should be disabled for production
+ 	Move m = position.make_move(from, to, QUEEN);
+  	if(!position.in_check(position.xside)) {
+		position.take_back(m);
+		int error_code = position.move_valid(from, to); // this should be disabled for production
 		if(error_code != 0) {
-			print_board();
+			position.print_board();
+			std::cerr << "Error code is " << error_code << '\n';
 			assert(error_code == 0);
 		}
 		int score;
-		score += history[side][from][to];
-		if(piece[to] != EMPTY) {
-			score = 10000 + piece_value[piece[to]] - piece_value[piece[from]];
+		score += history[position.side][from][to];
+		if(position.piece[to] != EMPTY) {
+			score = 10000 + piece_value[position.piece[to]] - piece_value[position.piece[from]];
 		}
 		unordered_move_stack.push_back(std::make_pair(score, m));
 	} else {
-		take_back(m);
+		position.take_back(m);
   	}
 	/*
 	State state_after = State();
@@ -62,63 +60,51 @@ void order_and_push() {
 	}
 }
 
-void generate_capture_moves() {
+void generate_capture_moves(Position& position) {
 	stats.change_phase(CAP_MOVE_GEN);
 	for (char pos = 0; pos < 64; pos++)
-		if (color[pos] == side) {
-			if (piece[pos] == PAWN) {
+		if (position.color[pos] == position.side) {
+			if (position.piece[pos] == PAWN) {
 				// diagonal-capture
-				char one_forward = (side == WHITE ? pos + 8 : pos - 8);
-
-				if (valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside) {
-					add_move(pos, one_forward - 1);
-				}
-				if (valid_distance(pos, one_forward + 1) && color[one_forward + 1] == xside) {
-					add_move(pos, one_forward + 1);
-				}
+				char one_forward = (position.side == WHITE ? pos + 8 : pos - 8);
+				if (valid_distance(pos, one_forward - 1) && position.color[one_forward - 1] == position.xside)
+					add_move(position, pos, one_forward - 1);
+				if (valid_distance(pos, one_forward + 1) && position.color[one_forward + 1] == position.xside)
+					add_move(position, pos, one_forward + 1);
 				// enpassant
-				if ((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
+				if ((position.side == WHITE && row(pos) == 4) || (position.side == BLACK && row(pos) == 3)) {
 					// to the left
-					if (col(pos) > 0 && color[pos - 1] == xside && piece[pos - 1] == PAWN && enpassant == col(pos - 1)) {
-						if (side == WHITE) {
-							add_move(pos, pos + 7);
-						} else {
-							add_move(pos, pos - 9);
-						}
+					if (col(pos) > 0 && position.color[pos - 1] == position.xside && position.piece[pos - 1] == PAWN && position.enpassant == col(pos - 1)) {
+						if (position.side == WHITE)
+							add_move(position, pos, pos + 7);
+						else 
+							add_move(position, pos, pos - 9);
 					}
 					// to the right
-					else if (col(pos) < 7 && color[pos + 1] == xside && piece[pos + 1] == PAWN && enpassant == col(pos + 1)) {
-						if (side == WHITE) {
-							add_move(pos, pos + 9);
-						} else {
-							add_move(pos, pos - 7);
-						}
+					else if (col(pos) < 7 && position.color[pos + 1] == position.xside && position.piece[pos + 1] == PAWN && position.enpassant == col(pos + 1)) {
+						if (position.side == WHITE)
+							add_move(position, pos, pos + 9);
+						else
+							add_move(position, pos, pos - 7);
 					}
 				}
 			} else {
-				for (int i = 0; i < 8; i++) {
-					if (offset[piece[pos]][i] == 0) break;
-					char new_pos = pos + offset[piece[pos]][i];
-
-					if (!slide[piece[pos]])
-					{
-						if (valid_distance(pos, new_pos) && color[new_pos] == xside)
-						{
-							add_move(pos, new_pos);
+				for(int i = 0; i < 8; i++) {
+					if(offset[position.piece[pos]][i] == 0) break;
+					char new_pos = pos + offset[position.piece[pos]][i];
+					if (!slide[position.piece[pos]]) {
+						if (valid_distance(pos, new_pos) && position.color[new_pos] == position.xside) {
+							add_move(position, pos, new_pos);
 						}
-					}
-					else
-					{
+					} else {
 						char prev_pos = pos;
-						while (valid_distance(prev_pos, new_pos) && color[new_pos] != side)
-						{
-							if (color[new_pos] == xside)
-							{
-								add_move(pos, new_pos);
+						while (valid_distance(prev_pos, new_pos) && position.color[new_pos] != position.side) {
+							if (position.color[new_pos] == position.xside) {
+								add_move(position, pos, new_pos);
 								break;
 							}
 							prev_pos = new_pos;
-							new_pos += offset[piece[pos]][i];
+							new_pos += offset[position.piece[pos]][i];
 						}
 					}
 				}
@@ -127,68 +113,68 @@ void generate_capture_moves() {
 	order_and_push();
 }
 
-void generate_moves() {
+void generate_moves(Position& position) {
 	stats.change_phase(MOVE_GEN);
-	for(int pos = 0; pos < 64; pos++) if(color[pos] == side) {
-		if(piece[pos] == PAWN) {
+	for(int pos = 0; pos < 64; pos++) if(position.color[pos] == position.side) {
+		if(position.piece[pos] == PAWN) {
 			// one forward
-			char one_forward = (side == WHITE ? pos + 8 : pos - 8);
+			char one_forward = (position.side == WHITE ? pos + 8 : pos - 8);
 			int captured = EMPTY;
 			if(row(one_forward) == 0 || row(one_forward) == 7) captured = PAWN;
-			if(color[one_forward] == EMPTY) add_move(pos, one_forward);
+			if(position.color[one_forward] == EMPTY) add_move(position, pos, one_forward);
 			// two forward
-			if((side == WHITE && row(pos) == 1) || (side == BLACK && row(pos) == 7)) {
-				char two_forward = (side == WHITE ? pos + 16 : pos - 16);
-				if(color[one_forward] == EMPTY && color[two_forward] == EMPTY) {
-					add_move(pos, two_forward);
+			if((position.side == WHITE && row(pos) == 1) || (position.side == BLACK && row(pos) == 7)) {
+				char two_forward = (position.side == WHITE ? pos + 16 : pos - 16);
+				if(position.color[one_forward] == EMPTY && position.color[two_forward] == EMPTY) {
+					add_move(position, pos, two_forward);
 				}
 			}
 			// eating
-			if(valid_distance(pos, one_forward - 1) && color[one_forward - 1] == xside) {
-				add_move(pos, one_forward - 1);
+			if(valid_distance(pos, one_forward - 1) && position.color[one_forward - 1] == position.xside) {
+				add_move(position, pos, one_forward - 1);
 			}
-			if(valid_distance(pos, one_forward + 1) && color[one_forward + 1] == xside) {
-				add_move(pos, one_forward + 1);
+			if(valid_distance(pos, one_forward + 1) && position.color[one_forward + 1] == position.xside) {
+				add_move(position, pos, one_forward + 1);
 			}
 			// enpassant
-			if((side == WHITE && row(pos) == 4) || (side == BLACK && row(pos) == 3)) {
+			if((position.side == WHITE && row(pos) == 4) || (position.side == BLACK && row(pos) == 3)) {
 				// to the left
-				if(col(pos) > 0 && color[pos - 1] == xside && piece[pos - 1] == PAWN && enpassant == col(pos - 1)) {
-					if(side == WHITE) add_move(pos, pos + 7);
-					else add_move(pos, pos - 9);
+				if(col(pos) > 0 && position.color[pos - 1] == position.xside && position.piece[pos - 1] == PAWN && position.enpassant == col(pos - 1)) {
+					if(position.side == WHITE) add_move(position, pos, pos + 7);
+					else add_move(position, pos, pos - 9);
 				// to the right
-				} else if(col(pos) < 7 && color[pos + 1] == xside && piece[pos + 1] == PAWN && enpassant == col(pos + 1)) {
-					if(side == WHITE) add_move(pos, pos + 9);
-					else add_move(pos, pos - 7);
+				} else if(col(pos) < 7 && position.color[pos + 1] == position.xside && position.piece[pos + 1] == PAWN && position.enpassant == col(pos + 1)) {
+					if(position.side == WHITE) add_move(position, pos, pos + 9);
+					else add_move(position, pos, pos - 7);
 				}
 			}
 		} else {
-			if(piece[pos] == KING) {
+			if(position.piece[pos] == KING) {
 				// castling
-				if(side == WHITE && (castling & 4)) {
-					if((castling & 1) && move_valid(4, 2) == 0) add_move(4, 2);
-					if((castling & 2) && move_valid(4, 6) == 0) add_move(4, 6);
-				} else if(side == BLACK && castling & 32) {
-					if((castling & 8) && move_valid(60, 58) == 0) add_move(60, 58);
-					if((castling & 16) && move_valid(60, 62) == 0) add_move(60, 62);
+				if(position.side == WHITE && (position.castling & 4)) {
+					if((position.castling & 1) && position.move_valid(4, 2) == 0) add_move(position, 4, 2);
+					if((position.castling & 2) && position.move_valid(4, 6) == 0) add_move(position, 4, 6);
+				} else if(position.side == BLACK && position.castling & 32) {
+					if((position.castling & 8) && position.move_valid(60, 58) == 0) add_move(position, 60, 58);
+					if((position.castling & 16) && position.move_valid(60, 62) == 0) add_move(position, 60, 62);
 				}
 			}
 
 			for(int i = 0; i < 8; i++) {
-				if(offset[piece[pos]][i] == 0) break;
-        		int new_pos = pos + offset[piece[pos]][i];
+				if(offset[position.piece[pos]][i] == 0) break;
+        		int new_pos = pos + offset[position.piece[pos]][i];
 
-				if(!slide[piece[pos]]) {
-					if(valid_distance(pos, new_pos) && color[new_pos] != side) {
-						add_move(pos, new_pos);
+				if(!slide[position.piece[pos]]) {
+					if(valid_distance(pos, new_pos) && position.color[new_pos] != position.side) {
+						add_move(position, pos, new_pos);
 					}
 				} else {
 					int prev_pos = pos;
-					while(valid_distance(prev_pos, new_pos) && color[new_pos] != side) {
-						add_move(pos, new_pos);
-						if(color[new_pos] == xside) break;
+					while(valid_distance(prev_pos, new_pos) && position.color[new_pos] != position.side) {
+						add_move(position, pos, new_pos);
+						if(position.color[new_pos] == position.xside) break;
 						prev_pos = new_pos;
-						new_pos += offset[piece[pos]][i];
+						new_pos += offset[position.piece[pos]][i];
 					}
 				}
 			}

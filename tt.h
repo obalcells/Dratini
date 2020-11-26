@@ -1,8 +1,7 @@
+#pragma once
+
 #include <cstdint>
 #include <cinttypes>
-
-const int bound_mask = 3;
-const int date_mask  = ((1 << 8) - 1) ^ 3;  
 
 #define get_bound(flags)  (flags & bound_mask)
 #define get_date(flags)   (flags >> 2)
@@ -31,13 +30,16 @@ public:
     void allocate(int mb_size);
     void clear();
     int size() const { return tt_size; }
+    void age() { tt_date = (tt_date + 1) & 255; }
     float how_full() const;
     // pass reference of position object in the future
     bool retrieve_data(uint64_t key, int& move, int& score, int& flags, int alpha, int beta, int depth, int ply);
     bool retrieve_move(uint64_t key, int& move);
-    void save(uint64_t key, int move, int score, int flags, int depth, int ply);
+    void save(uint64_t key, int move, int score, int bound, int depth, int ply);
 private:
     static_assert(sizeof(Entry) == 16, "Entry must have size 16");
     int tt_size, tt_mask, tt_date;
     Entry* tt; 
 };
+
+extern TranspositionTable tt;

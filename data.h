@@ -17,8 +17,8 @@ extern std::vector<Move> taken_moves;
 extern std::vector<std::pair<int,Move> > unordered_move_stack;
 
 extern long long random_value[9][64];
-extern int n_entries;
-extern PV_Entry pv_table[1 << 20];
+// extern int n_entries;
+// extern PV_Entry pv_table[1 << 20];
 extern int history[2][64][64];
 
 extern std::vector<std::vector<short int> > book;
