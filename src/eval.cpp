@@ -5,6 +5,8 @@
 #include "data.h"
 #include "board.h"
 
+/*
+
 // Things we should evaluate
 // 1 Pawn
 // 1.1 Position (how close to promotion)
@@ -254,8 +256,10 @@ int eval_king(int pos, bool late_game = false) {
   }
   return score;
 }
+*/
 
 /* The more squares a piece can visit, the better */
+/*
 int eval_sorroundings(int pos, bool late_game = false) {
   int score = 0;
 
@@ -287,3 +291,4 @@ int eval_sorroundings(int pos, bool late_game = false) {
   return score;
 }
 
+*/

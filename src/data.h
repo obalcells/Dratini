@@ -3,14 +3,6 @@
 #include <vector>
 #include "defs.h"
 
-/* state of the game */
-extern char color[64];
-extern char piece[64];
-extern char side;
-extern char xside;
-extern char castling;
-extern char enpassant;
-
 extern Move next_move;
 extern std::vector<Move> move_stack;
 extern std::vector<Move> taken_moves;

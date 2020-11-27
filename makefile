@@ -1,40 +1,34 @@
-OBJECT_FILES = \
-	main.o \
-	tt.o \
-	data.o \
-	gen.o \
-	move.o \
-	hash.o \
-	eval_tscp.o \
-	board.o \
- 	search.o \
-	book.o \
-	stats.o
+# compiler flags
+C_FLAGS = -g -w -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays
+# C1_FLAGS = -g -w -Wfatal-errors -pipe
 
-TESTING_FILES = \
-	test.o \
-	tt.o \
-	data.o \
-	gen.o \
-	move.o \
-	hash.o \
-	eval_tscp.o \
-	board.o \
- 	search.o \
-	book.o \
-	stats.o
+# link options
+LD_FLAGS = -s -lm
+# LD1_FLAGS = -lm
 
-all: engine
+# define output name and settings file
+EXE_NAME = /Users/balce/Desktop/Dratini/dratini
+TEST_NAME = /Users/balce/Desktop/Dratini/test_dratini
 
-engine: $(OBJECT_FILES)
-	g++ -O3 -std=c++17 -o engine $(OBJECT_FILES)
+# group of files to be compiled
+SRC_FILES := $(wildcard src/*.cpp)
+TEST_FILES := $(filter-out src/main.cpp, $(SRC_FILES))
+TEST_FILES += $(wildcard test/*.cpp)
 
-testing: $(TESTING_FILES)
-	g++ -03 -std=c++17 -o testing_engine $(TESTING_FILES)
+default: build
 
-%.o: %.c data.h
-	g++ -O3 -std=c++17 -c $< -o $@
+build:
+	@echo "Building executable"
+	g++ $(LD_FLAGS) $(C_FLAGS) -std=c++17 $(SRC_FILES) -o $(EXE_NAME)
+	rm -rf $(EXE_NAME).dSYM
+
+tests:
+	@echo "Building testing executable"
+	g++ $(LD1_FLAGS) $(C_FLAGS) -std=c++17 $(TEST_FILES) -o $(TEST_NAME)
+	rm -rf $(TEST_NAME).dSYM
 
 clean:
-	rm -f *.o
-	rm -f engine
+	rm -f $(EXE_NAME)
+	rm -f $(TEST_NAME)
+	rm -rf $(EXE_NAME).dSYM
+	rm -rf $(TEST_NAME).dSYM
