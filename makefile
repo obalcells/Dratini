@@ -1,10 +1,10 @@
 # compiler flags
 C_FLAGS = -g -w -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays
-# C1_FLAGS = -g -w -Wfatal-errors -pipe
+TESTING_C_FLAGS = -g -w -pipe -O1
 
 # link options
-LD_FLAGS = -s -lm
-# LD1_FLAGS = -lm
+L_FLAGS = -s -lm
+TESTING_L_FLAGS = -lm
 
 # define output name and settings file
 EXE_NAME = /Users/balce/Desktop/Dratini/dratini
@@ -19,12 +19,12 @@ default: build
 
 build:
 	@echo "Building executable"
-	g++ $(LD_FLAGS) $(C_FLAGS) -std=c++17 $(SRC_FILES) -o $(EXE_NAME)
+	g++ $(L_FLAGS) $(C_FLAGS) -std=c++17 $(SRC_FILES) -o $(EXE_NAME)
 	rm -rf $(EXE_NAME).dSYM
 
 tests:
 	@echo "Building testing executable"
-	g++ $(LD1_FLAGS) $(C_FLAGS) -std=c++17 $(TEST_FILES) -o $(TEST_NAME)
+	g++ $(TESTING_L_FLAGS) $(TESTING_C_FLAGS) -std=c++17 $(TEST_FILES) -o $(TEST_NAME)
 	rm -rf $(TEST_NAME).dSYM
 
 clean:

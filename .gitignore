@@ -4,3 +4,5 @@ engine
 #ignore vim swap files
 *.swo
 .vscode
+test_dratini
+dratini
