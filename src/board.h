@@ -8,6 +8,7 @@ public:
     Position() { init_board(); }
     ~Position() {}
     /* moves */
+    bool check_coloring();
     bool check_castling(char, char);
     bool check_enpassant(char, char);
     bool new_move_valid(char, char);

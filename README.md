@@ -1,10 +1,8 @@
-# Just another C++ chess engine
+![Title](https://i.imgur.com/5wb21Si.png)
 
 This may not be the best chess engine, but it is a chess engine.
 
-It does minimax search with alpha-beta pruning together with some other optimizations such as null-move optimization and quiescence search. It uses a classical 2-dimensional array for representing the board.
-
-Dratini might be slow. However, it's still not easy to defeat it. I would guess that its ELO lies between 1300 and 1400.
+It does minimax search with alpha-beta pruning together with some other optimizations such as null-move optimization and quiescence search. It uses a classical 2-dimensional array for representing the board. It might be slow, but still, it isn't easy to defeat it. I would guess that its ELO lies around 1400.
 
 ## Other engines and chess programming resources
 
@@ -16,9 +14,8 @@ Dratini might be slow. However, it's still not easy to defeat it. I would guess 
 
 - [X] Speed statistics
 - [X] More efficient bug-free transposition table
-- [ ] Unit tests
+- [X] Unit tests
+- [X] Self-play script
 - [ ] Bitboards
 
-## Why 'Dratini'?
-
-I used to like Pokémon when I was young. Dratini is the name of a very weak Pokémon ([see picture](https://www.pokemon.com/en/pokedex/dratini)).
+[What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)

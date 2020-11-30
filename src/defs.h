@@ -104,6 +104,10 @@ inline std::string str_move(char from, char to) {
 	ans += char('1' + row(from));
 	ans += char('a' + col(to));
 	ans += char('1' + row(to));
+  ans += " = ";
+  ans += std::to_string(int(from));
+  ans += "-";
+  ans += std::to_string(int(to));
 	return ans;
 }
 
