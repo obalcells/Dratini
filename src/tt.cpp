@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <iostream>
 #include <cinttypes>
 #include <stdlib.h>
 #include "tt.h"
@@ -34,7 +35,7 @@ void TranspositionTable::clear() {
 bool TranspositionTable::retrieve_data(uint64_t key, int& move, int& score, int& flags, int alpha, int beta, int depth, int ply) {
     Entry* entry;
     entry = tt + (key & tt_mask);
-    for(int cnt = 0; cnt < 4; cnt++) {
+    for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
             entry->flags = (entry->flags & EXACT_BOUND) | (tt_date << 2);
             move = entry->move;
@@ -50,6 +51,7 @@ bool TranspositionTable::retrieve_data(uint64_t key, int& move, int& score, int&
                     return true;
             }
         }
+        entry++;
     }
     return false;
 }
@@ -64,6 +66,7 @@ bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
             move = entry->move;
             return true;
         }
+        entry++;
     }
     return false;
 } 
@@ -87,6 +90,7 @@ void TranspositionTable::save(uint64_t key, int move, int score, int bound, int 
             replace = entry;
             oldest = age;
         } 
+        entry++;
     }
     if(oldest != -1) {
         replace->key = key;

@@ -5,6 +5,7 @@
 #include <string.h>
 #include "defs.h"
 #include "board.h"
+#include "data.h"
 
 int eval_light_pawn(int);
 int eval_dark_pawn(int);
@@ -21,10 +22,6 @@ int eval_dkp(int);
 #define ROOK_OPEN_FILE_BONUS		  15
 #define ROOK_ON_SEVENTH_BONUS		  20
 
-/* the values of the pieces */
-int piece_value[6] = {
-	100, 300, 300, 500, 900, 0
-};
 
 /* The "pcsq" arrays are piece/square tables. They're values
    added to the material value of the piece based on the
@@ -141,6 +138,9 @@ int pawn_mat[2];  /* the value of a side's pawns */
 
 int eval_tscp(const Position& pos)
 {
+#ifdef SELF_PLAY
+	return (rand() % 1000) - 500;
+#endif
 	int i;
 	int f;  /* file */
 	int score[2];  /* each side's score */

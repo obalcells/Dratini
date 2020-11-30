@@ -146,7 +146,7 @@ void load_external() {
 }
 
 void load_internal() { 
-    // Shameless copy of cpw-engine's book_loadInternal() function
+    // Copy of cpw-engine's book_loadInternal() function
     // You can find it's source code here: github.com/nescitus/cpw-engine 
 
     // Four knights 

@@ -16,15 +16,19 @@
 
 void age_history();
 int search(Position&, int, int, int);
-int quiescence_search(Position&, int, int);
+int quiescence_search(Position&, int, int, int);
 bool timeout();
 
-int printed_points, depth;
-Move move_root;
-bool stop_search;
+namespace {
+  int printed_points;
+  int max_depth_searched;
+  Move move_root;
+  bool stop_search;
+}
 
 Move think(Position& position) {
   // get a move from the book if we can
+#ifndef SELF_PLAY
   Move book_move = get_book_move();
   if(!empty_move(book_move)) { 
     std::cout << "Returning book move" << '\n';
@@ -32,33 +36,36 @@ Move think(Position& position) {
   } else {
     std::cout << "No book move available" << '\n';
   }
+#endif
   /* reset statistics and vars */
   stats.init();
   stop_search = false;
+  printed_points = 0;
   Move move_root_non_timeout = Move(); 
   move_root = Move();
   age_history();
+  int max_depth_searched;
   // we search iteratively with increasing depth until we run out of time
-  for(depth = 4; !stop_search;) {
-    search(position, -999999, 999999, depth);
+  for(max_depth_searched = 4; max_depth_searched <= MAX_DEPTH && !stop_search;) {
+    search(position, -999999, 999999, max_depth_searched);
     if(!stop_search) {
       move_root_non_timeout = move_root;
-      depth += 2;
+      max_depth_searched += 2;
     } else if(stop_search) {
-      depth -= 2; // max-depth where we did full-search
+      max_depth_searched -= 2; // max-depth where we did full-search
     }
   }
-  std::cout << '\n'; // .....
   // in case that move_root was assigned after timeout
   move_root = move_root_non_timeout;
-  if(!is_testing) {
-    std::cout << "Searched a maximum depth of: " << depth << endl;
-    std::cout << "Best move is: " << str_move(move_root.from, move_root.to) << endl;
-    stats.display();
-    std::cout <<
-    "................................................................................"
-    << endl << endl;
-  }
+#ifndef SELF_PLAY
+  std::cout << '\n'; // .....
+  std::cout << "Searched a maximum depth of: " << max_depth_searched << endl;
+  std::cout << "Best move is: " << str_move(move_root.from, move_root.to) << endl;
+  stats.display();
+  std::cout <<
+  "................................................................................"
+  << endl << endl;
+#endif
   while(!move_stack.empty()) {
     move_stack.pop_back();
   }
@@ -75,7 +82,7 @@ int search(Position& position, int alpha, int beta, int depth) {
   if(position.in_check(position.side)) {
     depth++;
   } else if(depth == 0) {
-    int score = quiescence_search(position, alpha, beta);
+    int score = quiescence_search(position, alpha, beta, 4);
     return score;
   }
   
@@ -83,30 +90,14 @@ int search(Position& position, int alpha, int beta, int depth) {
   long long state_key = get_hash(position);
 
   int retrieved_move = 0;
+  int retrieved_score = 0;
+  int retrieved_flags = 0;
 
-  if(tt.retrieve_move(state_key, retrieved_move)) {
-    std::cout << "tt hit" << endl;
+  if(tt.retrieve_data(state_key, retrieved_move, retrieved_score, retrieved_flags, alpha, beta, depth, 0)) {
+    move_root = Move(retrieved_move);
+    // see if move is valid
+    return std::max(alpha, retrieved_score);
   }
-
-  /*
-  if(pv_table[state_idx].state_key == state_key && pv_table[state_idx].alpha >= alpha && pv_table[state_idx].alpha <= beta) {
-    std::cout << "State already visited" << '\n';
-    std::cout << pv_table[state_idx].state_key << '\n';
-    std::cerr << "State_idx is " << state_idx << '\n';
-    std::cerr << "Move that we have to make: " << str_move(pv_table[state_idx].move.from, pv_table[state_idx].move.to) << '\n';
-    move_root.from = pv_table[state_idx].move.from; // what if there is a collision and we are at the root?    
-    move_root.to = pv_table[state_idx].move.to; // what if there is a collision and we are at the root?    
-    if(empty_move(move_root)) {
-      std::cout << "State key is: " << state_key << endl;
-      std::cout << str_move(move_root.from, move_root.to) << endl;
-      assert(!empty_move(move_root));
-    }
-    std::cerr << "Before" << '\n';
-    std::cerr << pv_table[state_key].alpha << '\n';
-    std::cerr << "After" << '\n';
-    return pv_table[state_key].alpha;
-  }
-  */
 
   int first_move = (int)move_stack.size();
   generate_moves(position); // moves are already sorted
@@ -145,22 +136,7 @@ int search(Position& position, int alpha, int beta, int depth) {
         // the move caused a beta-cutoff so it must be good
         // but it won't be picked by parent
         while(i-- > first_move) move_stack.pop_back();
-        /*
-        if(state_key == -7145734984389955738) {
-          std::cerr << "Storing move with alpha = " << alpha << '\n';
-          std::cerr << "Move is " << (int)best_move.from << " " << (int)best_move.to << '\n';
-        }
-        pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
-        if(state_key == -7145734984389955738) {
-          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
-          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
-          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
-          std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
-          std::cerr << "Retrieving move " << (int)pv_table[state_idx].move.from << " " << (int)pv_table[state_idx].move.to << '\n';
-        }
-        */
-        tt.save(state_key, 0, alpha, EXACT_BOUND, depth, depth);
-        void save(uint64_t key, int move, int score, int bound, int depth, int ply);
+        tt.save(state_key, best_move.to_bits(), beta, LOWER_BOUND, depth, 0);
         move_root = best_move;
         return beta;
       }
@@ -173,24 +149,13 @@ int search(Position& position, int alpha, int beta, int depth) {
   history[position.side][best_move.from][best_move.to] += depth * depth;
   age_history();
 
-  /*
-  // std::cout << "Storing move " << str_move(best_move.from, best_move.to) << " at " << state_key << " at tt" << '\n';
-  if(state_key == -7145734984389955738) {
-    std::cerr << "Storing move with alpha = " << alpha << '\n';
-    std::cerr << "Move is " << (int)best_move.from << " " << (int)best_move.to << '\n';
-  }
-  pv_table[state_idx] = PV_Entry(state_key, alpha, best_move);
-  if(state_key == -7145734984389955738) {
-    std::cerr << "Retrieving " << pv_table[state_idx].alpha << '\n';
-  }
-  */
-  tt.save(state_key, 0, alpha, EXACT_BOUND, depth, depth);
+  tt.save(state_key, best_move.to_bits(), alpha, EXACT_BOUND, depth, 0);
   move_root = best_move;
 
   return alpha;
 }
 
-int quiescence_search(Position& position, int alpha, int beta) {
+int quiescence_search(Position& position, int alpha, int beta, int depth) {
   stats.change_phase(Q_SEARCH);
 
   int score = eval_tscp(position);
@@ -200,6 +165,9 @@ int quiescence_search(Position& position, int alpha, int beta) {
     alpha = score;
   }
 
+  if(depth == 0)
+    return alpha;
+
   int first_move = (int)move_stack.size();
   generate_capture_moves(position);
   int last_move = (int)move_stack.size() - 1;
@@ -208,7 +176,7 @@ int quiescence_search(Position& position, int alpha, int beta) {
     Move move = move_stack[i];
     position.make_move(move.from, move.to, QUEEN);
     taken_moves.push_back(move);
-    score = -quiescence_search(position, -beta, -alpha);
+    score = -quiescence_search(position, -beta, -alpha, depth - 1);
     position.take_back(move);
     taken_moves.pop_back();
     move_stack.pop_back();
@@ -240,16 +208,18 @@ void age_history() {
 
 bool timeout() {
   float elapsed_time = stats.elapsed_time(); 
-  if(elapsed_time >= max_search_time) {
-    if(depth <= 4) return false; // we want to search at least depth 4
+  if(elapsed_time >= MAX_SEARCH_TIME) {
+    if(max_depth_searched <= 4) return false; // we want to search at least depth 4
     stop_search = true;
     return true;
   }
-  float threshold_time = float(printed_points) * (max_search_time / 80.0);
+#ifndef SELF_PLAY
+  float threshold_time = float(printed_points) * (MAX_SEARCH_TIME / 80.0);
   if(elapsed_time >= threshold_time) {
     std::cout << ".";
     std::cout.flush();
     printed_points++;
   }  
+#endif
   return false;
 }

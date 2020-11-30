@@ -11,7 +11,7 @@ Move Position::make_move(char from, char to, char promotion_piece = QUEEN) {
   	char prev_enpassant = enpassant; // store previous flags
   	char prev_castling = castling;
 	char captured = EMPTY;
-	enpassant = 0; //reset the enpassant flag
+	enpassant = 8; //reset the enpassant flag
 
 	if(piece[from] == PAWN && piece[to] == EMPTY && col(from) != col(to)) {
 		// eat enpassant
@@ -28,6 +28,7 @@ Move Position::make_move(char from, char to, char promotion_piece = QUEEN) {
 
 		side ^= 1;
 		xside ^= 1;
+		move_cnt++;
 		return Move(from, to, EMPTY, prev_castling, prev_enpassant);
 
 	} else if(piece[from] == PAWN && (row(to) == 0 || row(to) == 7)) {
@@ -45,6 +46,7 @@ Move Position::make_move(char from, char to, char promotion_piece = QUEEN) {
 
 		side ^= 1;
 		xside ^= 1;
+		move_cnt++;
 		return Move(from, to, captured, prev_castling, prev_enpassant, true);
 
 	} else if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
@@ -95,6 +97,7 @@ Move Position::make_move(char from, char to, char promotion_piece = QUEEN) {
 
 	side ^= 1;
 	xside ^= 1;
+	move_cnt++;
 	return Move(from, to, captured, prev_castling, prev_enpassant);
 }
 
@@ -169,9 +172,175 @@ void Position::take_back(Move m) {
 	enpassant = m.enpassant;
 	side ^= 1;
 	xside ^= 1;
+	move_cnt--;
 }
 
-int Position::move_valid(char from, char to) {
+// comparing the two functions for catching bugs
+bool Position::move_valid(char from, char to) {
+	bool old_version = (old_move_valid(from, to) == 0);
+	bool new_version = new_move_valid(from, to);
+	if(new_version != old_version) {
+		std::cout << '\n' << '\n' << "Both functions don't match" << endl;
+		std::cout << "Move is " << str_move(from, to) << '\n';
+		std::cout << "Enpassant is " << int(enpassant) << '\n';
+		std::cout << "Castling is " << int(castling) << '\n';
+		std::cout << "Check enpassant returns " << check_enpassant(from, to) << '\n';
+		std::cout << "Board is: " << '\n';
+		print_board();
+		std::cout << "New version says that move is " << (new_version == true ? "valid" : "invalid") << '\n';
+		std::cout << "Old version says that move is " << (old_version == true ? "valid" : "invalid") << '\n';
+		throw("Move valid checking differs between old and new function");
+	}
+	return new_version;
+}
+
+// used by the new function
+bool Position::check_castling(char from, char to) {
+	if(is_attacked(from, xside)) return false;
+
+	bool white_can_castle = castling & 4;  
+	bool black_can_castle = castling & 32;
+
+	bool white_queen_side = (side == WHITE) && (from == 4 && to == 2) && (castling & 1) && white_can_castle;
+	bool white_king_side  = (side == WHITE) && (from == 4 && to == 6) && (castling & 2) && white_can_castle; 
+	bool black_queen_side = (side == BLACK) && (from == 60 && to == 58) && (castling & 8) && black_can_castle;
+	bool black_king_side  = (side == BLACK) && (from == 60 && to == 62) && (castling & 16) && black_can_castle; 
+
+	if(!white_queen_side
+	&& !white_king_side
+	&& !black_queen_side
+	&& !black_king_side)
+		return false;
+
+	if(white_king_side || black_king_side) {
+		if(is_attacked(from + 1, xside)) return false;
+		while(++from < to) 
+			if(piece[from] != EMPTY) return false;	
+	} else {
+		if(is_attacked(from - 1, xside)) return false;
+		while(--from > to)
+			if(piece[from] != EMPTY) return false;
+	}
+
+	return true; // later we will check whether the king is attacked after castling 
+}
+
+bool Position::check_enpassant(char from, char to) {
+	assert(color[to] == EMPTY);
+	assert(piece[to] == EMPTY);
+
+	/*
+	if(delta_row == 1 && delta_col == 1 && color[to] == EMPTY) {
+		// eat enpassant
+		char adjacent = row(from) * 8 + col(to);
+		if(piece[to] != EMPTY || color[adjacent] != xside) return 10;
+		else if(enpassant != col(to)) return 11;
+	}
+	else if(delta_row == 1 && delta_col == 0 && piece[to] == EMPTY) {}
+	else if(delta_row == 2 && delta_col == 0 && piece[to] == EMPTY && piece[from + (side == WHITE ? 8 : -8)] == EMPTY) {} 
+	else if(delta_row == 1 && delta_col == 1 && color[to] != EMPTY && color[to] == xside) {}
+	else return 13; // the move is invalid
+	*/
+
+	int forward = (side == WHITE ? (from + 8) : (from - 8));	
+	int adjacent = 8 * row(from) + col(to);
+
+	assert(col(adjacent) == col(to));
+
+	// it's not moving diagonally
+	if(to != forward + 1 && to != forward - 1)
+		return false;
+
+	// the pawn can't be eaten enpassant
+	if(enpassant != col(adjacent))
+		return false;
+
+	// it's eating a different piece
+	if(side == WHITE && row(to) != 5) 
+		return false;
+
+	if(side == BLACK && row(to) != 2)
+		return false;
+
+	return true;
+}
+
+bool Position::new_move_valid(char from, char to) {
+	if(from == to) return false;
+	if(piece[from] == EMPTY) return false;
+	if(side != color[from]) return false;
+	if(color[from] == color[to]) return false;
+	if(!valid_pos(from) || !valid_pos(to)) return false;
+
+	const int p = piece[from];
+	const int c = color[from];
+
+	if(!slide[p] && !valid_distance(from, to)) return false;
+
+	if(piece[from] == KING && row(from) == row(to) && abs(col(from) - col(to)) == 2) {
+		if(!check_castling(from, to)) return false;
+	} else if(piece[from] == PAWN && abs(col(from) - col(to)) == 1 && abs(row(from) - row(to)) == 1 && piece[to] == EMPTY) {
+		if(check_enpassant(from, to) == false) return false;
+	} else {
+		switch(p) {
+			case PAWN: {
+				int forward = (side == WHITE ? (from + 8) : (from -8));
+				int two_forward = (side == WHITE ? (from + 16) : (from - 16));
+				if(to == forward + 1 || to == forward - 1) {
+					if(piece[to] == EMPTY) return false;
+				} else if(to == forward) {
+					if(piece[forward] != EMPTY) return false;
+				} else if(to == two_forward) {
+					if((side == WHITE && row(from) != 1) || (side == BLACK && row(from) == 6)) return false;
+					if(piece[forward] != EMPTY || piece[two_forward] != EMPTY) return false;
+				} else {
+					return false;
+				}
+				break;
+			}
+			case KNIGHT: {
+				bool two = false, one = false;
+				if(abs(row(from) - row(to)) == 2) two ^= 1;
+				if(abs(row(from) - row(to)) == 1) one ^= 1;
+				if(abs(col(from) - col(to)) == 2) two ^= 1;
+				if(abs(col(from) - col(to)) == 1) one ^= 1;
+				if(!two || !one) return false;
+				break;
+			}
+			case KING: {
+				if(distance(from, to) > 2 || color[to] == color[from]) return false;
+				break;
+			}
+			default:
+				break;
+		}
+	}
+
+	if(slide[p]) {
+		bool ok = false;
+		for(int i = 0; !ok && offset[p][i] != 0; i++) {
+			int delta = offset[p][i];
+			int pos = from;
+			while(!ok && valid_distance(pos, pos + delta) && valid_pos(pos + delta)) {
+				if(color[pos + delta] == c) break;
+				if(pos + delta == to) ok = true;
+				if(color[pos + delta] != EMPTY) break;
+				pos = pos + delta;
+			}
+		}
+		if(!ok) return false;
+	}
+
+	bool ok = true;
+	Move move = make_move(from, to);
+	if(in_check(c)) ok = false;
+	take_back(move);
+
+	if(!ok) return false; // in check
+	return true;
+} 
+
+int Position::old_move_valid(char from, char to) {
 	if(from == to) return 1;
 	else if(piece[from] == EMPTY) return 2;
 	else if(side != color[from]) return 3;
@@ -228,10 +397,10 @@ int Position::move_valid(char from, char to) {
 			if(piece[to] != EMPTY || color[adjacent] != xside) return 10;
 			else if(enpassant != col(to)) return 11;
 		}
-		else if(delta_row == 1 && delta_col == 0 && piece[to] == EMPTY) { /* fine */ }
-		else if(delta_row == 2 && delta_col == 0 && piece[to] == EMPTY && piece[from + (side == WHITE ? 8 : -8)] == EMPTY) { /* fine too */ }
-		else if(delta_row == 1 && delta_col == 1 && color[to] != EMPTY && color[to] == xside) { /* fine too */ }
-		else return 13; /* not fine -> the move is invalid */
+		else if(delta_row == 1 && delta_col == 0 && piece[to] == EMPTY) {}
+		else if(delta_row == 2 && delta_col == 0 && piece[to] == EMPTY && piece[from + (side == WHITE ? 8 : -8)] == EMPTY) {} 
+		else if(delta_row == 1 && delta_col == 1 && color[to] != EMPTY && color[to] == xside) {}
+		else return 13; // the move is invalid
 
 	} else {
 		// any other movement

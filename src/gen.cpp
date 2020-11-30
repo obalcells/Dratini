@@ -1,10 +1,18 @@
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <cstdlib>
+#include <algorithm>
+#include <random>
+
 #include "defs.h"
 #include "data.h"
 #include "board.h"
 #include "stats.h"
+
+namespace {
+	std::mt19937 g(std::random_device{}());
+}
 
 void add_move(Position& position, char from, char to) {
  	assert(from >= 0 && to >= 0);
@@ -12,11 +20,10 @@ void add_move(Position& position, char from, char to) {
  	Move m = position.make_move(from, to, QUEEN);
   	if(!position.in_check(position.xside)) {
 		position.take_back(m);
-		int error_code = position.move_valid(from, to); // this should be disabled for production
-		if(error_code != 0) {
+		if(!position.move_valid(from, to)) {
 			position.print_board();
-			std::cerr << "Error code is " << error_code << '\n';
-			assert(error_code == 0);
+			std::cout << "Move is " << str_move(from, to) << '\n';
+			throw("Generated an invalid move");
 		}
 		int score;
 		score += history[position.side][from][to];
@@ -53,7 +60,11 @@ void add_move(Position& position, char from, char to) {
 
 void order_and_push() {
 	stats.change_phase(MOVE_ORD);
+#ifndef SELF_PLAY
 	sort(unordered_move_stack.rbegin(), unordered_move_stack.rend());
+#else
+	std::shuffle(unordered_move_stack.begin(), unordered_move_stack.end(), g);
+#endif
 	while(!unordered_move_stack.empty()) {
 		move_stack.push_back(unordered_move_stack.back().second);
 		unordered_move_stack.pop_back();
@@ -152,11 +163,11 @@ void generate_moves(Position& position) {
 			if(position.piece[pos] == KING) {
 				// castling
 				if(position.side == WHITE && (position.castling & 4)) {
-					if((position.castling & 1) && position.move_valid(4, 2) == 0) add_move(position, 4, 2);
-					if((position.castling & 2) && position.move_valid(4, 6) == 0) add_move(position, 4, 6);
+					if((position.castling & 1) && position.move_valid(4, 2)) add_move(position, 4, 2);
+					if((position.castling & 2) && position.move_valid(4, 6)) add_move(position, 4, 6);
 				} else if(position.side == BLACK && position.castling & 32) {
-					if((position.castling & 8) && position.move_valid(60, 58) == 0) add_move(position, 60, 58);
-					if((position.castling & 16) && position.move_valid(60, 62) == 0) add_move(position, 60, 62);
+					if((position.castling & 8) && position.move_valid(60, 58)) add_move(position, 60, 58);
+					if((position.castling & 16) && position.move_valid(60, 62)) add_move(position, 60, 62);
 				}
 			}
 

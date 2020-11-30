@@ -8,7 +8,11 @@ public:
     Position() { init_board(); }
     ~Position() {}
     /* moves */
-    int move_valid(char, char);
+    bool check_castling(char, char);
+    bool check_enpassant(char, char);
+    bool new_move_valid(char, char);
+    int old_move_valid(char, char);
+    bool move_valid(char, char);
     void make_move(Move);
     Move make_move(char, char, char);
     void take_back(Move);
@@ -27,6 +31,7 @@ public:
     char xside;
     char castling;
     char enpassant;
+    int move_cnt;
 private:
     bool is_attacked(char pos, bool attacker_side);
 };

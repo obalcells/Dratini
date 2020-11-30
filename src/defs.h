@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <cinttypes>
 #include <vector>
 #include <iostream>
 
@@ -21,12 +23,28 @@
 #define EMPTY_COLOR "\033[37m"
 #define BLACK_COLOR "\033[36m"
 #define WHITE_COLOR "\033[37m"
+#define GREEN_COLOR "\x1B[32m"
+#define RED_COLOR   "\x1B[31m"
 
 #define ENPASSANT_INDEX 6
 #define CASTLING_INDEX 7
 
 #define row(x) (x >> 3)
 #define col(x) (x & 7)
+
+#ifndef MAX_DEPTH
+  #define MAX_DEPTH 32
+#endif
+
+#ifndef MAX_SEARCH_TIME
+  #define MAX_SEARCH_TIME 5000.0
+#endif
+
+struct RNG {
+    int operator() (int n) {
+        return std::rand() / (1.0 + RAND_MAX) * n;
+    }
+};
 
 struct Move {
     char from;
@@ -51,8 +69,15 @@ struct Move {
       from = _from; to = _to; captured = _captured;
       castling = _castling; enpassant = _enpassant; promotion = _promotion;
     }
+    Move(uint16_t bits_move) {
+      char from = (bits_move & 63);
+      char to = ((bits_move >> 6) & 63);
+    }
     bool operator <(const Move & b) const {
       return false;
+    }
+    uint16_t to_bits() const {
+      return (from | (to << 6));
     }
 };
 

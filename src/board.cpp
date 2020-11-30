@@ -16,8 +16,9 @@ void Position::init_board() {
 	}
 	side = WHITE;
 	xside = BLACK;
+	move_cnt = 0;
 	castling = 63;
-	enpassant = 0;
+	enpassant = 8;
 	while(!move_stack.empty()) move_stack.pop_back();
 	while(!taken_moves.empty()) taken_moves.pop_back();
 	while(!unordered_move_stack.empty()) unordered_move_stack.pop_back();
@@ -122,9 +123,13 @@ void Position::print_board() {
 
 // There should be some more checks here
 bool Position::is_draw() {
-	for(char i = 0; i < 64; i++) {
-		if(piece[i] != KING) return false;
-	}
+#ifdef SELF_PLAY
+	if(move_cnt >= 50)
+		return true;
+#endif
+	for(char i = 0; i < 64; i++) 
+		if(piece[i] != KING)
+			return false;
 	return true;
 }
 

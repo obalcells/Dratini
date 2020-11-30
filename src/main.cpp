@@ -59,12 +59,11 @@ int main() {
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;
 			continue;
 	 	}
-		int error_code = position.move_valid(from, to);
-		if(error_code == 0) { // move is valid
+		if(position.move_valid(from, to)) { // move is valid
 			Move move = position.make_move(from, to, QUEEN);
 			taken_moves.push_back(move);
 		} else {
-			std::cout << "Invalid move '" <<  raw_input << "' = " << from << " -> " << to << ". Error code is " << error_code << '\n';
+			std::cout << "Invalid move '" <<  raw_input << "' = " << from << " -> " << to << '\n';
 		}
 	}
 }
