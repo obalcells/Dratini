@@ -33,11 +33,17 @@ void age_history() {
 
 bool timeout() {
     float elapsed_time = stats.elapsed_time();
+    /*
+    std::cout << "Elapsed time is " << elapsed_time << ", max search time is " << MAX_SEARCH_TIME << endl;
+    std::cout << "Max depth searched is " << max_depth_searched << endl;
+    std::cout << "Stop search is " << stop_search << endl;
+    std::cout << endl;
+    */
     if (elapsed_time >= MAX_SEARCH_TIME) {
         if (max_depth_searched <= 4) {
+            std::cout << "Max depth searched not accomplished yet" << endl;
             return false; // we want to search at least depth 4
         }
-        assert(false);
         stop_search = true;
         return true;
     }
@@ -223,7 +229,6 @@ Move think(Position& position) {
     Move move_root_non_timeout = NULL_MOVE;
     move_root = NULL_MOVE;
     age_history();
-    int max_depth_searched;
 	initial_position = position;
     // we search iteratively with increasing depth until we run out of time
     for (max_depth_searched = 4; max_depth_searched <= MAX_DEPTH && !stop_search;) {

@@ -28,7 +28,6 @@ int main() {
 				std::cout << "Draw" << '\n';
 			} 
    	 	}
-		// std::cout << "Estimated score for white: " << eval() << " " << my_eval() << '\n';
 		position.print_board();
 		if(position.side == BLACK) {
 			Move next_move = think(position);
@@ -46,9 +45,8 @@ int main() {
 			continue;
 	 	}
 		if(position.move_valid(move)) { // move is valid
-			Position prev_position = position;
 			position.make_move(move);
-			position = prev_position;
+			taken_moves.push_back(move);
 		} else {
 			std::cout << "Invalid move '" <<  raw_input << endl;
 		}

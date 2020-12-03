@@ -177,9 +177,7 @@ bool Position::move_valid(Move move) {
 	int to_sq = to(move);
 
 	if(from_sq == to_sq) return false;
-	if(color[to_sq] == side) {
-		return false;
-	}
+	if(color[to_sq] == side) return false; 
 	if(piece[from_sq] == EMPTY) return false;
 	if(side != color[from_sq]) return false;
 	if(color[from_sq] == color[to_sq]) return false;
@@ -195,57 +193,57 @@ bool Position::move_valid(Move move) {
 	if(p == KING && abs(col(from_sq) - col(to_sq)) == 2) {
 		if(!check_castling(move)) return false;
 	} else if(p == PAWN && col(from_sq) != col(to_sq) && piece[to_sq] == EMPTY) {
-		if(check_enpassant(move) == false) return false;
+		if(!check_enpassant(move)) return false;
 		enpassant_checked = true;
-	} else if(slide[p]) {
-		switch(p) {
-			case PAWN: {
-				int forward = (side == WHITE ? (from_sq + 8) : (from_sq -8));
-				int two_forward = (side == WHITE ? (from_sq + 16) : (from_sq - 16));
-				if(to_sq == forward + 1 || to_sq == forward - 1) {
-					if(piece[to_sq] == EMPTY) return false;
-				} else if(to_sq == forward) {
-					if(piece[forward] != EMPTY) return false;
-				} else if(to_sq == two_forward) {
-					if((side == WHITE && row(from_sq) != 1) || (side == BLACK && row(from_sq) == 6)) return false;
-					if(piece[forward] != EMPTY || piece[two_forward] != EMPTY) return false;
-				} else {
-					return false;
+	} else {
+		if(!slide[p]) {
+			assert(p == PAWN || p == KNIGHT || p == KING);
+			switch(p) {
+				case PAWN: {
+					int forward = (side == WHITE ? (from_sq + 8) : (from_sq -8));
+					int two_forward = (side == WHITE ? (from_sq + 16) : (from_sq - 16));
+					if(to_sq == forward + 1 || to_sq == forward - 1) {
+						if(piece[to_sq] == EMPTY) return false;
+					} else if(to_sq == forward) {
+						if(piece[forward] != EMPTY) return false;
+					} else if(to_sq == two_forward) {
+						if((side == WHITE && row(from_sq) != 1) || (side == BLACK && row(from_sq) == 6)) return false;
+						if(piece[forward] != EMPTY || piece[two_forward] != EMPTY) return false;
+					} else {
+						return false;
+					}
+					break;
 				}
-				break;
+				case KNIGHT: {
+					assert(p != BISHOP);
+					bool two = false, one = false;
+					if(abs(row(from_sq) - row(to_sq)) == 2) two ^= 1;
+					if(abs(row(from_sq) - row(to_sq)) == 1) one ^= 1;
+					if(abs(col(from_sq) - col(to_sq)) == 2) two ^= 1;
+					if(abs(col(from_sq) - col(to_sq)) == 1) one ^= 1;
+					if(!two || !one) return false;
+					break;
+				}
+				case KING: {
+					if(distance(from_sq, to_sq) > 2 || color[to_sq] == color[from_sq]) return false;
+					break;
+				}
 			}
-			case KNIGHT: {
-				assert(p != BISHOP);
-				bool two = false, one = false;
-				if(abs(row(from_sq) - row(to_sq)) == 2) two ^= 1;
-				if(abs(row(from_sq) - row(to_sq)) == 1) one ^= 1;
-				if(abs(col(from_sq) - col(to_sq)) == 2) two ^= 1;
-				if(abs(col(from_sq) - col(to_sq)) == 1) one ^= 1;
-				if(!two || !one) return false;
-				break;
+		} else { 
+			assert(p == BISHOP || p == ROOK || p == QUEEN);
+			bool ok = false;
+			for(int i = 0; !ok && offset[p][i] != 0; i++) {
+				int delta = offset[p][i];
+				int pos = from_sq;
+				while(!ok && distance(pos, pos + delta) <= 2 && valid_pos(pos + delta)) {
+					if(color[pos + delta] == c) break;
+					if(pos + delta == to_sq) ok = true;
+					if(color[pos + delta] != EMPTY) break;
+					pos = pos + delta;
+				}
 			}
-			case KING: {
-				if(distance(from_sq, to_sq) > 2 || color[to_sq] == color[from_sq]) return false;
-				break;
-			}
-			default:
-				assert(false);
-				break;
+			if(!ok) return false;
 		}
-	} else if(slide[p]) { 
-		assert(p == BISHOP || p == ROOK || p == QUEEN);
-		bool ok = false;
-		for(int i = 0; !ok && offset[p][i] != 0; i++) {
-			int delta = offset[p][i];
-			int pos = from_sq;
-			while(!ok && distance(pos, pos + delta) <= 2 && valid_pos(pos + delta)) {
-				if(color[pos + delta] == c) break;
-				if(pos + delta == to_sq) ok = true;
-				if(color[pos + delta] != EMPTY) break;
-				pos = pos + delta;
-			}
-		}
-		if(!ok) return false;
 	}
 
 	bool ok = true;

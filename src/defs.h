@@ -83,6 +83,13 @@ inline bool valid_distance(const int x, const int y) {
     return valid_pos(x) && valid_pos(y) && (distance(x, y) <= 3);
 }
 
+inline std::string pos_to_str(int sq) {
+    std::string ans = "";
+    ans += char('a' + col(sq));
+    ans += char('1' + row(sq));
+    return ans;
+}
+
 inline std::string move_to_str(Move move) {
     std::string ans = "";
     ans += char('a' + col(from(move)));

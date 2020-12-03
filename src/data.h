@@ -17,4 +17,4 @@ extern int piece_value[6];
 extern bool slide[6];
 extern int initial_piece[64];
 extern int initial_color[64];
-extern int offset[6][8];
+extern int offset[6][9];
