@@ -9,13 +9,10 @@ public:
     ~Position() {}
     /* moves */
     bool check_coloring();
-    bool check_castling(char, char);
-    bool check_enpassant(char, char);
-    bool new_move_valid(char, char);
-    int old_move_valid(char, char);
-    bool move_valid(char, char);
+    bool check_castling(Move);
+    bool check_enpassant(Move);
+    bool move_valid(Move);
     void make_move(Move);
-    Move make_move(char, char, char);
     void take_back(Move);
     /* board */
     void init_board();
@@ -23,8 +20,7 @@ public:
     bool in_check(bool defender_side);
     bool is_draw();
     int game_over();
-    void save_snapshot(std::string snapshot_name);
-    void load_snapshot(std::string snapshot_name);
+    bool same(const Position& other_position);
     /* we have to mark these as publics to not have to modify tscp */
     char color[64];
     char piece[64];
@@ -34,5 +30,5 @@ public:
     char enpassant;
     int move_cnt;
 private:
-    bool is_attacked(char pos, bool attacker_side);
+    bool is_attacked(int pos, bool attacker_side);
 };

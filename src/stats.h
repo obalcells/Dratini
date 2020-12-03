@@ -22,6 +22,7 @@ public:
     float elapsed_time();
     Statistics() { init(); }
     ~Statistics() {}
+    int get_active_phase() const { return active_phase; }
 private:
     std::chrono::time_point<std::chrono::system_clock> initial_time;
     int active_phase, prev_phase;

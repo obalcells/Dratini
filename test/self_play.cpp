@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <algorithm>
 #include <string>
-
 #include "../src/data.h"
 #include "../src/board.h"
 #include "../src/search.h"
@@ -21,22 +20,25 @@ int main() {
     int n_games = 100;
     for(int game_idx = 0; game_idx < n_games; game_idx++) {
         position.init_board();
-        while(!taken_moves.empty()) taken_moves.pop_back();
         tt.clear();
+        std::vector<Move> tmp_taken_moves;
         try {
+            bool move_now = WHITE;
             while(position.game_over() == -1) {
+                assert(position.side == move_now);
                 Move best_move = think(position); 
-                taken_moves.push_back(best_move);
+                assert(position.move_valid(best_move));
+                tmp_taken_moves.push_back(best_move);
                 position.make_move(best_move);
+                move_now = !move_now;
             }
         } catch(const char* msg) {
-            std::cerr << '\n' << '\n' << "There was an error: " << RED_COLOR << msg << '\n' << '\n' << RESET_COLOR;
-            std::cerr << "Move stack is: ";
-            std::vector<Move> tmp_taken_moves = taken_moves; // we make a copy because it will be deleted
+            std::cerr << endl << endl << "There was an error: " << RED_COLOR << msg << RESET_COLOR << endl << endl;
             position.init_board();
             position.print_board();
             for(int move_idx = 0; move_idx < (int)tmp_taken_moves.size(); move_idx++) {
-                std::cerr << str_move(tmp_taken_moves[move_idx].from, tmp_taken_moves[move_idx].to) << '\n'; 
+                std::cerr << move_to_str(tmp_taken_moves[move_idx]) << '\n'; 
+                assert(position.move_valid(tmp_taken_moves[move_idx]) == true);
                 position.make_move(tmp_taken_moves[move_idx]);
                 position.print_board();
             }
@@ -51,9 +53,9 @@ int main() {
             std::cout.flush();
         }
     }
-    std::cout << "]" << '\n' << '\n';
+    std::cout << "]" << endl << endl;
     if(n_errors == 0) {
-        std::cout << GREEN_COLOR << "No errors" << '\n' << '\n' << RESET_COLOR; 
+        std::cout << GREEN_COLOR << "0 errors in " << n_games << '\n' << '\n' << RESET_COLOR; 
     } else {
         std::cout << RED_COLOR << n_errors << " errors in " << n_games << " games" << '\n' << '\n' << RESET_COLOR; 
     }

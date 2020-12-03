@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cinttypes>
+#include "defs.h"
 
 #define get_bound(flags)  (flags & bound_mask)
 #define get_date(flags)   (flags >> 2)
@@ -33,9 +34,9 @@ public:
     void age() { tt_date = (tt_date + 1) & 255; }
     float how_full() const;
     // pass reference of position object in the future
-    bool retrieve_data(uint64_t key, int& move, int& score, int& flags, int alpha, int beta, int depth, int ply);
-    bool retrieve_move(uint64_t key, int& move);
-    void save(uint64_t key, int move, int score, int bound, int depth, int ply);
+    bool retrieve_data(uint64_t key, Move& move, int& score, int& flags, int alpha, int beta, int depth, int ply);
+    bool retrieve_move(uint64_t key, Move& move);
+    void save(uint64_t key, Move move, int score, int bound, int depth, int ply);
 private:
     static_assert(sizeof(Entry) == 16, "Entry must have size 16");
     int tt_size, tt_mask, tt_date;

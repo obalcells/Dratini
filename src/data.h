@@ -9,7 +9,7 @@ extern std::vector<Move> taken_moves;
 extern std::vector<std::pair<int,Move> > unordered_move_stack;
 extern long long random_value[9][64];
 extern int history[2][64][64];
-extern std::vector<std::vector<short int> > book;
+extern std::vector<std::vector<Move> > book;
 extern bool book_deactivated;
 
 /* helper constants */

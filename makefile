@@ -1,7 +1,7 @@
 # compiler flags
 C_FLAGS = -g -w -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays
 TESTING_C_FLAGS = -g -w -pipe -O1
-SELF_PLAY_FLAGS = $(C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4
+SELF_PLAY_FLAGS = $(TESTING_C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4
 
 # link options
 L_FLAGS = -s -lm

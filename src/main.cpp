@@ -40,30 +40,17 @@ int main() {
 		std::string raw_input;
 		std::cin >> raw_input;
 		if(raw_input == "exit") break;
-		char from = 64, to = 64;
-		// save snapshot
-		if(int(raw_input.size()) == 1 && raw_input[0] == 's') {
-			std::string snapshot_name;
-			std::cin >> snapshot_name;
-			position.save_snapshot(snapshot_name);
-			continue;
-		}
-		// load snapshot
-		if(int(raw_input.size()) == 1 && raw_input[0] == 'l') {
-			std::string snapshot_name;
-			std::cin >> snapshot_name;
-			position.load_snapshot(snapshot_name);
-			continue;
-		}
-		if(!parse_move(raw_input, from, to)) {
+		Move move = NULL_MOVE;
+		if(!parse_move(raw_input, move)) {
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;
 			continue;
 	 	}
-		if(position.move_valid(from, to)) { // move is valid
-			Move move = position.make_move(from, to, QUEEN);
-			taken_moves.push_back(move);
+		if(position.move_valid(move)) { // move is valid
+			Position prev_position = position;
+			position.make_move(move);
+			position = prev_position;
 		} else {
-			std::cout << "Invalid move '" <<  raw_input << "' = " << from << " -> " << to << '\n';
+			std::cout << "Invalid move '" <<  raw_input << endl;
 		}
 	}
 }

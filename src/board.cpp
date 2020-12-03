@@ -26,7 +26,7 @@ void Position::init_board() {
 	book_deactivated = false;
 }
 
-bool Position::is_attacked(char pos, bool attacker_side) {
+bool Position::is_attacked(int pos, bool attacker_side) {
 	// pawns
 	if(attacker_side == BLACK) {
 		if(valid_distance(pos, pos + 7) && piece[pos + 7] == PAWN && color[pos + 7] == attacker_side) return true;
@@ -36,7 +36,7 @@ bool Position::is_attacked(char pos, bool attacker_side) {
 		if(valid_distance(pos, pos - 9) && piece[pos - 9] == PAWN && color[pos - 9] == attacker_side) return true;
 	}
 	int i;
-	char new_pos = pos;
+	int new_pos = pos;
 	// knights
 	for(i = 0; i < 8; i++) {
 		if(offset[KNIGHT][i] == 0) break; // done
@@ -45,7 +45,7 @@ bool Position::is_attacked(char pos, bool attacker_side) {
 	}
 	// bishops and queen
 	for(i = 0; i < 8; i++) {
-    if(offset[BISHOP][i] == 0) break;
+    	if(offset[BISHOP][i] == 0) break;
 		new_pos = pos;
 		while(valid_distance(new_pos, new_pos + offset[BISHOP][i]) && color[new_pos + offset[BISHOP][i]] != (attacker_side ^ 1)) {
 			new_pos += offset[BISHOP][i];
@@ -77,7 +77,7 @@ bool Position::is_attacked(char pos, bool attacker_side) {
 bool Position::in_check(bool defender_side) {
 	for(char pos = 0; pos < 64; pos++) {
 		if(piece[pos] == KING && color[pos] == defender_side) {
-		  return is_attacked(pos, defender_side ^ 1);
+			return is_attacked(pos, defender_side ^ 1);
 		}
 	}
 	return false;
@@ -116,10 +116,27 @@ void Position::print_board() {
 			i++;
 		}
 	}
- 	std::cout << '\n' << "   ";
+ 	std::cout << endl << endl << "   ";
 	for(i = 0; i < 8; i++) std::cout << " " << char('a' + i);
-  	std::cout << "\n\n";
+	std::cout << endl;
+	std::cout << "Enpassant: " << int(enpassant) << endl;
+	std::cout << "Castling: " << int(castling) << endl;
+	std::cout << "Side: " << (side == WHITE ? "WHITE" : "BLACK") << endl << endl;
 }
+
+bool Position::same(const Position& other_position) {
+	// same position
+	for(int sq = 0; sq < 64; sq++) {
+		if(piece[sq] != other_position.piece[sq]) return false;
+		if(color[sq] != other_position.color[sq]) return false;
+	}
+	if(enpassant != other_position.enpassant) return false;
+	if(castling != other_position.castling) return false;
+	if(side != other_position.side) return false;
+	if(xside != other_position.xside) return false;
+	if(move_cnt != other_position.move_cnt) return false;
+	return true;
+} 
 
 // There should be some more checks here
 bool Position::is_draw() {
@@ -148,30 +165,4 @@ int Position::game_over() {
 		else if(black_in_check) return WHITE; // WHITE WON
 		else return EMPTY; // DRAW
 	}
-}
-
-void Position::save_snapshot(std::string snapshot_name) {
-  freopen(("./snapshots/" + snapshot_name + ".snapshot").c_str(), "w", stdout);
-  std::cout << side << endl;
-  std::cout << castling << endl;
-  std::cout << enpassant << endl;
-  for(int i = 0; i < 64; i++) {
-    std::cout << color[i] << " " << piece[i] << endl;
-  }
-  freopen("/dev/tty", "w", stdout);
-  std::cout << "Snapshot made!" << endl; // this should be printed in console
-}
-
-void Position::load_snapshot(std::string snapshot_name) {
-  freopen(("./snapshots/" + snapshot_name + ".snapshot").c_str(), "r", stdin);
-  std::cin >> side;
-  xside = side ^ 1;
-  std::cin >> castling;
-  std::cin >> enpassant;
-  for(int i = 0; i < 64; i++) {
-    std::cin >> color[i];
-    std::cin >> piece[i];
-  }
-  freopen("/dev/tty", "r", stdin);
-  std::cout << "Snapshot loaded!" << endl;
 }

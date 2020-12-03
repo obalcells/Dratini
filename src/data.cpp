@@ -7,7 +7,7 @@
 std::vector<Move> move_stack;
 std::vector<Move> taken_moves;
 std::vector<std::pair<int, Move> > unordered_move_stack;
-std::vector<std::vector<short int> > book;
+std::vector<std::vector<Move> > book;
 long long random_value[9][64];
 int history[2][64][64];
 bool book_deactivated;

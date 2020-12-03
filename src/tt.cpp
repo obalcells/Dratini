@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include <stdlib.h>
 #include "tt.h"
+#include "defs.h"
 
 namespace {
     const int bound_mask = 3;
@@ -26,13 +27,13 @@ void TranspositionTable::clear() {
         entry->key = 0;
         entry->depth = 0;
         entry->flags = 0;
-        entry->move = 0;
+        entry->move = NULL_MOVE;
         entry->score = 0;
     }
 }
 
 // returns true/false if the move will fail high or low
-bool TranspositionTable::retrieve_data(uint64_t key, int& move, int& score, int& flags, int alpha, int beta, int depth, int ply) {
+bool TranspositionTable::retrieve_data(uint64_t key, Move& move, int& score, int& flags, int alpha, int beta, int depth, int ply) {
     Entry* entry;
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
@@ -57,7 +58,7 @@ bool TranspositionTable::retrieve_data(uint64_t key, int& move, int& score, int&
 }
 
 // returns true if the position was found in the table
-bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
+bool TranspositionTable::retrieve_move(uint64_t key, Move& move) {
     Entry* entry;
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
@@ -71,7 +72,7 @@ bool TranspositionTable::retrieve_move(uint64_t key, int& move) {
     return false;
 } 
 
-void TranspositionTable::save(uint64_t key, int move, int score, int bound, int depth, int ply) {
+void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int depth, int ply) {
     Entry *entry, *replace = NULL;
     entry = tt + (key & tt_mask);
     int oldest = -1, age;
@@ -106,7 +107,7 @@ float TranspositionTable::how_full() const {
     int n_full = 0, n_checks = 1;
     for(entry = tt; entry < tt + 6000 && entry < tt + tt_size; entry++) {
         n_checks++;
-        if(entry->move != 0)
+        if(entry->move != NULL_MOVE)
             n_full++;
     }
     return float(n_full) / float(n_checks); // percentage of occupied

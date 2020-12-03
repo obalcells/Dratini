@@ -17,8 +17,6 @@ void Statistics::init() {
 void Statistics::change_phase(int new_phase) {
     if(new_phase == SEARCH) nodes++;
     else if(new_phase == Q_SEARCH) q_nodes++;
-    // std::string phases[6] = { "SEARCH", "Q_SEARCH", "MOVE_GEN", "CAP_MOVE_GEN", "CHECK", "MOVE_ORD" };
-    // std::cerr << "Now at phase " << phases[new_phase] << '\n'; 
     float time = elapsed_time();  
     elapsed_time_in_phase[active_phase] += time - last_checked_time;
     prev_phase = active_phase;

@@ -7,30 +7,18 @@
 #include "data.h"
 #include "board.h"
 
-bool is_move_str_valid(std::string);
-short int encode_move_str(std::string);
 void load_external();
 void load_internal();
 
-/*
-Move decode_move_int(short int encoded_move) {
-  char from = encoded_move & 63; 
-  char to = (encoded_move >> 6) & 63; 
-  return Move(from, to);
-}
-*/
-
-void print_move_seq(const std::vector<short int> & state) {
+void print_move_seq(const std::vector<Move>& state) {
   for(int i = 0; i < (int)state.size(); i++) {
-    char from = (int)state[i] & 63;
-    char to = int(state[i]) >> 6;
-    std::cout << str_move(from, to) << ' ';
+    std::cout << move_to_str(state[i]) << ' ';
   }
   std::cout << '\n';
 }
 
 // lexicographically compare two different states
-bool state_compare(const std::vector<short int> & a, const std::vector<short int> & b) {
+bool state_compare(const std::vector<Move>& a, const std::vector<Move>& b) {
   int sz = std::min(a.size(), b.size());
   for(int i = 0; i < sz; i++) {
     if(a[i] < b[i]) return true;
@@ -47,102 +35,103 @@ void init_book() {
 }
 
 // detect if 4-length string ("d2d4") represents a valid move
-bool is_move_str_valid(std::string move) {
-  if(move[0] >= 'a' && move[0] <= 'h' && 
-      move[1] >= '0' && move[1] <= '8' &&
-      move[2] >= 'a' && move[0] <= 'h' &&
-      move[3] >= '0' && move[1] <= '8' &&
-      !(move[0] == move[2] && move[1] == move[3])
+bool is_str_valid(const std::string& move) {
+  	if(move[0] >= 'a' && move[0] <= 'h' && 
+    	move[1] >= '0' && move[1] <= '8' &&
+      	move[2] >= 'a' && move[0] <= 'h' &&
+      	move[3] >= '0' && move[1] <= '8' &&
+      	!(move[0] == move[2] && move[1] == move[3])
     ) {
     return true;
   }
   return false;
 }
 
-// represent a str move "d2d4" as a short integer
-short int encode_move_str(std::string move) {
-  assert(move.size() == 4);
-  short int encoded_move = 0;
-  encoded_move |= (move[0] - 'a') + (move[1] - '1') * 8; 
-  encoded_move |= ((move[2] - 'a') + (move[3] - '1') * 8) << 6; 
-  return encoded_move; 
-}
-
-Move decode_move_int(const short int encoded_move) {
-  char from = encoded_move & 63; 
-  char to = (encoded_move >> 6) & 63; 
-  return Move(from, to);
+// represent a str move "d2d4" as a Move 
+Move str_to_move(const std::string& str_move) {
+    if(str_move.size() != 4) return NULL_MOVE;
+    Move move = NULL_MOVE;
+    move |= (str_move[0] - 'a') + (str_move[1] - '1') * 8; 
+    move |= ((str_move[2] - 'a') + (str_move[3] - '1') * 8) << 6; 
+    return move; 
 }
 
 // see if a line of a book starting at idx matches with the current state
-bool state_matches(const int idx, const std::vector<short int> & current_state) {
-  if((int)current_state.size() >= (int)book[idx].size())
-    return false; // we won't be able to extract the next move from this line
-  for(int i = 0; i < (int)current_state.size(); i++)
-    if(current_state[i] != book[idx][i])
-      return false;
-  return true;
+bool state_matches(const int& idx, const std::vector<Move>& current_state) {
+	if(current_state.size() >= book[idx].size())
+    	return false; // we won't be able to extract the next move from this line
+  	for(int i = 0; i < (int)current_state.size(); i++)
+    	if(current_state[i] != book[idx][i])
+      		return false;
+  	return true;
 }
 
 // this function will be called from outside
 // and it will return a move from the book which fits the current state
 Move get_book_move() {
-  std::cerr << "Book deactivated " << book_deactivated << '\n';
-  if(book_deactivated)
-    return Move();
-  std::vector<short int> current_state; 
-  for(auto move : taken_moves)
-    current_state.push_back(encode_move_str(str_move(move.from, move.to)));
-  int low = 0, high = (int)book.size(); 
-  while(low < high) {
-    int middle = (low + high) >> 1; // / 2 but faster
-    if(state_compare(current_state, book[middle])) // = if(current_state < book[middle])
-      high = middle;
-    else
-      low = middle + 1;
-  }
-  std::cerr << "Low is " << low << '\n';
-  std::cout << "State now is: "; print_move_seq(current_state); 
-  std::cout << "State at low is: "; print_move_seq(book[low]);
-  if(low == (int)book.size() || !state_matches(low, current_state)) {
-    book_deactivated = true;
-    std::cout << "Returning empty move" << '\n';
-    assert(empty_move(Move()));
-    return Move();
-  }
-  assert(low < (int)book.size());
-  assert(current_state.size() < book[low].size());
-  // TO-DO: Pick a random move if we can choose between different ones
-  // we return the next move in the book line
-  return decode_move_int(book[low][(int)current_state.size()]);
+	if(book_deactivated)
+		return NULL_MOVE;
+
+  	std::vector<Move> current_state; 
+  	for(int i = 0; i < (int)taken_moves.size(); i++)
+    	current_state.push_back(taken_moves[i]);
+
+  	int low = 0, high = (int)book.size(); 
+  	while(low < high) {
+    	int middle = (low + high) >> 1; // / 2 but faster
+    	if(state_compare(current_state, book[middle])) // = if(current_state < book[middle])
+      		high = middle;
+    	else
+      		low = middle + 1;
+  	}
+
+#ifdef DEBUG_MODE
+	std::cerr << "Low is " << low << '\n';
+	std::cout << "State now is: "; print_move_seq(current_state); 
+	std::cout << "State at low is: "; print_move_seq(book[low]);
+#endif
+
+  	if(low == (int)book.size() || !state_matches(low, current_state)) {
+		book_deactivated = true;
+		std::cout << "No more book moves available. Returning NULL_MOVE" << '\n';
+		return NULL_MOVE;
+	}
+  	
+	assert(low < (int)book.size());
+	assert(current_state.size() < book[low].size());
+
+	// TO-DO: Pick a random move if we can choose between different ones
+	// we return the next move in the book line
+  	return book[low][(int)current_state.size()];
 }
 
-void book_addline(std::string line) {
-  std::istringstream iss(line);
-  std::vector<std::string> moves;
-  std::string move;
-  while((bool)(iss >> move))
-    moves.push_back(move);
-  std::vector<short int> moves_to_add;
-  for(int i = 0; i < (int)moves.size(); i++) {
-    if((int)moves[i].size() != 4 || !is_move_str_valid(moves[i])) {
-      std::cerr << "Error when adding the following line to book at token " << i << '\n';
-      std::cerr << "String is " << moves[i] << ", length is " << moves[i].size() << ", validity is " << is_move_str_valid(moves[i]) << '\n';
-      break;
-    }
-    moves_to_add.push_back(encode_move_str(moves[i]));
-  }
-  if(!moves_to_add.empty()) {
-    book.push_back(moves_to_add);
-  }
+void book_addline(const std::string& line) {
+	std::istringstream iss(line);
+	std::vector<std::string> moves;
+	std::string str_move;
+	while((bool)(iss >> str_move))
+		moves.push_back(str_move);
+
+	std::vector<Move> line_to_add;
+	for(int i = 0; i < (int)moves.size(); i++) {
+		if(!is_str_valid(moves[i])) {
+			std::cerr << "Error when adding the following line to book at token " << i << '\n';
+			std::cerr << "String is " << moves[i] << ", length is " << moves[i].size() << endl;
+			break;
+		}
+		line_to_add.push_back(str_to_move(moves[i]));
+	}
+
+	if(!line_to_add.empty()) 
+		book.push_back(line_to_add);
 }
 
 void book_addline(int _, std::string line) {
-  book_addline(line);
+	book_addline(line);
 }
 
 void load_external() {
-  // TO-DO
+	// External book openings
 }
 
 void load_internal() { 
