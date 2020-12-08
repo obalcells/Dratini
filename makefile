@@ -1,6 +1,6 @@
 # compiler flags
 C_FLAGS = -g -w -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays
-TESTING_C_FLAGS = -g -w -pipe -O1
+TESTING_C_FLAGS = -g -w -pipe -O3
 SELF_PLAY_FLAGS = $(TESTING_C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4
 
 # link options
@@ -14,8 +14,9 @@ SELF_PLAY_EXE = /Users/balce/Desktop/Dratini/self_play.sh
 
 # group of files to be compiled
 SRC_FILES := $(wildcard src/*.cpp)
-# take out bitboard.cpp because it's still under development
+# files still under development
 SRC_FILES := $(filter-out src/bitboard.cpp, $(SRC_FILES)) 
+SRC_FILES := $(filter-out src/new_position.cpp, $(SRC_FILES)) 
 
 TEST_FILES := $(filter-out src/main.cpp, $(SRC_FILES))
 #take out self_play.cpp because it's not a catf

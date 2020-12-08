@@ -41,7 +41,6 @@ bool timeout() {
     */
     if (elapsed_time >= MAX_SEARCH_TIME) {
         if (max_depth_searched <= 4) {
-            std::cout << "Max depth searched not accomplished yet" << endl;
             return false; // we want to search at least depth 4
         }
         stop_search = true;

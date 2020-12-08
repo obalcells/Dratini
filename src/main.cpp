@@ -15,9 +15,9 @@ TranspositionTable tt;
 
 int main() {
 	init_book();
-  	tt.allocate(32);
+	tt.allocate(32);
 	Position position = Position();
- 	for(;;) {
+	for(;;) {
 		int game_result = position.game_over();
 		if(game_result != -1) {
 			if(game_result == WHITE) {
@@ -27,7 +27,7 @@ int main() {
 			} else {
 				std::cout << "Draw" << '\n';
 			} 
-   	 	}
+		}
 		position.print_board();
 		if(position.side == BLACK) {
 			Move next_move = think(position);
@@ -43,7 +43,7 @@ int main() {
 		if(!parse_move(raw_input, move)) {
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;
 			continue;
-	 	}
+		}
 		if(position.move_valid(move)) { // move is valid
 			position.make_move(move);
 			taken_moves.push_back(move);

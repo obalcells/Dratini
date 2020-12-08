@@ -18,4 +18,11 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Self-play script
 - [ ] Bitboards
 
+## Short-term TO-DO List
+
+- [ ] BitBoard::update_zobrist() 
+- [ ] Position::is_attacked()
+- [ ] Position::move_is_valid()
+- [ ] Position::set_from_fen()
+
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
