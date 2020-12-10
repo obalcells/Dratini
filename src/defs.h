@@ -19,6 +19,20 @@
 #define QUEEN 4
 #define KING 5
 
+#define WHITE_PAWN 0
+#define WHITE_KNIGHT 1
+#define WHITE_BISHOP 2
+#define WHITE_ROOK 3
+#define WHITE_QUEEN 4
+#define WHITE_KING 5
+
+#define BLACK_PAWN 6 
+#define BLACK_KNIGHT 7 
+#define BLACK_BISHOP 8 
+#define BLACK_ROOK 9 
+#define BLACK_QUEEN 10 
+#define BLACK_KING 11 
+
 #define RESET_COLOR "\033[0m"
 #define EMPTY_COLOR "\033[37m"
 #define BLACK_COLOR "\033[36m"
@@ -60,6 +74,13 @@ enum {
     ENPASSANT_MOVE = 1,
     CASTLING_MOVE = 2,
     PROMOTION_MOVE = 3
+};
+
+enum Castling {
+    WHITE_QUEEN_SIDE,
+    WHITE_KING_SIDE,
+    BLACK_QUEEN_SIDE,
+    BLACK_KING_SIDE
 };
 
 #define Move(from, to) (from | (to << 6))

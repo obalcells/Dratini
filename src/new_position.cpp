@@ -4,6 +4,7 @@
 void Position::make_move(Move move) {
     board_history.push_back(static_cast<BitBoard>(board_history.back()));    
     BitBoard& board = board_history.back(); 
+
     int from = move.get_from();
     int to = move.get_to();
     int flags = move.get_flags();
@@ -37,19 +38,23 @@ void Position::make_move(Move move) {
         board.clear_square(adjacent, PAWN, !side);
         board.set_square(to, piece, side);
     } else {
-        int promotion_piece = flags - 3;
+        int promotion_piece = flags - 3; /* ! */
         board.clear_square(from, PAWN, side);
         board.set_square(to, promotion_piece, side);
     }
 
-    if(piece == PAWN || flags == CAPTURE)
+    if(piece == WHITE_PAWN || piece == BLACK_PAWN || flags == CAPTURE)
         board.reset_fifty_move_counter();
-    if(piece == PAWN && abs(from - to) == 16)
-        board.set_enpassant(col(from));
 
-    board.update_castling_rights();
+    if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(from - to) == 16)
+        board.set_enpassant(col(from));
+    else
+        board.set_enpassant(8); /* this equals no enpassant */
+
+    board.update_key(board_history[board_history.size() - 2], move);
+    board.update_castling_rights(move);
     board.increment_counter();
-    board.increment_zobrist();
+    board.side = !board.side;
 }
 
 /* returns false if move is invalid, otherwise it applies the move and returns true */

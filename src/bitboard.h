@@ -4,12 +4,6 @@
 #include <cinttypes>
 
 namespace {
-    enum Castling {
-        WHITE_QUEEN_SIDE,
-        WHITE_KING_SIDE,
-        BLACK_QUEEN_SIDE,
-        BLACK_KING_SIDE
-    };
 }
 
 class BitBoard {
@@ -30,9 +24,10 @@ class BitBoard {
         void update_castling_rights(Move move);
         void increment_count();
         void reset_fifty_move_count();
-        void increment_zobrist();
+        void update_key(const BitBoard&, Move);
     private:
         uint64_t bits[12];
+        uint64_t key;
         int move_count;
         int fifty_move_count;         
         int enpassant;
