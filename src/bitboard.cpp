@@ -1,19 +1,35 @@
 
+void set_square(int sq, int piece, bool _side) {
+    bits[piece + (_side == BLACK ? 6 : 0)] |= mask_sq(sq);
+}
+
+void clear_square(int sq, int piece, bool _side) {
+    assert(bits[piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq));
+    bits[piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq);
+}
+
+uint64_t mask_sq(int sq) {
+    return (uint64_t(1) << sq);
+}
+
 bool BitBoard::is_empty(int sq) {
-    return (sq & get_white() & get_black()) == 0;
+    return (mask_sq(sq) & get_white() & get_black()) == 0;
 }
 
 int BitBoard::get_piece(int sq) {
+    uint64_t mask = mask_sq(sq);
     for(int piece = 0; piece < 12; piece++)
-        if(sq & bits[i])
+        if(mask & bits[i])
             return piece;
             // return ((piece >= 6) ? (piece - 6) : piece);
     return EMPTY;
 }
 
+/* returns whether a piece at square is WHITE, BLACK or EMPTY */
 bool BitBoard::get_color(int sq) {
+    uint64_t mask = mask_sq(sq);
     for(int piece = 0; piece < 12; piece++)
-        if(sq & bits[i])
+        if(mask & bits[i])
             return ((piece >= 6) ? BLACK : WHITE); 
     return EMPTY;
 }
@@ -25,6 +41,7 @@ uint64_t BitBoard::get_all() {
     return mask;
 }
 
+/* returns the mask of all white/black pieces */
 uint64_t BitBoard::get_side(bool side) {
     uint64_t mask = 0;
     if(side == WHITE) {
@@ -139,7 +156,7 @@ void BitBoard::update_key(const BitBoard& board_prev, Move move) {
             key ^= zobrist_castling[castling_type];
         
     int from = move.get_from();
-    int to = move.get_to();
+    int to   = move.get_to();
     int flag = move.get_flag();
 
     if(flag == QUIET_MOVE) {
@@ -160,7 +177,7 @@ void BitBoard::update_key(const BitBoard& board_prev, Move move) {
         key ^= zobrist_pieces[piece_before][to];
     } else  {
         /* promotion */ 
-        int promotion_piece = flags - 3;
+        int promotion_piece = flag - 3; /* this is dangerous */
         key ^= zobrist_piece[PAWN + (side == BLACK ? 6 : 0)][from];    
         key ^= zobrist_piece[promotion_piece + (side == BLACK ? 6 : 0)][to];
     }       
@@ -169,4 +186,52 @@ void BitBoard::update_key(const BitBoard& board_prev, Move move) {
     key ^= zobrist_piece[piece][from]; 
     key ^= zobrist_piece[piece][to];
 }
+
+bool BitBoard::in_check() const {
+    int king_mask, king_pos;
+    if(side == WHITE) {
+        king_mask = board_history.back().bits[WHITE_KING];
+    } else {
+        king_mask = board_history.back().bits[BLACK_KING];
+    }
+    king_pos = msb(king_mask); 
+    return is_attacked(king_pos);
+} 
+
+bool is_attacked(int sq) {
+    return true;
+}
+
+bool castling_is_valid(Move move) {
+
+}
+
+/* it only works for pawns */
+bool BitBoard::is_move_diagonal(const Move& move) {
+    int from = move.get_from();
+    int to = move.get_to();
+    if(side == WHITE) {
+        if(to != from + 7 && to != from + 9)
+            return false;
+        /* wrong offset */
+        if(col(to) == 0 && to == from + 7)
+            return false;
+        /* wrong offset */
+        if(col(to) == 7 && to == from + 9)
+            return false;
+    } else {
+        if(to != from - 7 && to != from - 9)
+            return false;
+        /* wrong offset */
+        if(col(to) == 0 && to == from - 9)
+            return false;
+        /* wrong offset */
+        if(col(to) == 7 && to == from - 7)
+            return false;
+    }
+}
+
+/* To-DO 
+*/
+
 

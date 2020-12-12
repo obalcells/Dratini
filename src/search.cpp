@@ -57,7 +57,7 @@ bool timeout() {
     return false;
 }
 
-int quiescence_search(Position & position, int alpha, int beta, int depth) {
+int quiescence_search(Position& position, int alpha, int beta, int depth) {
     stats.change_phase(Q_SEARCH);
 
     int score = eval_tscp(position);

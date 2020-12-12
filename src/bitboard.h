@@ -8,9 +8,18 @@ namespace {
 
 class BitBoard {
     public:
+        BitBoard() {}
+        ~BitBoard() {}
+        BitBoard(std::string fen) {
+            /* do stuff */
+        }
+
+    private:
         bool is_empty(int sq) const;
         int get_piece(int sq) const;
         bool get_color(int sq) const; 
+
+        uint64_t mask_sq(int) const;
         uint64_t get_white() const;
         uint64_t get_black() const;
         uint64_t get_pawns(bool side) const;
@@ -20,12 +29,14 @@ class BitBoard {
         uint64_t get_queens(bool side) const;
         uint64_t get_king(bool side) const;
 
+        void set_square(int, int, bool); 
+        void clear_square(int, int, bool);
         void set_enpassant(int col);
         void update_castling_rights(Move move);
         void increment_count();
         void reset_fifty_move_count();
         void update_key(const BitBoard&, Move);
-    private:
+
         uint64_t bits[12];
         uint64_t key;
         int move_count;
