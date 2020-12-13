@@ -19,7 +19,7 @@ bool BitBoard::check_pawn_move(Move move) {
         assert(get_piece(to) == WHITE_PAWN || get_piece(to) == BLACK_PAWN);
     } else if(flag == CAPTURE) {
         /* we have to eat diagonally */
-        if(!is_move_diagonal(move))
+        if(!move_diagonal(move))
             return false;
         /* there must be an enemy piece at to square */
         if(mask_sq(to) & other_side_mask)
@@ -32,12 +32,12 @@ bool BitBoard::check_pawn_move(Move move) {
         if(side == BLACK && (to != from - 8 && to != from - 16))
             return false;
         /* square in front can't be occupied */
-        int one_forward = mask_sq(from + (side == WHITE ? 8 : -8));
+        uint64_t one_forward = mask_sq(from + (side == WHITE ? 8 : -8));
         if(one_forward & my_side_mask & other_side_mask) /* it should return 0 */
             return false;
         /* if it does two-forward, that square can't be occupied */
         if(to == from + 16 || to == from - 16) {
-            int two_forward = mask_sq(from + (side == WHITE ? 16 : -16));
+            uint64_t two_forward = mask_sq(from + (side == WHITE ? 16 : -16));
             if(two_forward & my_side_mask & other_side_mask) /* it should return 0 */
                 return false;
         }
@@ -60,29 +60,110 @@ bool BitBoard::check_pawn_move(Move move) {
     }
     return true;
 }
-bool Position::move_valid(Move move) {
 
+bool Position::move_valid(Move move) {
+    BitBoard& board = board_history.back();
+    const int from  = move.get_from();
+    const int to    = move.get_to();
+    const int flag  = move.get_flag();
+
+    /* out of range */
+    if(from < 0 || from >= 64 || to < 0 || to >= 64)
+        return false;
+
+    int piece = board.get_piece(from);
+
+    /* trivial conditions that must be met */
+    if(from == to || piece == EMPTY || color[to] == side || board.get_color(from) != side)
+        return false;
+
+    if(flag == CASTLING) {
+        /* this is the only place were we return true before the end of the function */
+        if(board.check_castling(move))
+            return true;
+    } else if(piece == PAWN) {
+        if (!board.check_pawn_move(move))
+            return false;
+    } else {
+        /* standardise the piece, kind of */
+        piece -= side == BLACK ? 6 : 0;
+        switch(piece) {
+            case KING:
+                if (!(mask_sq(to) && king_moves[from]))
+                    return false;
+                break;
+            case KNIGHT:
+                if (!(mask_sq(to) && knight_moves[from]))
+                    return false;
+                break;
+            case BISHOP:
+                if (!(mask_sq(to) && Bmoves(from, board.get_all_mask())))
+                    return false;
+            case ROOK:
+                if(!(mask_sq(to) && Rmoves(from, board.get_all_mask())))
+                    return false;
+            case QUEEN:
+                uint64_t occupation = board.get_all_mask();
+                if(!(mask_sq(to) & Bmoves(from, occupation)) && !(mask_sq(to) & Rmoves(from, occupation)))
+                    return false;
+        }
+    }
+
+    /* simulating make_move function */
+    int captured_piece;
+    if(flag == ENPASSANT) {
+        int adjacent = 8 * row(from) + col(to);
+        board.clear_square(adjacent, PAWN, !side);
+        board.set_square(adjacent, piece);
+        board.clear_square(from, piece);
+    } else {
+        captured_piece = board.get_piece(to);
+        if(captured_piece != EMPTY)
+            board.clear_square(to, captured_piece);
+        board.set_square(to, piece);
+        board.clear_square(from, piece);
+    }
+
+    bool in_check_after_move = board.in_check();
+
+    /* reverse the board modifications */
+    if(flag == ENPASSANT) {
+        int adjacent = 8 * row(from) + col(to);
+        board.set_square(adjacent, PAWN, !side);
+        board.clear_square(adjacent, piece);
+        board.set_square(adjacent, piece);
+    } else {
+        if(captured_piece != EMPTY)
+            board.set_square(to, captured_piece);
+        board.clear_square(to, piece);
+        board.set_square(from, piece);
+    }
+
+    if(in_check_after_move)
+        return false;
+
+    return true;
 }
 
 void Position::make_move(Move move) {
     board_history.push_back(static_cast<BitBoard>(board_history.back()));    
     BitBoard& board = board_history.back();
 
-    int from = move.get_from();
-    int to = move.get_to();
-    int flag = move.get_flag();
+    int from  = move.get_from();
+    int to    = move.get_to();
+    int flag  = move.get_flag();
     int piece = get_piece(from);
 
     if(move.is_null_move()) {
         /* don't do anything */
     } else if(flag == QUIET_MOVE) {
-        board.clear_square(from, piece, side);
-        board.set_square(to, piece, side);
+        board.clear_square(from, piece);
+        board.set_square(to, piece);
     } else if(flag == CAPTURE) {        
         int captured_piece = board.get_piece(to);
-        board.clear_square(to, captured_piece, !side);
-        board.clear_square(from, piece, side);
-        board.set_square(to, piece, side);
+        board.clear_square(to, captured_piece);
+        board.clear_square(from, piece);
+        board.set_square(to, piece);
     } else if(flag == CASTLING) {
         int rook_from, rook_to;
         if(from == E1 && to == C1) { rook_from = A1; rook_to = D1; } 
@@ -96,13 +177,13 @@ void Position::make_move(Move move) {
         board.set_square(rook_to, ROOK, side);
     } else if(flag == ENPASSANT) {
         int adjacent = row(from) * 8 + col(to);
-        board.clear_square(from, piece, side); 
+        board.clear_square(from, piece);
         board.clear_square(adjacent, PAWN, !side);
-        board.set_square(to, piece, side);
+        board.set_square(to, piece);
     } else {
         int promotion_piece = flag - 3;
         board.clear_square(from, PAWN, side);
-        board.set_square(to, promotion_piece, side);
+        board.set_square(to, promotion_piece, !side); /* we have to pass the side too */
     }
 
     if(piece == WHITE_PAWN || piece == BLACK_PAWN || flag == CAPTURE)
@@ -139,7 +220,7 @@ bool Position::make_move(std::string str_move) {
     if(piece == EMPTY)
         return false;
 
-    if(piece == PAWN && (row(to) == 0 || row(to) == 7)) {
+    if(piece == PAWN && (row(to) == 0 || row(to) == 7)) {
         if((side == WHITE && row(to) == 0) || (side == BLACK && row(to) == 7))
             return false;
         std::cout << "Which piece should the pawn be promoted to (q, r, b, k)? " << endl;
@@ -185,14 +266,6 @@ bool Position::make_move(std::string str_move) {
 void Position::take_back() {
     assert(!board_history.empty());
     board_history.pop_back();         
-}
-
-bool Position::move_is_valid(Move move) {
-    return board_history.back().move_is_valid(move);
-}
-
-bool Position::is_attacked(int sq) {
-    return board_history.back().is_attacked(sq);
 }
 
 bool Position::in_check() {

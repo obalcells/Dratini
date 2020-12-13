@@ -3,47 +3,60 @@
 #include <cstdint>
 #include <cinttypes>
 
-namespace {
-}
+struct BitBoard {
+    BitBoard() {}
 
-class BitBoard {
-    public:
-        BitBoard() {}
-        ~BitBoard() {}
-        BitBoard(std::string fen) {
-            /* do stuff */
-        }
+    ~BitBoard() {}
 
-    private:
-        bool is_empty(int sq) const;
-        int get_piece(int sq) const;
-        bool get_color(int sq) const; 
+    BitBoard(std::string fen) {
+        /* TODO */
+    }
 
-        uint64_t mask_sq(int) const;
-        uint64_t get_white() const;
-        uint64_t get_black() const;
-        uint64_t get_pawns(bool side) const;
-        uint64_t get_knights(bool side) const;
-        uint64_t get_bishops(bool side) const;
-        uint64_t get_rooks(bool side) const;
-        uint64_t get_queens(bool side) const;
-        uint64_t get_king(bool side) const;
+    static uint64_t mask_sq(int sq);
 
-        void set_square(int, int, bool); 
-        void clear_square(int, int, bool);
-        void set_enpassant(int col);
-        void update_castling_rights(Move move);
-        void increment_count();
-        void reset_fifty_move_count();
-        void update_key(const BitBoard&, Move);
+    /* TODO: Init magic moves and tables (all static things) */
 
-        uint64_t bits[12];
-        uint64_t key;
-        int move_count;
-        int fifty_move_count;         
-        int enpassant;
-        bool castling_rights[4];
-        bool side;
+    void set_square(int sq, int piece);
+
+    void set_square(int sq, int piece, bool _side);
+
+    void clear_square(int sq, int piece);
+
+    void clear_square(int sq, int piece, bool _side);
+
+    bool is_empty(int sq);
+
+    uint64_t get_all_mask() const;
+
+    uint64_t get_side_mask(bool side) const;
+
+    uint64_t get_pawns_mask(bool side) const;
+
+    uint64_t get_knights_mask(bool side) const;
+
+    uint64_t get_bishops_mask(bool side) const;
+
+    uint64_t get_rooks_mask(bool side) const;
+
+    uint64_t get_queens_mask(bool side) const;
+
+    uint64_t get_king_mask(bool side) const;
+
+    void update_castling_rights(const Move &move);
+
+    void increment_count();
+
+    void reset_fifty_move_count();
+
+    void update_key(const BitBoard &, const Move &);
+
+    uint64_t bits[12];
+    uint64_t key;
+    int move_count;
+    int fifty_move_count;
+    int enpassant;
+    bool castling_rights[4];
+    bool side, xside; /* TODO: change !side with xside and flip xside too after move */
 }
 
 
