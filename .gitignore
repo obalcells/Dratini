@@ -1,8 +1,8 @@
-#ignore compiled programs
 *.o
-#ignore vim swap files
 *.swo
 .vscode
 dratini
 .DS_Store
 *.sh
+.clang-format
+.idea
