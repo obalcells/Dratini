@@ -200,15 +200,21 @@ bool Position::move_valid(Move move) {
 			assert(p == PAWN || p == KNIGHT || p == KING);
 			switch(p) {
 				case PAWN: {
-					int forward = (side == WHITE ? (from_sq + 8) : (from_sq -8));
+					std::cout << "Checking pawn in old board" << endl;
+					int forward = (side == WHITE ? (from_sq + 8) : (from_sq - 8));
 					int two_forward = (side == WHITE ? (from_sq + 16) : (from_sq - 16));
 					if(to_sq == forward + 1 || to_sq == forward - 1) {
+						if(distance(from_sq, to_sq) != 2) return false;
 						if(piece[to_sq] == EMPTY) return false;
 					} else if(to_sq == forward) {
 						if(piece[forward] != EMPTY) return false;
 					} else if(to_sq == two_forward) {
-						if((side == WHITE && row(from_sq) != 1) || (side == BLACK && row(from_sq) == 6)) return false;
+						std::cout << MAGENTA_COLOR << "Checking for double row move" << RESET_COLOR << endl;
+						std::cout << MAGENTA_COLOR << from_sq << " " << to_sq << " " << forward << " " << two_forward << RESET_COLOR << endl;
+						std::cout << MAGENTA_COLOR << int(piece[forward]) << " " << int(piece[two_forward]) << RESET_COLOR << endl;
+						if((side == WHITE && row(from_sq) != 1) || (side == BLACK && row(from_sq) != 6)) return false;
 						if(piece[forward] != EMPTY || piece[two_forward] != EMPTY) return false;
+						std::cout << GREEN_COLOR << "Passed" << RESET_COLOR << endl;
 					} else {
 						return false;
 					}
@@ -225,7 +231,15 @@ bool Position::move_valid(Move move) {
 					break;
 				}
 				case KING: {
-					if(distance(from_sq, to_sq) > 2 || color[to_sq] == color[from_sq]) return false;
+					if(color[to_sq] == color[from_sq])
+						return false;
+					if(col(from_sq) == col(to_sq) || row(from_sq) == row(to_sq)) {
+						if(distance(from_sq, to_sq) > 1)
+							return false;
+					} else {
+						if(distance(from_sq, to_sq) > 2)
+							return false;
+					}
 					break;
 				}
 			}

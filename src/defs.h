@@ -8,36 +8,12 @@
 #define ll long long
 #define endl '\n'
 
-#define EMPTY 6
-#define WHITE 0
-#define BLACK 1
-
-#define PAWN 0
-#define KNIGHT 1
-#define BISHOP 2
-#define ROOK 3
-#define QUEEN 4
-#define KING 5
-
-#define WHITE_PAWN 0
-#define WHITE_KNIGHT 1
-#define WHITE_BISHOP 2
-#define WHITE_ROOK 3
-#define WHITE_QUEEN 4
-#define WHITE_KING 5
-
-#define BLACK_PAWN 6 
-#define BLACK_KNIGHT 7 
-#define BLACK_BISHOP 8 
-#define BLACK_ROOK 9 
-#define BLACK_QUEEN 10 
-#define BLACK_KING 11 
-
 #define RESET_COLOR "\033[0m"
 #define EMPTY_COLOR "\033[37m"
 #define BLACK_COLOR "\033[36m"
 #define WHITE_COLOR "\033[37m"
 #define GREEN_COLOR "\x1B[32m"
+#define MAGENTA_COLOR "\x1B[35m"
 #define RED_COLOR "\x1B[31m"
 
 #define NO_ENPASSANT 8
@@ -55,25 +31,76 @@
 #define MAX_SEARCH_TIME 5000.0
 #endif
 
+/* old move representation */
 typedef uint16_t Move;
 
+#define Move(from, to) (from | (to << 6))
+#define from(move) (move & 63)
+#define to(move) ((move >> 6) & 63)
+#define is_null(move) (move == NULL_MOVE)
+
 enum Squares {
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8
+	A1, B1, C1, D1, E1, F1, G1, H1,
+	A2, B2, C2, D2, E2, F2, G2, H2,
+	A3, B3, C3, D3, E3, F3, G3, H3,
+	A4, B4, C4, D4, E4, F4, G4, H4,
+	A5, B5, C5, D5, E5, F5, G5, H5,
+	A6, B6, C6, D6, E6, F6, G6, H6,
+	A7, B7, C7, D7, E7, F7, G7, H7,
+	A8, B8, C8, D8, E8, F8, G8, H8
 };
 
-enum {
-    NULL_MOVE = 0,
+enum Sides {
+	WHITE = 0,
+	BLACK = 1,
+	EMPTY = 6
+};
+
+enum Pieces {
+	PAWN = 0,
+	KNIGHT = 1,
+	BISHOP = 2,
+	ROOK = 3,
+	QUEEN = 4,
+	KING = 5
+};
+
+enum SidePieces {
+	WHITE_PAWN = 0,
+	WHITE_KNIGHT = 1,
+	WHITE_BISHOP = 2,
+	WHITE_ROOK = 3,
+	WHITE_QUEEN = 4,
+	WHITE_KING = 5,
+	BLACK_PAWN = 6,
+	BLACK_KNIGHT = 7,
+	BLACK_BISHOP = 8,
+	BLACK_ROOK = 9,
+	BLACK_QUEEN = 10,
+	BLACK_KING = 11,
+    NEW_EMPTY = 12
+};
+
+enum NewMoveTypes {
+	NULL_MOVE,
+	QUIET_MOVE,
+    CAPTURE_MOVE, 
+	ENPASSANT_MOVE,
+	CASTLING_MOVE,
+	KNIGHT_PROMOTION,
+	BISHOP_PROMOTION,
+	ROOK_PROMOTION,
+	QUEEN_PROMOTION
+};
+
+enum OldMoveTypes {
+    /* NULL_MOVE = 0, */
     NORMAL_MOVE = 0,
+    /*
     ENPASSANT_MOVE = 1,
     CASTLING_MOVE = 2,
     PROMOTION_MOVE = 3
+    */
 };
 
 enum Castling {
@@ -83,19 +110,46 @@ enum Castling {
     BLACK_KING_SIDE
 };
 
-#define Move(from, to) (from | (to << 6))
-#define from(move) (move & 63)
-#define to(move) ((move >> 6) & 63)
-#define is_null(move) (move == NULL_MOVE)
+struct NewMove {
+	uint16_t bits;
+	NewMove() {
+		bits = 0;
+	}
+    NewMove(int from, int to, int flag) {
+        bits = from | (to << 6) | (flag << 12);
+    }
+    std::string get_str() const {
+        std::string ans = "";
+        ans += char('a' + col(get_from()));
+        ans += char('1' + row(get_from()));
+        ans += char('a' + col(get_to()));
+        ans += char('1' + row(get_to()));
+        return ans;
+    }
+    bool is_move_null() const {
+        return bits == 0;
+    }
+    int get_from() const {
+        return bits & 63;
+    }
+    int get_to() const {
+        return (bits >> 6) & 63;
+    }
+    int get_flag() const {
+        return (bits >> 12);
+    }
+    friend std::ostream& operator<<(std::ostream& out, const NewMove& move);
+};
 
-int LSB_pop(uint64_t &bb) {
-    int index = LSB(bb);
-    bb &= bb - 1;
-    return index;
+inline std::ostream& operator<<(std::ostream& os, const NewMove& move) {
+    os << move.get_str();
+    return os;
 }
 
-#if (ndefined(_MSC_VER) || ndefined(_WIN64)) && ndefined(__GNUG__)
-const int bit_table[64] = {
+#ifndef _MSC_VER
+#ifndef _WIN64
+#ifndef __GNUG__
+static const int bit_table[64] = {
     0,  1,  2,  7,  3, 13,  8, 19,
     4, 25, 14, 28,  9, 34, 20, 40,
     5, 17, 26, 38, 15, 46, 29, 48,
@@ -105,6 +159,8 @@ const int bit_table[64] = {
     62, 11, 23, 32, 36, 44, 52, 55,
     61, 22, 43, 51, 60, 42, 59, 58
 };
+#endif
+#endif
 #endif
 
 inline int LSB(uint64_t mask) {
@@ -118,6 +174,13 @@ inline int LSB(uint64_t mask) {
     return bit_table[((mask & (~(mask) + 1)) * uint64_t(0x0218A392CD3D5DBF)) >> 58]
 #endif
 }
+
+inline int LSB_pop(uint64_t &bb) {
+    int index = LSB(bb);
+    bb &= bb - 1;
+    return index;
+}
+
 
 inline bool valid_pos(const int x) {
     return (x >= 0 && x < 64);

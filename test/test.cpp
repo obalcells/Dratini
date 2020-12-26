@@ -1,5 +1,7 @@
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "catch.h"
+#include "../src/stats.h"
+#include "../src/tt.h"
 
 /*
     1) Legality checking works comparing to slow engine 10s

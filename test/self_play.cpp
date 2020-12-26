@@ -1,16 +1,15 @@
 #include <cstdlib>
 #include <algorithm>
 #include <string>
+#include "catch.h"
 #include "../src/data.h"
 #include "../src/board.h"
 #include "../src/search.h"
 #include "../src/stats.h"
 #include "../src/tt.h"
 
-Statistics stats;
-TranspositionTable tt;
-
-int main() {
+/*
+TEST_CASE("Self playing 1000 games") {
   	tt.allocate(32);
     Position position;
     std::string printed_progress = "[";
@@ -59,4 +58,6 @@ int main() {
     } else {
         std::cout << RED_COLOR << n_errors << " errors in " << n_games << " games" << '\n' << '\n' << RESET_COLOR; 
     }
+    REQUIRE(n_errors == 0);
 }
+*/

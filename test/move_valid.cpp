@@ -1,11 +1,10 @@
-#include "catch.h"
+#include <algorithm>
+#include <vector>
 #include "../src/defs.h"
 #include "../src/board.h"
+#include "../src/stats.h"
+#include "../src/new_position.h"
 
-
-TEST_CASE("Test the move validity checking function") {
-    Position position;
-
-    REQUIRE(position.move_valid(0, 2) == false);
-    REQUIRE(position.move_valid(7, 8) == false);
+int main() {
+	return 0;
 }
