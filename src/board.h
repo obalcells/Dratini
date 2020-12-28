@@ -21,6 +21,7 @@ public:
     bool is_draw();
     int game_over();
     bool same(const Position& other_position);
+    bool only_kings_left();
     /* we have to mark these as publics to not have to modify tscp */
     char color[64];
     char piece[64];

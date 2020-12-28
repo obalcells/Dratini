@@ -21,8 +21,8 @@ class NewPosition {
         void print_board();
         bool in_check();
         void set_from_fen(const std::string&);
-        void debug();
-    private:
+        bool only_kings_left() const;
+        void debug(int);
         std::vector<BitBoard> board_history; 
         std::vector<NewMove> move_history;
 };

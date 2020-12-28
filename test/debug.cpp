@@ -8,19 +8,15 @@
 #include "../src/stats.h"
 #include "../src/tt.h"
 
-Statistics stats;
-TranspositionTable tt;
-
 namespace {
-    std::string str_seed_ = "Dratini is fast!";
+    std::string str_seed_ = "Dratini isn't really that fast (yet)";
     std::seed_seq seed_(str_seed.begin(), str_seed.end());
     std::mt19937_64 rng_(seed);
 }
 
 inline void same_valid_moves(Position& position, NewPosition& new_position, std::vector<std::pair<int,int> >& moves_to_pick) {
-    for(int from_sq = 0; from_sq < 64; from_sq++) {
-        for(int to_sq = 0; to_sq < 64; to_sq++) {
-            std::cout << "Checking move valid" << endl;
+    for(int from_sq = 0; from_sq < 64; from_sq++) if(position.piece[from_sq] != EMPTY) { 
+        for(int to_sq = 0; to_sq < 64; to_sq++) { 
             bool old_legal = position.move_valid(Move(from_sq, to_sq));
             bool new_legal = new_position.move_valid(from_sq, to_sq);
             if(new_legal != old_legal) {
@@ -34,7 +30,6 @@ inline void same_valid_moves(Position& position, NewPosition& new_position, std:
             assert(new_legal == old_legal);
             if(new_legal)
                 moves_to_pick.push_back(std::make_pair(from_sq, to_sq));
-            std::cout << "Finished checking move valid" << endl;
         }
     }
 }
@@ -51,15 +46,32 @@ int main() {
 		while(!game_over) {
 			std::vector<std::pair<int,int> > moves_to_pick;
 			same_valid_moves(position, new_position, moves_to_pick);
-			if(moves_to_pick.empty()) {
+			if(moves_to_pick.empty() || new_position.only_kings_left() || new_position.get_move_count() >= 500) {
 				game_over = true;
 			} else {
 				std::shuffle(moves_to_pick.begin(), moves_to_pick.end(), rng_);
 				const Move move = Move(moves_to_pick[0].first, moves_to_pick[0].second);
 				position.make_move(move);
+                new_position.board_history.back().quick_check("Before making move");
+                // std::cout << BLUE_COLOR << "Before making move " << move_to_str(move) << RESET_COLOR << endl;
+                // new_position.print_board();
 				new_position.make_move_from_str(move_to_str(move));
+                // std::cout << MAGENTA_COLOR << "After making move " << move_to_str(move) << RESET_COLOR << endl;
+                try {
+                    new_position.board_history.back().same(position);
+                    new_position.board_history.back().quick_check("After making move");
+                } catch(const char* error_message) {
+                    std::cout << RED_COLOR << error_message << RESET_COLOR << endl;
+                    position.print_board();
+                    new_position.print_board();
+                    std::cout << "************************" << endl;
+                    new_position.debug(3);
+                    assert(false);
+                }
+                // std::cout << GREEN_COLOR << "Quick check passed" << RESET_COLOR << endl;
 			}
 		}
-        std::cout << "Finished game" << endl;
+        if(cnt % 100 == 0)
+            std::cout << cnt << endl;
 	}
 }

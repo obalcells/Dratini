@@ -68,7 +68,8 @@ bool Position::is_attacked(int pos, bool attacker_side) {
 	for(i = 0; i < 8; i++) {
 		if(valid_pos(pos + delta_moves[i])
 		&& piece[pos + delta_moves[i]] == KING
-		&& color[pos + delta_moves[i]] == attacker_side)
+		&& color[pos + delta_moves[i]] == attacker_side
+		&& distance(pos, pos + delta_moves[i]) <= 2)
 			return true;
 	}
 	return false;
@@ -90,7 +91,6 @@ void Position::print_board() {
 		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
 		std::cout << " ";
 		if(color[i] == WHITE) {
-			std::cout << WHITE_COLOR;
 			if(piece[i] == PAWN) std::cout << 'P';
 			else if(piece[i] == KNIGHT) std::cout << 'N';
 			else if(piece[i] == BISHOP) std::cout << 'B';
@@ -98,15 +98,14 @@ void Position::print_board() {
 			else if(piece[i] == QUEEN) std::cout << 'Q';
 			else if(piece[i] == KING) std::cout << 'K';
 		} else if(color[i] == BLACK) {
-			std::cout << WHITE_COLOR;
 			if(piece[i] == PAWN) std::cout << 'p';
 			else if(piece[i] == KNIGHT) std::cout << 'n';
 			else if(piece[i] == BISHOP) std::cout << 'b';
 			else if(piece[i] == ROOK) std::cout << 'r';
 			else if(piece[i] == QUEEN) std::cout << 'q';
 			else if(piece[i] == KING) std::cout << 'k';
-		} else if(color[i] == EMPTY) {
-			std::cout << EMPTY_COLOR << '.';
+		} else {
+			std::cout << '.';
 		}
 		// std::cout << RESET_COLOR;
 		if((i + 1) % 8 == 0) {
@@ -137,6 +136,13 @@ bool Position::same(const Position& other_position) {
 	if(move_cnt != other_position.move_cnt) return false;
 	return true;
 } 
+
+bool Position::only_kings_left() {
+	for(int sq = 0; sq < 64; sq++)
+		if(piece[sq] != KING && piece[sq] != EMPTY)
+			return false;
+	return true;
+}
 
 // There should be some more checks here
 bool Position::is_draw() {

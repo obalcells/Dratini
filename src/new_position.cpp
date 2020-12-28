@@ -40,7 +40,6 @@ void NewPosition::make_move(const NewMove& move) {
     board_history.push_back(static_cast<BitBoard>(board_history.back()));
     move_history.push_back(static_cast<NewMove>(move));
     BitBoard& board = board_history.back();
-    std::cout << board_history.size() << endl;
     board.make_move(move);
     board.update_key(board_history[board_history.size() - 2], move);
 }
@@ -64,9 +63,11 @@ bool NewPosition::make_move_from_str(const std::string& str_move) {
     if(piece == NEW_EMPTY)
         return false;
 
-    if(piece == PAWN && (row(to_sq) == 0 || row(to_sq) == 7)) {
+    if((piece == BLACK_PAWN || piece == WHITE_PAWN) && (row(to_sq) == 0 || row(to_sq) == 7)) {
         if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7))
             return false;
+        flags = QUEEN_PROMOTION;
+        /*
         std::cout << "Which piece should the pawn be promoted to (q, r, b, k)? " << endl;
         std::string piece_str;
         std::cin >> piece_str;
@@ -87,9 +88,10 @@ bool NewPosition::make_move_from_str(const std::string& str_move) {
                 std::cout << "Invalid piece" << endl;
                 return false;
         }
-    } else if(piece == KING && abs(col(from_sq) - col(to_sq)) == 2) {
+        */
+    } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
         flags = CASTLING_MOVE;
-    } else if(piece == PAWN && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == NEW_EMPTY) {
+    } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == NEW_EMPTY) {
         flags = ENPASSANT_MOVE;
     } else if(board.get_piece(to_sq) != NEW_EMPTY) {
         flags = CAPTURE_MOVE;
@@ -99,8 +101,20 @@ bool NewPosition::make_move_from_str(const std::string& str_move) {
 
     NewMove move = NewMove(from_sq, to_sq, flags);
 
+
     if(!board.move_valid(move))
         return false;
+
+    /*
+    std::cout << RED_COLOR << "Finished checking whether move from string is valid" << RESET_COLOR << endl;
+    std::cout << RED_COLOR << "Now we will actually make the move" << RESET_COLOR << endl;
+    std::cout << RED_COLOR << "Move is " << move_to_str(Move(from_sq, to_sq)) << endl;
+    std::cout << RED_COLOR << "Board is:" << endl;
+    print_board();
+    std::cout << RESET_COLOR;
+    */
+
+    // board.quick_check("Inside make move but before make_move");
 
     make_move(move);
 
@@ -121,13 +135,13 @@ bool NewPosition::move_valid(int from_sq, int to_sq) {
     if(piece == NEW_EMPTY)
         return false;
 
-    if(piece == PAWN && (row(to_sq) == 0 || row(to_sq) == 7)) {
+    if((piece == WHITE_PAWN || piece == BLACK_PAWN) && (row(to_sq) == 0 || row(to_sq) == 7)) {
         if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7))
             return false;
         flags = QUEEN_PROMOTION;
-    } else if(piece == KING && abs(col(from_sq) - col(to_sq)) == 2) {
+    } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
         flags = CASTLING_MOVE;
-    } else if(piece == PAWN && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == NEW_EMPTY) {
+    } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == NEW_EMPTY) {
         flags = ENPASSANT_MOVE;
     } else if(board.get_piece(to_sq) != NEW_EMPTY) {
         flags = CAPTURE_MOVE;
@@ -152,13 +166,22 @@ bool NewPosition::in_check() {
     return board_history.back().in_check();
 }
 
-void NewPosition::debug() {
+void NewPosition::debug(int cnt) {
     std::cout << RED_COLOR << "Stack trace" << RESET_COLOR << endl;
-    for(int i = 0; i < (int)board_history.size(); i++) {
+    for(int i = (int)board_history.size() - cnt; i < (int)board_history.size(); i++) {
         board_history[i].print_board();
         if(i < (int)move_history.size()) {
             NewMove move = static_cast<NewMove>(move_history[i]);
             std::cout << GREEN_COLOR << move << RESET_COLOR << endl;
         }
     }
+}
+
+bool NewPosition::only_kings_left() const {
+    uint64_t all_mask = board_history.back().get_all_mask();
+    LSB_pop(all_mask);
+    LSB_pop(all_mask);
+    if(all_mask == 0)
+        return true;
+    return false;
 }

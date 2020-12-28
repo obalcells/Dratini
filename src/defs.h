@@ -13,6 +13,7 @@
 #define BLACK_COLOR "\033[36m"
 #define WHITE_COLOR "\033[37m"
 #define GREEN_COLOR "\x1B[32m"
+#define BLUE_COLOR "\x1B[34m"
 #define MAGENTA_COLOR "\x1B[35m"
 #define RED_COLOR "\x1B[31m"
 

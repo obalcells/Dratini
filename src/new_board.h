@@ -5,6 +5,7 @@
 #include <cinttypes>
 #include <vector>
 
+#include "board.h"
 #include "new_defs.h"
 #include "defs.h"
 
@@ -24,6 +25,7 @@ namespace {
     std::vector<std::vector<uint64_t> > pawn_attacks;
     std::vector<uint64_t> knight_attacks;
     std::vector<uint64_t> king_attacks;
+    std::vector<uint64_t> castling_mask;
 
     const char piece_char[12] = { 
         'P', 'N', 'B', 'R', 'Q', 'K',
@@ -87,7 +89,9 @@ struct BitBoard {
 	bool move_valid(const NewMove&);
     void print_board() const;
     void print_bitboard(uint64_t) const;
+
     void quick_check(const std::string&);
+    void same(const Position&);
 
     uint64_t bits[12];
     uint64_t key;

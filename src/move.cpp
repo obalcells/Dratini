@@ -16,7 +16,8 @@ bool Position::check_castling(Move move) {
 	int from_sq = from(move);
 	int to_sq = to(move);
 
-	if(is_attacked(from_sq, xside)) return false;
+	if(is_attacked(from_sq, xside) || is_attacked(to_sq, xside))
+		return false;
 
 	bool white_can_castle = castling & 4;  
 	bool black_can_castle = castling & 32;
@@ -34,12 +35,13 @@ bool Position::check_castling(Move move) {
 
 	if(white_king_side || black_king_side) {
 		if(is_attacked(from_sq + 1, xside)) return false;
-		while(++from_sq < to_sq) 
-			if(piece[from_sq] != EMPTY) return false;	
+		if(piece[from_sq + 1] != EMPTY) return false;
+		if(piece[from_sq + 2] != EMPTY) return false;
 	} else {
 		if(is_attacked(from_sq - 1, xside)) return false;
-		while(--from_sq > to_sq)
-			if(piece[from_sq] != EMPTY) return false;
+		if(piece[from_sq - 1] != EMPTY) return false;
+		if(piece[from_sq - 2] != EMPTY) return false;
+		if(piece[from_sq - 3] != EMPTY) return false;
 	}
 
 	return true; // later we will check whether the king is attacked after castling 
@@ -57,6 +59,9 @@ bool Position::check_enpassant(Move move) {
 
 	assert(col(adjacent) == col(to_sq));
 
+	if(piece[adjacent] != PAWN || color[adjacent] != xside) 
+		return false;
+
 	// it's not moving diagonally
 	if(to_sq != forward + 1 && to_sq != forward - 1)
 		return false;
@@ -72,6 +77,9 @@ bool Position::check_enpassant(Move move) {
 	if(side == BLACK && row(to_sq) != 2)
 		return false;
 
+	if(distance(from_sq, to_sq) > 2)
+		return false;
+
 	return true;
 }
 
@@ -85,24 +93,7 @@ void Position::make_move(Move move) {
 
 	const int p = piece[from_sq];
 
-	if(p == PAWN && col(from_sq) != col(to_sq) && piece[to_sq] == EMPTY) {
-		// enpasant
-		assert(check_enpassant(move));
-		int adjacent = 8 * row(from_sq) + col(to_sq);
-		piece[adjacent] = EMPTY;
-		color[adjacent] = EMPTY;
-	} else if(p == PAWN && (row(to_sq) == 0 || row(to_sq) == 7)) {
-		// promotion
-		piece[from_sq] = EMPTY;
-		color[from_sq] = EMPTY;
-		piece[to_sq] = QUEEN;
-		color[to_sq] = side;
-		move_cnt++;
-		side = !side;
-		xside = !xside;
-		assert(check_coloring());
-		return;
-	} else if(p == KING && abs(col(from_sq) - col(to_sq)) == 2) {
+	if(p == KING && abs(col(from_sq) - col(to_sq)) == 2) {
 		// castling
 		assert(check_castling(move));
 		assert(!is_attacked(to_sq, xside));
@@ -129,33 +120,69 @@ void Position::make_move(Move move) {
 			piece[H8] = EMPTY; color[H8] = EMPTY;
 			piece[F8] = ROOK;  color[F8] = BLACK;
 		}
-	} else if(p == PAWN && abs(row(from_sq) - row(to_sq)) == 2) {
-		// change enpassant flag
-		enpassant = col(from_sq);
-	} else if(p == KING) {
-		// change castling flag
-		if(side == WHITE && (castling & 4)) {
-			castling ^= 4;
-		} else if(side == BLACK && (castling & 32)) {
-			castling ^= 32;
-		}
-	} else if(p == ROOK) {
-		// change castling flag
-		if(from_sq == A1 && (castling & 1)) {
-			castling ^= 1;
-		} else if(from_sq == H1 && (castling & 2)) {
-			castling ^= 2;
-		} else if(from_sq == A8 && (castling & 8)) {
-			castling ^= 8;
-		} else if(from_sq == H8 && (castling & 16)) {
-			castling ^= 16;
-		}
 	}
 
+	if((castling & 1) && (from_sq == A1 || to_sq == A1)) {
+		// std::cout << "Changing castling flag 1 with move " << move_to_str(move) << endl;
+		// print_board();
+		castling ^= 1;
+	}
+	if((castling & 2) && (from_sq == H1 || to_sq == H1)) {
+		// std::cout << "Changing castling flag 2 with move " << move_to_str(move) << endl;
+		// print_board();
+		castling ^= 2;
+	}
+	if((castling & 8) && (from_sq == A8 || to_sq == A8)) {
+		// std::cout << "Changing castling flag 8 with move " << move_to_str(move) << endl;
+		// print_board();
+		castling ^= 8;
+	}
+	if((castling & 16) && (from_sq == H8 || to_sq == H8)) {
+		// std::cout << "Changing castling flag 16 with move " << move_to_str(move) << endl;
+		// print_board();
+		castling ^= 16;
+	}
+
+	if((castling & 4) && from_sq == E1) {
+		// std::cout << "Changing castling flag 4 with move " << move_to_str(move) << endl;
+		// print_board();
+		castling ^= 4;
+	}
+
+	if((castling & 32) && from_sq == E8) { 
+		// std::cout << "Changing castling flag 32 with move " << move_to_str(move) << endl;
+		// print_board();
+		castling ^= 32;
+	}
+
+
+	if(p == PAWN && col(from_sq) != col(to_sq) && piece[to_sq] == EMPTY) {
+		// enpasant
+		assert(check_enpassant(move));
+		int adjacent = 8 * row(from_sq) + col(to_sq);
+		piece[adjacent] = EMPTY;
+		color[adjacent] = EMPTY;
+	}
+
+	enpassant = NO_ENPASSANT;
+
+	if(p == PAWN && (row(to_sq) == 0 || row(to_sq) == 7)) {
+		// promotion
+		piece[from_sq] = EMPTY;
+		color[from_sq] = EMPTY;
+		piece[to_sq] = QUEEN;
+		color[to_sq] = side;
+		move_cnt++;
+		side = !side;
+		xside = !xside;
+		assert(check_coloring());
+
+		return;
+	}
+	
 	if(p == PAWN && abs(row(from_sq) - row(to_sq)) == 2) {
+		// change enpassant flag
 		enpassant = col(from_sq);
-	} else {
-		enpassant = NO_ENPASSANT;
 	}
 
 	// normal move
@@ -176,12 +203,26 @@ bool Position::move_valid(Move move) {
 	int from_sq = from(move);
 	int to_sq = to(move);
 
-	if(from_sq == to_sq) return false;
-	if(color[to_sq] == side) return false; 
-	if(piece[from_sq] == EMPTY) return false;
-	if(side != color[from_sq]) return false;
-	if(color[from_sq] == color[to_sq]) return false;
-	if(!valid_pos(from_sq) || !valid_pos(to_sq)) return false;
+	/*
+	if(move_to_str(move) == "a5h3") {
+		std::cout << BLUE_COLOR;
+		std::cout << "Checking move_valid in old board " << move_to_str(move) << endl;
+		print_board();
+		std::cout << RESET_COLOR;
+	}
+	*/
+
+	assert(check_coloring());
+
+	if(from_sq == to_sq
+	|| color[to_sq] == side 
+	|| piece[from_sq] == EMPTY
+	|| side != color[from_sq]
+	|| color[from_sq] == color[to_sq]
+	|| !valid_pos(from_sq)
+	|| !valid_pos(to_sq)) {
+		return false;
+	}
 
 	Position position_backup = *this;
 
@@ -193,6 +234,11 @@ bool Position::move_valid(Move move) {
 	if(p == KING && abs(col(from_sq) - col(to_sq)) == 2) {
 		if(!check_castling(move)) return false;
 	} else if(p == PAWN && col(from_sq) != col(to_sq) && piece[to_sq] == EMPTY) {
+		/*
+		if(move_to_str(move) == "a5h3") {
+			std::cout << "Checking if enpassant is valid" << endl;
+		}
+		*/
 		if(!check_enpassant(move)) return false;
 		enpassant_checked = true;
 	} else {
@@ -200,7 +246,6 @@ bool Position::move_valid(Move move) {
 			assert(p == PAWN || p == KNIGHT || p == KING);
 			switch(p) {
 				case PAWN: {
-					std::cout << "Checking pawn in old board" << endl;
 					int forward = (side == WHITE ? (from_sq + 8) : (from_sq - 8));
 					int two_forward = (side == WHITE ? (from_sq + 16) : (from_sq - 16));
 					if(to_sq == forward + 1 || to_sq == forward - 1) {
@@ -209,12 +254,8 @@ bool Position::move_valid(Move move) {
 					} else if(to_sq == forward) {
 						if(piece[forward] != EMPTY) return false;
 					} else if(to_sq == two_forward) {
-						std::cout << MAGENTA_COLOR << "Checking for double row move" << RESET_COLOR << endl;
-						std::cout << MAGENTA_COLOR << from_sq << " " << to_sq << " " << forward << " " << two_forward << RESET_COLOR << endl;
-						std::cout << MAGENTA_COLOR << int(piece[forward]) << " " << int(piece[two_forward]) << RESET_COLOR << endl;
 						if((side == WHITE && row(from_sq) != 1) || (side == BLACK && row(from_sq) != 6)) return false;
 						if(piece[forward] != EMPTY || piece[two_forward] != EMPTY) return false;
-						std::cout << GREEN_COLOR << "Passed" << RESET_COLOR << endl;
 					} else {
 						return false;
 					}
