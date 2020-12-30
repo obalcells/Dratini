@@ -40,8 +40,17 @@ void NewPosition::make_move(const NewMove& move) {
     board_history.push_back(static_cast<BitBoard>(board_history.back()));
     move_history.push_back(static_cast<NewMove>(move));
     BitBoard& board = board_history.back();
+    assert(board.key == board.calculate_key());
     board.make_move(move);
     board.update_key(board_history[board_history.size() - 2], move);
+    if(board.key != board.calculate_key()) {
+        std::cerr << "Move is: " << move_to_str(Move(move.get_from(), move.get_to())) << endl;
+        std::cerr << "Board was:" << endl;
+        board_history[board_history.size() - 2].print_board();
+        assert(board.key == board.calculate_key());
+    } else {
+        std::cerr << "Key is ok" << endl;
+    }
 }
 
 /* returns false if move is invalid, otherwise it applies the move and returns true */
@@ -105,16 +114,7 @@ bool NewPosition::make_move_from_str(const std::string& str_move) {
     if(!board.move_valid(move))
         return false;
 
-    /*
-    std::cout << RED_COLOR << "Finished checking whether move from string is valid" << RESET_COLOR << endl;
-    std::cout << RED_COLOR << "Now we will actually make the move" << RESET_COLOR << endl;
-    std::cout << RED_COLOR << "Move is " << move_to_str(Move(from_sq, to_sq)) << endl;
-    std::cout << RED_COLOR << "Board is:" << endl;
-    print_board();
-    std::cout << RESET_COLOR;
-    */
-
-    // board.quick_check("Inside make move but before make_move");
+    board.quick_check("Inside make move but before make_move");
 
     make_move(move);
 

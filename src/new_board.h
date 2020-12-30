@@ -35,13 +35,13 @@ namespace {
 
 struct BitBoard {
 	BitBoard(const std::string& fen) {
-		set_from_fen(fen);
 		init_data();
+		set_from_fen(fen);
 	}
 
 	BitBoard() {
-		set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 		init_data();
+		set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	}
 
     /* initializes zobrist hashes and bitboard tables */
@@ -78,6 +78,7 @@ struct BitBoard {
 
 	void update_castling_rights(const NewMove&);
 	void update_key(const BitBoard&, const NewMove&);
+    uint64_t calculate_key() const;
 
 	bool is_attacked(const int) const;
     bool in_check() const;
