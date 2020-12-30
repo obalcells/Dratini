@@ -47,9 +47,9 @@ void NewPosition::make_move(const NewMove& move) {
         std::cerr << "Move is: " << move_to_str(Move(move.get_from(), move.get_to())) << endl;
         std::cerr << "Board was:" << endl;
         board_history[board_history.size() - 2].print_board();
+        std::cerr << "Board now is" << endl;
+        board.print_board();
         assert(board.key == board.calculate_key());
-    } else {
-        std::cerr << "Key is ok" << endl;
     }
 }
 

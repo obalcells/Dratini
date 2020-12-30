@@ -6,3 +6,4 @@ dratini
 *.sh
 .clang-format
 .idea
+*.dSYM

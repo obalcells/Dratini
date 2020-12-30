@@ -459,7 +459,7 @@ uint64_t BitBoard::calculate_key() const {
 	new_key ^= zobrist_enpassant[enpassant];
 
     for(int castling_type = 0; castling_type < 4; castling_type++)
-		if(false && castling_rights[castling_type])
+		if(castling_rights[castling_type])
 			new_key ^= zobrist_castling[castling_type];
 
 	int piece;
@@ -475,8 +475,11 @@ uint64_t BitBoard::calculate_key() const {
 }
 
 void BitBoard::update_key(const BitBoard& board_before, const NewMove& move) {
-    if(move.is_move_null())
+    if(move.is_move_null()) {
+		key ^= zobrist_side[side];
+		key ^= zobrist_side[xside];
         return;
+	}
 
     if(board_before.enpassant != enpassant) {
         key ^= zobrist_enpassant[board_before.enpassant];
@@ -484,7 +487,7 @@ void BitBoard::update_key(const BitBoard& board_before, const NewMove& move) {
     }
     
     for(int castling_type = 0; castling_type < 4; castling_type++) {
-        if(false && board_before.castling_rights[castling_type] != castling_rights[castling_type])
+        if(board_before.castling_rights[castling_type] != castling_rights[castling_type])
             key ^= zobrist_castling[castling_type];
 	}
         
@@ -494,35 +497,29 @@ void BitBoard::update_key(const BitBoard& board_before, const NewMove& move) {
 	const int piece   = board_before.get_piece(from_sq);
 
     if(flag == QUIET_MOVE) {
-		std::cerr << "Quiet move" << endl;
 		key ^= zobrist_pieces[piece][from_sq]; 
 		key ^= zobrist_pieces[piece][to_sq];
     } else if(flag == CASTLING_MOVE) {
-		std::cerr << "Castling move" << endl;
         int rook_from = -1, rook_to = -1;
         if(from_sq == E1 && to_sq == C1) { rook_from = A1; rook_to = D1; } 
-        else if(from_sq == E1 && to_sq == G1) { rook_from = H1; rook_to = E1; } 
+        else if(from_sq == E1 && to_sq == G1) { rook_from = H1; rook_to = F1; } 
         else if(from_sq == E8 && to_sq == C8) { rook_from = A8; rook_to = D8; }
-        else if(from_sq == E8 && to_sq == G8) { rook_from = H8; rook_to = E8; }
+        else if(from_sq == E8 && to_sq == G8) { rook_from = H8; rook_to = F8; }
 		else assert(false);
-        key ^= zobrist_pieces[piece][rook_from];
-        key ^= zobrist_pieces[piece][rook_to];
+        key ^= zobrist_pieces[(side == WHITE ? BLACK_ROOK : WHITE_ROOK)][rook_from];
+        key ^= zobrist_pieces[(side == WHITE ? BLACK_ROOK : WHITE_ROOK)][rook_to];
 		key ^= zobrist_pieces[piece][from_sq]; 
 		key ^= zobrist_pieces[piece][to_sq];
     } else if(flag == ENPASSANT_MOVE) {
-		std::cerr << "Enpassant move" << endl;
-        int adjacent = row(from_sq) * 8 + col(to_sq);
-		/* remember that we have already flipped sides */
+        const int adjacent = row(from_sq) * 8 + col(to_sq);
         key ^= zobrist_pieces[(side == WHITE ? WHITE_PAWN : BLACK_PAWN)][adjacent];
 		key ^= zobrist_pieces[piece][from_sq]; 
 		key ^= zobrist_pieces[piece][to_sq];
     } else if(flag == CAPTURE_MOVE) {
-		std::cerr << "Capture move" << endl;
         key ^= zobrist_pieces[board_before.get_piece(to_sq)][to_sq];
 		key ^= zobrist_pieces[piece][from_sq]; 
 		key ^= zobrist_pieces[piece][to_sq];
     } else {
-		std::cerr << "Promotion move" << endl;
         int promotion_piece;
 		switch(flag) {
 			case KNIGHT_PROMOTION:
@@ -539,6 +536,10 @@ void BitBoard::update_key(const BitBoard& board_before, const NewMove& move) {
 				break;
 			default:
 				assert(false);
+		}
+		const int captured_piece = board_before.get_piece(to_sq);
+		if(captured_piece != NEW_EMPTY) {
+			key ^= zobrist_pieces[captured_piece][to_sq];
 		}
         key ^= zobrist_pieces[(side == WHITE ? BLACK_PAWN : WHITE_PAWN)][from_sq];
         key ^= zobrist_pieces[promotion_piece + (side == BLACK ? 0 : 6)][to_sq];

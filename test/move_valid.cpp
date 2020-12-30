@@ -12,13 +12,14 @@ TEST_CASE("Move comparison with old board") {
     std::vector<std::vector<std::pair<int,int> > > all_games;
 	int cnt = 0;
     int move_cnt = 0;
-
     auto rng_shuffle = std::default_random_engine { seed1 };
-	while(cnt++ < 500) {
+
+	while(cnt++ < 500) {      
         position = Position();
         new_position = NewPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-		bool game_over = false;
+        move_cnt = 0;
         std::vector<std::pair<int,int> > moves;
+		bool game_over = false;
 		while(!game_over) {
 			std::vector<std::pair<int,int> > moves_to_pick;
             for(int from_sq = 0; from_sq < 64; from_sq++) if(position.piece[from_sq] != EMPTY) { 
