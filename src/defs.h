@@ -4,6 +4,8 @@
 #include <cinttypes>
 #include <vector>
 #include <iostream>
+#include <cstdint>
+#include <tmmintrin.h>
 
 #define ll long long
 #define endl '\n'
@@ -34,7 +36,6 @@
 
 /* old move representation */
 typedef uint16_t Move;
-
 #define Move(from, to) (from | (to << 6))
 #define from(move) (move & 63)
 #define to(move) ((move >> 6) & 63)
@@ -147,6 +148,10 @@ inline std::ostream& operator<<(std::ostream& os, const NewMove& move) {
     return os;
 }
 
+inline uint64_t mask_sq(int sq) {
+    return (uint64_t(1) << sq);
+}
+
 #ifndef _MSC_VER
 #ifndef _WIN64
 #ifndef __GNUG__
@@ -164,7 +169,7 @@ static const int bit_table[64] = {
 #endif
 #endif
 
-inline int LSB(uint64_t mask) {
+inline int lsb(uint64_t mask) {
 #if defined(_MSC_VER) && defined(_WIN64)
     unsigned long index;
 	_BitScanForward64(&index, mask);
@@ -176,12 +181,34 @@ inline int LSB(uint64_t mask) {
 #endif
 }
 
-inline int LSB_pop(uint64_t &bb) {
-    int index = LSB(bb);
-    bb &= bb - 1;
+inline int pop_first_bit(uint64_t& mask) {
+    int index = lsb(mask);
+    mask &= mask - 1;
     return index;
 }
 
+const __m128i pop_count_mask = _mm_set1_epi8(15);
+
+const __m128i pop_count_table = _mm_setr_epi8(
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4
+);
+
+inline __m128i popcnt_8(__m128i mask) {
+    const __m128i cnt_0 = _mm_shuffle_epi8(pop_count_table, _mm_and_si128(mask, pop_count_mask));
+    const __m128i cnt_1 = _mm_shuffle_epi8(pop_count_table, _mm_and_si128(_mm_srli_epi16(mask, 4), pop_count_mask));
+    return _mm_add_epi8(cnt_0, cnt_1);
+}
+
+inline __m128i popcnt_64(__m128i n) {
+    const __m128i cnt_8 = popcnt_8(n);
+    return _mm_sad_epu8(cnt_8, _mm_setzero_si128());
+}
+
+inline int popcnt(uint64_t mask) {
+    const __m128i n = _mm_set_epi64x(00, mask);
+    const __m128i cnt = popcnt_64(n);
+    return _mm_cvtsi128_si32(cnt);
+}
 
 inline bool valid_pos(const int x) {
     return (x >= 0 && x < 64);

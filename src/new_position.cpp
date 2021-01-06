@@ -24,15 +24,15 @@ void NewPosition::set_from_fen(const std::string& fen) {
 	/* reset the other variables, which we don't have yet */
 }
 
-BitBoard NewPosition::get_board() {
+BitBoard& NewPosition::get_board() {
 	return board_history.back();
 }
 
-uint64_t NewPosition::get_key() {
+uint64_t NewPosition::get_key() const {
 	return board_history.back().key;
 }
 
-int NewPosition::get_move_count() {
+int NewPosition::get_move_count() const {
 	return board_history.back().move_count;
 }
 
@@ -43,7 +43,7 @@ void NewPosition::make_move(const NewMove& move) {
     assert(board.key == board.calculate_key());
     board.make_move(move);
     board.update_key(board_history[board_history.size() - 2], move);
-    if(board.key != board.calculate_key()) {
+    if(false && board.key != board.calculate_key()) {
         std::cerr << "Move is: " << move_to_str(Move(move.get_from(), move.get_to())) << endl;
         std::cerr << "Board was:" << endl;
         board_history[board_history.size() - 2].print_board();
@@ -121,7 +121,7 @@ bool NewPosition::make_move_from_str(const std::string& str_move) {
     return true;
 }
 
-void NewPosition::print_board() {
+void NewPosition::print_board() const {
     board_history.back().print_board();
 }
 
@@ -162,11 +162,11 @@ void NewPosition::take_back() {
     board_history.pop_back();
 }
 
-bool NewPosition::in_check() {
+bool NewPosition::in_check() const {
     return board_history.back().in_check();
 }
 
-void NewPosition::debug(int cnt) {
+void NewPosition::debug(int cnt) const {
     std::cout << RED_COLOR << "Stack trace" << RESET_COLOR << endl;
     for(int i = (int)board_history.size() - cnt; i < (int)board_history.size(); i++) {
         board_history[i].print_board();
@@ -179,8 +179,8 @@ void NewPosition::debug(int cnt) {
 
 bool NewPosition::only_kings_left() const {
     uint64_t all_mask = board_history.back().get_all_mask();
-    LSB_pop(all_mask);
-    LSB_pop(all_mask);
+    pop_first_bit(all_mask);
+    pop_first_bit(all_mask);
     if(all_mask == 0)
         return true;
     return false;

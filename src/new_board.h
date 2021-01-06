@@ -9,29 +9,23 @@
 #include "new_defs.h"
 #include "defs.h"
 
-namespace {
-    /* pseudo-random number generator */
-    std::string str_seed = "Dratini is fast!";
-    std::seed_seq seed(str_seed.begin(), str_seed.end());
-    std::mt19937_64 rng(seed);
-    std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
+/* pseudo-random number generator */
+static std::string str_seed = "Dratini is fast!";
+static std::seed_seq seed(str_seed.begin(), str_seed.end());
+static std::mt19937_64 rng(seed);
+static std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
+static bool required_data_initialized = false;
 
-    /* important to set required_data_initialized to false at the beginning */
-    bool required_data_initialized = false;
-    std::vector<std::vector<uint64_t> > zobrist_pieces;
-    std::vector<uint64_t> zobrist_castling;
-    std::vector<uint64_t> zobrist_enpassant;
-    std::vector<uint64_t> zobrist_side;
-    std::vector<std::vector<uint64_t> > pawn_attacks;
-    std::vector<uint64_t> knight_attacks;
-    std::vector<uint64_t> king_attacks;
-    std::vector<uint64_t> castling_mask;
-
-    const char piece_char[12] = { 
-        'P', 'N', 'B', 'R', 'Q', 'K',
-        'p', 'n', 'b', 'r', 'q', 'k',
-    };
-}
+/* important to set required_data_initialized to false at the beginning */
+extern std::vector<std::vector<uint64_t> > zobrist_pieces;
+extern std::vector<uint64_t> zobrist_castling;
+extern std::vector<uint64_t> zobrist_enpassant;
+extern std::vector<uint64_t> zobrist_side;
+extern std::vector<std::vector<uint64_t> > pawn_attacks;
+extern std::vector<uint64_t> knight_attacks;
+extern std::vector<uint64_t> king_attacks;
+extern std::vector<uint64_t> castling_mask;
+extern const char piece_char[12];
 
 struct BitBoard {
 	BitBoard(const std::string& fen) {
@@ -46,10 +40,6 @@ struct BitBoard {
 
     /* initializes zobrist hashes and bitboard tables */
     static void init_data();
-
-    static uint64_t mask_sq(int sq) {
-        return (uint64_t(1) << sq);
-    }
 
     static uint64_t get_random_64() {
         return dist(rng);
@@ -88,6 +78,7 @@ struct BitBoard {
 
 	void make_move(const NewMove&);
 	bool move_valid(const NewMove&);
+    bool fast_move_valid(const NewMove&) const;
     void print_board() const;
     void print_bitboard(uint64_t) const;
 

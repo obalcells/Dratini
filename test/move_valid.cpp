@@ -1,8 +1,6 @@
 #include "catch.h"
 #include "../src/board.h"
 #include "../src/new_position.h"
-#include "../src/stats.h"
-#include "../src/tt.h"
 
 TEST_CASE("Move comparison with old board") {
     Position position;
@@ -14,7 +12,7 @@ TEST_CASE("Move comparison with old board") {
     int move_cnt = 0;
     auto rng_shuffle = std::default_random_engine { seed1 };
 
-	while(cnt++ < 500) {      
+	while(cnt++ < 50) {      
         position = Position();
         new_position = NewPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         move_cnt = 0;

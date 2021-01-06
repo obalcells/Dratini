@@ -2,7 +2,7 @@
 
 This may not be the best chess engine, but it is a chess engine.
 
-It does minimax search with alpha-beta pruning together with some other optimizations such as null-move optimization and quiescence search. It uses a classical 2-dimensional array for representing the board. It might be slow, but still, it isn't easy to defeat it. I would guess that its ELO lies around 1400.
+It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (; It's ELO lies around 1400. 
 
 ## Other engines and chess programming resources
 
@@ -16,13 +16,11 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] More efficient bug-free transposition table
 - [X] Unit tests
 - [X] Self-play script
-- [ ] Bitboards
-
-## Short-term TO-DO List
-
-- [ ] BitBoard::update_zobrist() 
-- [ ] Position::is_attacked()
-- [ ] Position::move_is_valid()
-- [ ] Position::set_from_fen()
+- [X] New board move making and validity checking
+- [X] Testing new board representation
+- [X] Move generation
+- [ ] Testing move generation
+- [ ] Better Move ordering
+- [ ] New Search optimizations 
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)

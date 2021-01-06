@@ -7,6 +7,19 @@
 #include "new_defs.h"
 #include "defs.h"
 
+std::vector<std::vector<uint64_t> > zobrist_pieces;
+std::vector<uint64_t> zobrist_castling;
+std::vector<uint64_t> zobrist_enpassant;
+std::vector<uint64_t> zobrist_side;
+std::vector<std::vector<uint64_t> > pawn_attacks;
+std::vector<uint64_t> knight_attacks;
+std::vector<uint64_t> king_attacks;
+std::vector<uint64_t> castling_mask;
+const char piece_char[12] = { 
+    'P', 'N', 'B', 'R', 'Q', 'K',
+    'p', 'n', 'b', 'r', 'q', 'k',
+};
+
 /* initializes zobrist hashes and bitboard tables */
 void BitBoard::init_data() {
     if(required_data_initialized)
@@ -550,14 +563,7 @@ void BitBoard::update_key(const BitBoard& board_before, const NewMove& move) {
 }
 
 bool BitBoard::is_attacked(const int sq) const {
-	/*
-	std::cout << MAGENTA_COLOR; 
-	std::cout << "Is " << pos_to_str(sq) << " attacked?" << endl;
-	std::cout << "Here's the board:" << endl;
-	print_board();
-	std::cout << RESET_COLOR;
-	*/
-
+    /* Version 1 (it works) */
     if(knight_attacks[sq] & get_knight_mask(xside))
         return true;
 
@@ -567,29 +573,36 @@ bool BitBoard::is_attacked(const int sq) const {
     if(pawn_attacks[xside][sq] & get_pawn_mask(xside))
         return true;
 
-    uint64_t occupation = get_all_mask();
+    const uint64_t occupation = get_all_mask();
 
     const uint64_t bishop_moves = Bmagic(sq, occupation);
-    if((bishop_moves & get_bishop_mask(xside)) || (bishop_moves & get_queen_mask(xside)))
+
+    if((bishop_moves & get_bishop_mask(xside)) || (bishop_moves & get_queen_mask(xside))) {
         return true;
+    }
 
     const uint64_t rook_moves = Rmagic(sq, occupation);
     if((rook_moves & get_rook_mask(xside)) || (rook_moves & get_queen_mask(xside)))
         return true;
 
-    return false;
+	return false;
+
+    /* Version 2 (not tested, but it might be faster) */
+    /*
+    return 
+    	!(knight_attacks[sq] & get_knight_mask(xside)) &&
+    	!(king_attacks[sq] & get_king_mask(xside) &&
+    	!(pawn_attacks[xside][sq] & get_pawn_mask(xside)) &&
+		!(Bmagic(sq, get_all_mask()) & (get_bishop_mask(xside) | get_queen_mask(xside))) && 
+		!(Rmagic(sq, get_all_mask()) & (get_rook_mask(xside) | get_queen_mask(xside)));
+	*/
 }
 
 bool BitBoard::in_check() const {
-	uint64_t king_mask;
-    int king_pos;
-	if(side == WHITE) {
-		king_mask = bits[WHITE_KING];
-	} else {
-		king_mask = bits[BLACK_KING];
-	}
-	king_pos = LSB(king_mask);
-	return is_attacked(king_pos);
+	if(side == WHITE)
+		return is_attacked(lsb(bits[WHITE_KING]));
+	else
+		return is_attacked(lsb(bits[BLACK_KING]));
 }
 
 bool BitBoard::castling_valid(const NewMove& move) const {
@@ -639,30 +652,13 @@ bool BitBoard::castling_valid(const NewMove& move) const {
         return false;
 
 	if(castling_type == WHITE_QUEEN_SIDE || castling_type == BLACK_QUEEN_SIDE) { 
-		/*
-		if(!is_attacked(from_sq - 1)) {
-			std::cout << MAGENTA_COLOR;
-			std::cout << "Not attacked in castling" << endl;
-			std::cout << "Move is " << move_to_str(Move(from_sq, to_sq)) << endl;
-			std::cout << "Board is:" << endl;
-			print_board();
-			std::cout << RESET_COLOR;
-		}
-		*/
-        if (is_attacked(from_sq - 1))
-            return false;
+		return !is_attacked(from_sq - 1);
     } else if(castling_type == WHITE_KING_SIDE || castling_type == BLACK_KING_SIDE) {
-        /* to the right */
-        if(is_attacked(from_sq + 1)) {
-			// std::cout << RED_COLOR << "Yes, it's being attacked" << RESET_COLOR << endl;
-            return false;
-		}
-		// std::cout << GREEN_COLOR << "It's not being attacked" << RESET_COLOR << endl;
+    	return !is_attacked(from_sq + 1);
     } else {
 		assert(false);
+		return false;
 	}
-
-    return true;
 }
 
 /* it only works for pawns */
@@ -836,6 +832,66 @@ void BitBoard::make_move(const NewMove& move) {
 	xside = !side;
 }
 
+bool BitBoard::fast_move_valid(const NewMove& move) const {
+	const int piece_from = get_piece(move.get_from());
+	const int piece_to = get_piece(move.get_to());
+	const int from_sq = move.get_from();
+	const int to_sq = move.get_to();
+
+	/*
+	clear_square(from_sq, piece_from);
+	if(piece_to != NEW_EMPTY)
+		clear_square(to_sq, piece_to);
+	set_square(to_sq, piece_from);
+	*/
+
+	// This code underneath is equivalent to just doing:
+	// bool in_check_after_move = in_check();
+	// the problem is that we want the function to be const 
+	if(piece_from == WHITE_KING || piece_from == BLACK_KING) {
+		if((knight_attacks[to_sq] & get_knight_mask(xside))
+		|| (king_attacks[to_sq] & get_king_mask(xside))
+		|| (pawn_attacks[xside][to_sq] & get_pawn_mask(xside)))
+			return false;
+
+		const uint64_t occupation = (get_all_mask() ^ mask_sq(from_sq)) | mask_sq(to_sq);
+
+		if(Bmagic(to_sq, occupation) & (get_bishop_mask(xside) | get_queen_mask(xside))
+		|| Rmagic(to_sq, occupation) & (get_rook_mask(xside) | get_queen_mask(xside)))
+			return false;
+
+	} else {
+		int king_sq = lsb(get_king_mask(side));
+
+		if((knight_attacks[king_sq] & (get_knight_mask(xside) & ~mask_sq(to_sq)))
+		|| (king_attacks[king_sq] & (get_king_mask(xside) & ~mask_sq(to_sq))))
+			return false;
+
+		if(move.get_flag() == ENPASSANT_MOVE) {
+			if(pawn_attacks[xside][king_sq] & get_pawn_mask(xside) & ~mask_sq(side == WHITE ? (to_sq - 8) : (to_sq + 8)))
+				return false;
+
+			const uint64_t occupation = (get_all_mask() ^ mask_sq(from_sq) ^ mask_sq(side == WHITE ? (to_sq - 8) : (to_sq + 8))) | mask_sq(to_sq);
+
+			if(Bmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_bishop_mask(xside) | get_queen_mask(xside)))
+			|| Rmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_rook_mask(xside) | get_queen_mask(xside))))
+				return false;
+
+		} else {
+			if(pawn_attacks[xside][king_sq] & (get_pawn_mask(xside) & ~mask_sq(to_sq)))
+				return false;
+
+			const uint64_t occupation = (get_all_mask() ^ mask_sq(from_sq)) | mask_sq(to_sq);
+
+			if(Bmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_bishop_mask(xside) | get_queen_mask(xside)))
+			|| Rmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_rook_mask(xside) | get_queen_mask(xside))))
+				return false;
+		}
+	}
+
+	return true;
+}
+
 bool BitBoard::move_valid(const NewMove& move) {
 	// quick_check("Move valid beg");
 
@@ -890,7 +946,7 @@ bool BitBoard::move_valid(const NewMove& move) {
 				break;
 			case QUEEN:
 				uint64_t occupation = get_all_mask();
-				if(!(mask_sq(to_sq) & Bmagic(from_sq, occupation)) & !(mask_sq(to_sq) & Rmagic(from_sq, occupation)))
+				if(!(mask_sq(to_sq) & Bmagic(from_sq, occupation)) && !(mask_sq(to_sq) & Rmagic(from_sq, occupation)))
 					return false;
 				break;
 		}
@@ -926,7 +982,7 @@ bool BitBoard::move_valid(const NewMove& move) {
 	}
 
 	// quick_check("Post editing");
-	const bool in_check_after_move = is_attacked(LSB(bits[KING + (side == BLACK ? 6 : 0)])); 
+	const bool in_check_after_move = is_attacked(lsb(bits[KING + (side == BLACK ? 6 : 0)])); 
 
 	/* reverse the modifications */
 	if(flag == ENPASSANT_MOVE) {
