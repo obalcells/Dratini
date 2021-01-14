@@ -112,6 +112,7 @@ void generate_capture_moves(Position& position) {
 void generate_moves(Position & position) {
     stats.change_phase(MOVE_GEN);
     /* Brute-force move generation for testing bitboard-based generation */
+    /*
     for(int from_sq = 0; from_sq < 64; from_sq++) if(position.color[from_sq] == position.side) { 
         for(int to_sq = 0; to_sq < 64; to_sq++) {
             if(position.move_valid(Move(from_sq, to_sq))) { 
@@ -120,8 +121,9 @@ void generate_moves(Position & position) {
             }
         }
     }
-    // order_and_push();
+    order_and_push();
     return;
+    */
 
     for (int pos = 0; pos < 64; pos++) {
         if (position.color[pos] == position.side) {

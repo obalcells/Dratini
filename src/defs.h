@@ -242,6 +242,15 @@ inline std::string move_to_str(Move move) {
     return ans;
 }
 
+inline std::string move_to_str(const NewMove& move) {
+    std::string ans = "";
+    ans += char('a' + col(move.get_from()));
+    ans += char('1' + row(move.get_from()));
+    ans += char('a' + col(move.get_to()));
+    ans += char('1' + row(move.get_to()));
+    return ans;
+}
+
 inline bool parse_move(std::string raw_input, Move& move) {
     if ((int) raw_input.size() != 4) return false;
     int col_1 = raw_input[0] - 'a';

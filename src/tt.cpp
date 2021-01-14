@@ -5,10 +5,8 @@
 #include "tt.h"
 #include "defs.h"
 
-namespace {
-    const int bound_mask = 3;
-    const int date_mask  = ((1 << 8) - 1) ^ 3;  
-}
+static const int bound_mask = 3;
+static const int date_mask  = ((1 << 8) - 1) ^ 3;  
 
 void TranspositionTable::allocate(int mb_size) {
     // we want the size of the table to be a power of two

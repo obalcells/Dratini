@@ -20,11 +20,14 @@ class NewPosition {
         bool only_kings_left() const;
         void debug(int) const;
 
+        NewMove pair_to_move(int, int);
         void make_move(const NewMove&);
         bool make_move_from_str(const std::string&);
+        bool move_valid(const NewMove&);
         bool move_valid(int, int);
         void take_back();
         void set_from_fen(const std::string&);
+
         std::vector<BitBoard> board_history; 
         std::vector<NewMove> move_history;
 };

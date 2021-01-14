@@ -53,6 +53,54 @@ void NewPosition::make_move(const NewMove& move) {
     }
 }
 
+NewMove NewPosition::pair_to_move(int from_sq, int to_sq) {
+    BitBoard& board = board_history.back(); 
+    int flags = 0;
+    int piece = board.get_piece(from_sq);
+    bool side = board.side;
+
+    if(piece == NEW_EMPTY)
+        return NewMove();
+
+    if((piece == BLACK_PAWN || piece == WHITE_PAWN) && (row(to_sq) == 0 || row(to_sq) == 7)) {
+        if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7))
+            return NewMove();
+        flags = QUEEN_PROMOTION;
+        /*
+        std::cout << "Which piece should the pawn be promoted to (q, r, b, k)? " << endl;
+        std::string piece_str;
+        std::cin >> piece_str;
+        switch(piece) {
+            case 'q':
+                flags = QUEEN_PROMOTION;
+                break;
+            case 'r':
+                flags = ROOK_PROMOTION;
+                break;
+            case 'b':
+                flags = BISHOP_PROMOTION;
+                break;
+            case 'k':
+                flags = KNIGHT_PROMOTION;
+                break;
+            default:
+                std::cout << "Invalid piece" << endl;
+                return false;
+        }
+        */
+    } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
+        flags = CASTLING_MOVE;
+    } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == NEW_EMPTY) {
+        flags = ENPASSANT_MOVE;
+    } else if(board.get_piece(to_sq) != NEW_EMPTY) {
+        flags = CAPTURE_MOVE;
+    } else {
+        flags = QUIET_MOVE;
+    }
+
+    return NewMove(from_sq, to_sq, flags);
+}
+
 /* returns false if move is invalid, otherwise it applies the move and returns true */
 bool NewPosition::make_move_from_str(const std::string& str_move) {
     if(str_move.size() != 4
@@ -123,6 +171,10 @@ bool NewPosition::make_move_from_str(const std::string& str_move) {
 
 void NewPosition::print_board() const {
     board_history.back().print_board();
+}
+
+bool NewPosition::move_valid(const NewMove& move) {
+    return board_history.back().move_valid(move);
 }
 
 /* returns false if move is invalid, otherwise it applies the move and returns true */

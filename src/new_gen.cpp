@@ -106,18 +106,16 @@ uint64_t get_attackers(int sq, bool attacker_side, const BitBoard& board) {
     uint64_t attackers = 0;
 
     /* pawns */
-    if(board.get_piece(sq) != NEW_EMPTY) {
-        if(attacker_side == BLACK) {
-            if((mask_sq(sq) & ~COL_0) && board.get_piece(sq + 7) == BLACK_PAWN)
-                attackers |= mask_sq(sq + 7); 
-            if((mask_sq(sq) & ~COL_7) && board.get_piece(sq + 9) == BLACK_PAWN)
-                attackers |= mask_sq(sq + 9);
-        } else {
-            if((mask_sq(sq) & ~COL_0) && board.get_piece(sq - 9) == WHITE_PAWN)
-                attackers |= mask_sq(sq - 9);
-            if((mask_sq(sq) & ~COL_7) && board.get_piece(sq - 7) == WHITE_PAWN) 
-                attackers |= mask_sq(sq - 7);
-        }
+    if(attacker_side == BLACK) {
+        if((mask_sq(sq) & ~COL_0) && board.get_piece(sq + 7) == BLACK_PAWN)
+            attackers |= mask_sq(sq + 7); 
+        if((mask_sq(sq) & ~COL_7) && board.get_piece(sq + 9) == BLACK_PAWN)
+            attackers |= mask_sq(sq + 9);
+    } else {
+        if((mask_sq(sq) & ~COL_0) && board.get_piece(sq - 9) == WHITE_PAWN)
+            attackers |= mask_sq(sq - 9);
+        if((mask_sq(sq) & ~COL_7) && board.get_piece(sq - 7) == WHITE_PAWN) 
+            attackers |= mask_sq(sq - 7);
     }
 
     attackers |= Rmagic(sq, board.get_all_mask()) & 
