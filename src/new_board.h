@@ -54,6 +54,7 @@ struct BitBoard {
     void clear_square(const int, const int, bool);
 
     bool is_empty(const int);
+    uint64_t get_piece_mask(int) const;
     uint64_t get_all_mask() const;
     uint64_t get_side_mask(bool) const;
     uint64_t get_pawn_mask(bool) const;
@@ -83,7 +84,8 @@ struct BitBoard {
     void print_bitboard(uint64_t) const;
 
     void quick_check(const std::string&);
-    void same(const Position&);
+    void same(const Position&) const;
+    bool same(const BitBoard& other) const;
 
     uint64_t bits[12];
     uint64_t key;
@@ -91,5 +93,12 @@ struct BitBoard {
     uint8_t fifty_move_ply;
     uint8_t enpassant;
     bool castling_rights[4];
-    bool side, xside; /* TODO: change !side with xside and flip xside too after move */
+    bool side;
+    bool xside;
+
+    friend bool operator==(const BitBoard& a, const BitBoard& b);
 };
+
+inline bool operator==(const BitBoard& a, const BitBoard& b) {
+    return a.same(b);
+}

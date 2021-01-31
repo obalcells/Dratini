@@ -1,7 +1,8 @@
 #include <vector>
 #include <random>
 #include <algorithm>
-#include "catch.h"
+#include <cassert>
+
 #include "../src/defs.h"
 #include "../src/new_position.h"
 #include "../src/new_board.h"
@@ -11,10 +12,52 @@
 #include "../src/data.h"
 #include "../src/gen.h"
 #include "../src/new_gen.h"
+#include "../src/move_picker.h"
 
 Statistics stats;
 TranspositionTable tt;
 
+int main() {
+    std::string rng_seed_str = "Dratini";
+    std::seed_seq _seed (rng_seed_str.begin(), rng_seed_str.end());
+    auto rng_shuffle = std::default_random_engine { _seed };
+	std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
+
+    NewPosition position;
+    NewMove tmp_move;
+	int games_played = 0;
+
+    while(games_played++ < 1000) {
+        position = NewPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        bool game_over = false;
+        int move_cnt = 0;
+         
+        while(!game_over) {
+            move_cnt++;
+            MovePicker move_picker(position.get_board());
+            std::cout << BLUE_COLOR << "Initialized move picker" << RESET_COLOR << endl;
+
+            bool error_gen = false;
+
+            try {
+                std::cout << "Before next move" << endl;
+                tmp_move = move_picker.next_move();
+                assert(position.move_valid(tmp_move) == true);
+                position.make_move(tmp_move);
+                std::cout << "After next move" << endl;
+            } catch(const std::string error_msg) {
+                std::cerr << RED_COLOR << "There was an error: " << error_msg << RESET_COLOR << endl; 
+                std::cerr << "Position currently is:" << endl;
+                position.print_board();
+                error_gen = true;
+            }
+
+            assert(error_gen == false);
+        }
+    }
+}
+
+/*
 bool operator<(const NewMove& a, const NewMove& b) {
     if(a.get_from() != b.get_from())
         return a.get_from() < b.get_from();
@@ -111,7 +154,6 @@ int main() {
     }
 }
 
-/*
 int main() {
     std::string rng_seed_str = "Dratini";
     std::seed_seq seed1 (rng_seed_str.begin(), rng_seed_str.end());

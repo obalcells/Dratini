@@ -2,6 +2,7 @@
 #include <random>
 #include <algorithm>
 #include "catch.h"
+
 #include "../src/defs.h"
 #include "../src/new_position.h"
 #include "../src/new_board.h"
@@ -9,19 +10,41 @@
 #include "../src/data.h"
 #include "../src/new_gen.h"
 #include "../src/gen.h"
+#include "../src/move_picker.h"
 
-bool operator<(const NewMove& a, const NewMove& b) {
-    if(a.get_from() != b.get_from())
-        return a.get_from() < b.get_from();
-    return a.get_to() < b.get_to();
-}
+TEST_CASE("Static exchange evaluation") {
+    std::string rng_seed_str = "Dratini";
+    std::seed_seq _seed (rng_seed_str.begin(), rng_seed_str.end());
+    auto rng_shuffle = std::default_random_engine { _seed };
+	std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
 
-bool operator==(const NewMove& a, const NewMove& b) {
-    return a.get_from() == b.get_from() && a.get_to() == b.get_to();
-}
+    NewPosition position;
+    NewMove tmp_move;
+	int games_played = 0;
 
-bool operator!=(const NewMove& a, const NewMove& b) {
-    return !(a == b);
+    while(games_played++ < 1000) {
+        position = NewPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        bool game_over = false;
+        int move_cnt = 0;
+         
+        while(!game_over) {
+            move_cnt++;
+            MovePicker move_picker(position.get_board());
+
+            bool error_gen = false;
+
+            try {
+                tmp_move = move_picker.next_move();
+            } catch(const std::string error_msg) {
+                std::cerr << RED_COLOR << "There was an error: " << error_msg << RESET_COLOR << endl; 
+                std::cerr << "Position currently is:" << endl;
+                position.print_board();
+                error_gen = true;
+            }
+
+            REQUIRE(error_gen == false);
+        }
+    }
 }
 
 TEST_CASE("Move generation check for correctness") {
@@ -32,8 +55,8 @@ TEST_CASE("Move generation check for correctness") {
 
     NewPosition position;
     std::vector<NewMove> fast_move_stack, slow_move_stack;
-	int games_played = 0;
     NewMove tmp_move;
+	int games_played = 0;
 
     while(games_played++ < 100) {
         position = NewPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");

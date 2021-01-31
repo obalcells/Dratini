@@ -141,7 +141,22 @@ struct NewMove {
         return (bits >> 12);
     }
     friend std::ostream& operator<<(std::ostream& out, const NewMove& move);
+    friend bool operator==(const NewMove& a, const NewMove& b);
+    friend bool operator!=(const NewMove& a, const NewMove& b);
+    friend bool operator<(const NewMove& a, const NewMove& b);
 };
+
+inline bool operator==(const NewMove& a, const NewMove& b) {
+    return a.bits == b.bits;
+}
+
+inline bool operator!=(const NewMove& a, const NewMove& b) {
+    return a.bits == b.bits;
+}
+
+inline bool operator<(const NewMove& a, const NewMove& b) {
+    return a.bits < b.bits;
+}
 
 inline std::ostream& operator<<(std::ostream& os, const NewMove& move) {
     os << move.get_str();

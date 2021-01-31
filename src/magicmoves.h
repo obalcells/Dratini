@@ -181,7 +181,7 @@ extern const U64* magicmoves_r_indices[64];
 #endif //PERFCT_MAGIC_HASH
 
 #ifdef USE_INLINING
-static MMINLINE U64 Bmagic(const unsigned int square,const U64 occupancy)
+static MMINLINE U64 Bmagic(const unsigned int square, const U64 occupancy)
 {
 #ifndef PERFECT_MAGIC_HASH
 #ifdef MINIMIZE_MAGIC

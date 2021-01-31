@@ -376,6 +376,10 @@ uint64_t BitBoard::get_all_mask() const {
 	return mask;
 }
 
+uint64_t BitBoard::get_piece_mask(int piece) const {
+	return bits[piece];
+}
+
 /* returns the mask of all white/black pieces */
 uint64_t BitBoard::get_side_mask(bool _side) const {
 	uint64_t mask = 0;
@@ -1083,7 +1087,24 @@ void BitBoard::quick_check(const std::string& error_message) {
 	}
 }
 
-void BitBoard::same(const Position& other) {
+bool BitBoard::same(const BitBoard& other) const {
+	if(other.castling_rights[WHITE_QUEEN_SIDE] != castling_rights[WHITE_QUEEN_SIDE])
+		return false;
+	if(other.castling_rights[WHITE_KING_SIDE] != castling_rights[WHITE_KING_SIDE])
+		return false;
+	if(other.castling_rights[BLACK_QUEEN_SIDE] != castling_rights[BLACK_QUEEN_SIDE])
+		return false;
+	if(other.castling_rights[BLACK_KING_SIDE] != castling_rights[BLACK_KING_SIDE])
+		return false;
+
+	for(int i = 0; i < 64; i++) {
+		if(other.get_piece(i) != get_piece(i)) {
+			return false;
+		}
+	}
+}
+
+void BitBoard::same(const Position& other) const {
 	if((bool(other.castling & 1) && bool(other.castling & 4)) != castling_rights[WHITE_QUEEN_SIDE])
 		throw("Castling is different");
 	if((bool(other.castling & 2) && bool(other.castling & 4)) != castling_rights[WHITE_KING_SIDE])
