@@ -2,6 +2,7 @@
 #include <random>
 #include <algorithm>
 #include <cassert>
+#include <string>
 
 #include "../src/defs.h"
 #include "../src/new_position.h"
@@ -32,29 +33,29 @@ int main() {
         bool game_over = false;
         int move_cnt = 0;
          
-        while(!game_over) {
+        while(!game_over && move_cnt < 100) {
             move_cnt++;
             MovePicker move_picker(position.get_board());
-            std::cout << BLUE_COLOR << "Initialized move picker" << RESET_COLOR << endl;
-
-            bool error_gen = false;
 
             try {
-                std::cout << "Before next move" << endl;
                 tmp_move = move_picker.next_move();
                 assert(position.move_valid(tmp_move) == true);
                 position.make_move(tmp_move);
-                std::cout << "After next move" << endl;
             } catch(const std::string error_msg) {
                 std::cerr << RED_COLOR << "There was an error: " << error_msg << RESET_COLOR << endl; 
                 std::cerr << "Position currently is:" << endl;
                 position.print_board();
-                error_gen = true;
+                assert(false);
             }
-
-            assert(error_gen == false);
         }
     }
+}
+
+// we use this to test specific positions
+int __main() {
+    NewPosition position = NewPosition("./games/bad_see_queen_a8f8.txt", true);
+    MovePicker move_picker(position.get_board());
+    NewMove tmp_move = move_picker.next_move();
 }
 
 /*

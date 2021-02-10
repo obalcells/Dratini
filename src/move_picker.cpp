@@ -14,7 +14,7 @@
 // Tradeoffs:
 // use sort() once or linearly scan for each move?
 // early stopping in SEE? (Just whether it's good or bad)
-// bad captures or quiet moves, who should go first?
+// bad captures or quiet moves, which should go first?
 
 static const int piece_value[12] = {
 	100, 350, 350, 500, 1000, 999999,
@@ -54,9 +54,10 @@ uint64_t MovePicker::get_attackers(int to_sq, bool attacker_side) const {
     return attackers;
 }
 
-// we assume attacker is xside
+// we assume attacker is side
+// least valuable attacker - we assume that attacker side is 'side'
 int MovePicker::lva(int to_sq) const {
-    if(board->xside == BLACK) {
+    if(board->side == BLACK) {
         if((mask_sq(to_sq) & ~COL_0) && board->get_piece(to_sq + 7) == BLACK_PAWN)
         	return to_sq + 7;
         if((mask_sq(to_sq) & ~COL_7) && board->get_piece(to_sq + 9) == BLACK_PAWN)
@@ -67,37 +68,55 @@ int MovePicker::lva(int to_sq) const {
         if((mask_sq(to_sq) & ~COL_7) && board->get_piece(to_sq - 7) == WHITE_PAWN) 
         	return to_sq - 7;
     }
-	if(knight_attacks[to_sq] & board->get_knight_mask(board->xside))
-		return lsb(knight_attacks[to_sq] & board->get_knight_mask(board->xside));
-    if(Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(board->xside) | board->get_queen_mask(board->xside)))
-    	return lsb(Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(board->xside) | board->get_queen_mask(board->xside)));
-    if(Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(board->xside) | board->get_queen_mask(board->xside)))
-    	return lsb(Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(board->xside) | board->get_queen_mask(board->xside)));
+	if(knight_attacks[to_sq] & board->get_knight_mask(board->side))
+		return lsb(knight_attacks[to_sq] & board->get_knight_mask(board->side));
+    if(Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(board->side) | board->get_queen_mask(board->side)))
+    	return lsb(Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(board->side) | board->get_queen_mask(board->side)));
+    if(Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(board->side) | board->get_queen_mask(board->side)))
+    	return lsb(Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(board->side) | board->get_queen_mask(board->side)));
     return -1;
 }
 
 int MovePicker::next_lva(const uint64_t& attacker_mask, bool attacker_side) const {
+	// cout << "Running next_lva with the following attacker mask" << endl;
+	// board->print_bitboard(attacker_mask);
 	const int start_piece = (attacker_side == WHITE ? 0 : 6); 
 	for(int piece = start_piece; piece < start_piece + 6; piece++) {
 		if(attacker_mask & board->get_piece_mask(piece)) {
+			// cout << pos_to_str(lsb(attacker_mask & board->get_piece_mask(piece))) << endl; 
+			// cout << BLUE_COLOR << "------------------------" << RESET_COLOR << endl;
 			return lsb(attacker_mask & board->get_piece_mask(piece));
 		}
 	} 
+	// cout << -1 << endl;
+	// cout << BLUE_COLOR << "------------------------" << RESET_COLOR << endl;
 	return -1;
 }
 
 int MovePicker::fast_see(const NewMove& move) {
-	std::cout << BLUE_COLOR << "RUNNING FAST SEE" << RESET_COLOR << endl;
+	// cout << BLUE_COLOR << "RUNNING FAST SEE" << RESET_COLOR << endl;
 	const int to_sq = move.get_to();
-	int from_sq = move.get_from(), depth = 1, side = board->side;	
-	int piece_at_to = piece_value[board->get_piece(to_sq)];
+	int from_sq = move.get_from(), depth = 0, side = board->side;	
+	int piece_at_to = board->get_piece(to_sq);
 	uint64_t attacker_mask = get_attackers(to_sq, board->side) | get_attackers(to_sq, board->xside);	
+
+	// uint64_t white_diagonal_movers = board->get_queen_mask(WHITE) | board->get_bishop_mask(WHITE);
+	// uint64_t black_diagonal_movers = board->get_queen_mask(BLACK) | board->get_bishop_mask(BLACK);
+	// uint64_t white_straight_movers = board->get_queen_mask(WHITE) | board->get_rook_mask(WHITE);
+	// uint64_t black_straight_movers = board->get_queen_mask(BLACK) | board->get_rook_mask(BLACK);
+
+	// cout << "Attacker mask is:" << endl;
+	// board->print_bitboard(attacker_mask);
+
 	const uint64_t occ_mask = board->get_all_mask();
-	std::vector<int> score(16);
-	score[0] = 100000; // we want to force root to capture
+	std::vector<int> score(16, 0);
+	score[0] = 0; // we want to force the capture at root
 
 	while(from_sq != -1) {
-		score[depth + 1] = -score[depth++] + piece_value[piece_at_to];
+		score[depth + 1] = piece_value[piece_at_to] - score[depth];
+		depth++;
+		// cout << BLUE_COLOR << score[depth - 1] << " " << piece_value[piece_at_to] << " " << piece_at_to << RESET_COLOR << endl;
+		// cout << MAGENTA_COLOR << "Score at depth " << depth << " is " << score[depth] << RESET_COLOR << endl;
 		// fake the move
 		piece_at_to = board->get_piece(from_sq);
 		attacker_mask ^= mask_sq(from_sq);
@@ -106,19 +125,25 @@ int MovePicker::fast_see(const NewMove& move) {
 		// check xrays
 		if(move_is_diagonal(move)) {
 			uint64_t _diagonal_mask;
-			if(from_sq < to_sq) {
+			if(from_sq > to_sq) { // north
 				if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][NORTHEAST];
 				else _diagonal_mask = diagonal_mask[from_sq][NORTHWEST];
-			} else {
+			} else { // south
 				if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][SOUTHEAST];
 				else _diagonal_mask = diagonal_mask[from_sq][SOUTHWEST];
 			}
-			attacker_mask |= Bmagic(from_sq, occ_mask) & _diagonal_mask;
+			// cout << "Move is " << move_to_str(Move(from_sq, to_sq)) << endl;
+			// cout << "And diagonal mask is:" << endl;
+			// board->print_bitboard(_diagonal_mask);
+			attacker_mask |= Bmagic(from_sq, occ_mask) & _diagonal_mask
+			& (board->get_queen_mask(side) | board->get_bishop_mask(side) | board->get_queen_mask(!side) | board->get_bishop_mask(!side)); 
 		} else if(move_is_straight(move)) {
 			if(row(from_sq) == row(to_sq)) {
-				attacker_mask |= Rmagic(from_sq, board->get_all_mask()) & straight_mask[from_sq][(from_sq < to_sq ? EAST : WEST)];
+				attacker_mask |= Rmagic(from_sq, board->get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
+				& (board->get_queen_mask(side) | board->get_rook_mask(side) | board->get_queen_mask(!side) | board->get_rook_mask(!side));
 			} else {
-				attacker_mask |= Rmagic(from_sq, board->get_all_mask()) & straight_mask[from_sq][(from_sq < to_sq ? NORTH : SOUTH)];
+				attacker_mask |= Rmagic(from_sq, board->get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
+				& (board->get_queen_mask(side) | board->get_rook_mask(side) | board->get_queen_mask(!side) | board->get_rook_mask(!side));
 			}
 		}
 
@@ -126,48 +151,74 @@ int MovePicker::fast_see(const NewMove& move) {
 		from_sq = next_lva(attacker_mask, side);
 		// the king has put himself in check
 		if(piece_at_to == WHITE_KING || piece_at_to == BLACK_KING) {
-			score[depth--] = 0;
+			depth--;
 			from_sq = -1;
 		}
 	}
 
-	while(--depth > 1) {
+	score[0] = 10000;
+	score[depth + 1] = -score[depth];
+	// cout << "Score at biggest depth is " << score[depth] << endl;
+
+	while(depth > 0) {
 		// Minimax optimization. At each node you can choose between:
 		// 1) Not making the capture
-		// 2) Making the capture and assuming that the other side will play optimally
-		score[depth] = std::max(-score[depth + 1], -score[depth - 1]);
+		// 2) Making the capture and assuming that the other side will play optimally after your capture
+		score[depth] = std::max(-score[depth - 1], -score[depth + 1]);
+		depth--;
 	}
 
-	if(score[0] != slow_see(move, true)) {
-		std::string error_msg = "Fast and slow SEE differ for move " + move.get_str(); 
-		throw(error_msg);
-	}
-
-	return score[0];
+	return score[1];
 }
 
 // don't avoid doing stupid captures when at root
 int MovePicker::slow_see(const NewMove& move, bool root) {
-	const int captured_piece_value = piece_value[board->get_piece(move.get_to())];
-	const int lva_square = lva(move.get_to());
+	// if(root) {
+	// 	cout << "At root" << endl;
+	// }
+	// cout << "Board now is:" << endl;
+	// board->print_board();
+	// cout << RESET_COLOR;
 
-	if(lva_square == -1) {
-		return captured_piece_value;
-	}
+	const int piece_from = board->get_piece(move.get_from());
+	const int piece_captured = board->get_piece(move.get_to());
+	const int from_sq = move.get_from();
+	const int to_sq = move.get_to();
 
 	// making the capture
-	board->bits[board->get_piece(move.get_from())] ^= mask_sq(lva_square);
-	board->bits[board->get_piece(move.get_from())] ^= mask_sq(move.get_to());
-	board->bits[board->get_piece(move.get_to())] ^= mask_sq(move.get_to()); 	
+	// setting the 'to' square
+	board->bits[piece_from] ^= mask_sq(from_sq);
+	board->bits[piece_from] ^= mask_sq(to_sq);
+	board->bits[piece_captured] ^= mask_sq(to_sq); 	
 	board->side = board->xside;
 	board->xside = !board->xside;
 
-	const int score = captured_piece_value - slow_see(NewMove(lva_square, move.get_to(), CAPTURE_MOVE), false);
+	const int captured_piece_value = piece_value[piece_captured];
+	const int lva_square = lva(to_sq);
+
+	// if(root) {
+	// 	cout << BLUE_COLOR << "At SEE, root = " << (root ? "yes" : "no") << " and move made is " << move.get_str() << RESET_COLOR << endl;	
+	// } else {
+	// 	cout << "At SEE, root = " << (root ? "yes" : "no") << " and move made is " << move.get_str() << endl;	
+	// }
+	// board->print_board();
+	// cout << "LVA now is " << lva_square << endl;
+
+	int score;
+
+	if(lva_square == -1) {
+		// cout << "LVA square is -1, just returning" << endl;
+		score = captured_piece_value;
+	} else {
+		// cout << "Running another SEE" << endl;
+		score = captured_piece_value - slow_see(NewMove(lva_square, move.get_to(), CAPTURE_MOVE), false);
+	}
 
 	// unmaking move 
-	board->bits[board->get_piece(move.get_from())] ^= mask_sq(lva_square);
-	board->bits[board->get_piece(move.get_from())] ^= mask_sq(move.get_to());
-	board->bits[board->get_piece(move.get_to())] ^= mask_sq(move.get_to()); 	
+	// clearing the 'to' square
+	board->bits[piece_from] ^= mask_sq(from_sq);
+	board->bits[piece_from] ^= mask_sq(to_sq);
+	board->bits[piece_captured] ^= mask_sq(to_sq); 	
 	board->side = board->xside;
 	board->xside = !board->xside;
 
@@ -188,6 +239,20 @@ void MovePicker::sort_evasions() {
 void MovePicker::sort_captures() {
 	while(!compatible_move_stack.empty()) {
 		BitBoard prev_board = *board;
+		int s1 = slow_see(compatible_move_stack.back());
+		int s2 = fast_see(compatible_move_stack.back());
+		cout << "Move is " << compatible_move_stack.back().get_str() << endl;
+		cout << "And board is:" << endl;
+		board->print_board();
+		// cout << "Board data is:";
+		// board->print_bitboard_data();
+		if(s1 != s2) {
+			cout << RED_COLOR << "Scores don't match" << RESET_COLOR << endl;
+			cout << "Slow is " << s1 << " and fast is " << s2 << endl;
+			assert(s1 == s2);
+		} else {
+			cout << GREEN_COLOR << s1 << RESET_COLOR << endl;
+		}
 		move_stack.push_back(NewMoveWithScore(compatible_move_stack.back(), slow_see(compatible_move_stack.back(), true)));
 		assert(prev_board == *board);
 		compatible_move_stack.pop_back();
@@ -219,7 +284,7 @@ NewMove MovePicker::next_move() {
 				generate_evasions(compatible_move_stack, board);	
 				sort_evasions();
 				phase = QUIET;
-				return next_move(); // recursive call
+				return next_move();
 			} else {
 				generate_captures(compatible_move_stack, board);
 				sort_captures();
@@ -227,10 +292,10 @@ NewMove MovePicker::next_move() {
 			}
 
 		case GOOD_CAPTURES:
-			if(!move_stack.empty() && move_stack[move_stack.size() - 1].score >= 0) {
+			while(!move_stack.empty() && move_stack[move_stack.size() - 1].score >= 0) {
 				NewMove move = move_stack.back().move;
 				move_stack.pop_back();
-				if(move != hash_move) {
+				if(move != hash_move && board->fast_move_valid(move)) {
 					return move;
 				}
 			}
@@ -241,25 +306,10 @@ NewMove MovePicker::next_move() {
 			phase = BAD_CAPTURES;
 
 		case BAD_CAPTURES:
-			if(!move_stack.empty()) {
+			while(!move_stack.empty()) {
 				NewMove move = move_stack.back().move;
 				move_stack.pop_back();
-				while(!move_stack.empty()) {
-					if(move == hash_move
-					// || move == killer_move_1
-					// || move == killer_move_2
-					) {
-						move = move_stack.back().move;
-						move_stack.pop_back();	
-						continue;
-					}
-					return move;
-				}
-				phase++;
-				if(move != hash_move
-				// && move != killer_move_1
-				// && move != killer_move_2
-				) {
+				if(move != hash_move && board->fast_move_valid(move)) {
 					return move;
 				}
 			}
@@ -271,12 +321,13 @@ NewMove MovePicker::next_move() {
 			phase = QUIET;
 
 		case QUIET:
-			if(!move_stack.empty()) {
+			while(!move_stack.empty()) {
 				NewMove move = move_stack.back().move;
 				move_stack.pop_back();
-				return move;
+				if(move != hash_move && board->fast_move_valid(move)) {
+					return move;
+				}
 			}	
 	}
-
 	return NewMove(); // null move
 }

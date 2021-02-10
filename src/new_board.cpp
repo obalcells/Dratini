@@ -1036,16 +1036,19 @@ void BitBoard::print_board() const {
 	std::cout << endl;
 	std::cout << "Move count: " << move_count << endl;
 	std::cout << "Fifty move count: " << int(fifty_move_ply) << endl;
-	if(enpassant == 8)
+	if(enpassant == 8) {
 		std::cout << "Enpassant: None" << endl;
-	else
+	} else {
 		std::cout << "Enpassant: " << int(enpassant) << endl;
+	}
+	// cout << "Key is:" << endl; 
+	// cout << key << endl;
 	std::cout << "Castling (WQ, WK, BQ, BK): ";
 	for(i = 0; i < 4; i++)
 		std::cout << (castling_rights[i] ? "Y " : "N ");
 	std::cout << endl;
 	std::cout << "Side: " << (side == WHITE ? "WHITE" : "BLACK") << endl;
-	std::cout << "xSide: " << (xside == WHITE ? "WHITE" : "BLACK") << endl;
+	// std::cout << "xSide: " << (xside == WHITE ? "WHITE" : "BLACK") << endl;
 }
 
 void BitBoard::print_bitboard(uint64_t bb) const {
@@ -1055,7 +1058,11 @@ void BitBoard::print_bitboard(uint64_t bb) const {
 		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
 		std::cout << " ";
 		if(bb & (uint64_t(1) << i)) {
-			std::cout << 'X';
+			if(get_piece(i) == NEW_EMPTY) {
+				std::cout << 'x';
+			} else {
+				std::cout << piece_char[get_piece(i)];
+			}
 		} else {
 			std::cout << '.';
 		}
@@ -1102,6 +1109,8 @@ bool BitBoard::same(const BitBoard& other) const {
 			return false;
 		}
 	}
+
+	return true;
 }
 
 void BitBoard::same(const Position& other) const {
@@ -1128,4 +1137,52 @@ void BitBoard::same(const Position& other) const {
 			}
 		}
 	}
+}
+
+void BitBoard::print_bitboard_data() const {
+	cout << endl << endl;
+	cout << '"';
+	for(int pos = 0; pos < 64; pos++) {
+		if(pos > 0) cout << ' ';
+		cout << (int)get_piece(pos);
+	}
+	cout << ' ' << key;
+	cout << ' ' << move_count;
+	cout << ' ' << (int)fifty_move_ply;
+	cout << ' ' << (int)enpassant;
+	cout << ' ' << castling_rights[0]; 
+	cout << ' ' << castling_rights[1]; 
+	cout << ' ' << castling_rights[2]; 
+	cout << ' ' << castling_rights[3]; 
+	cout << ' ' << side;
+	cout << ' ' << xside;
+	cout << '"' << endl << endl;
+}
+
+void BitBoard::set_from_file(const std::string& file_name) {
+	freopen(file_name.c_str(), "r", stdin);	
+	int piece;
+	for(int i = 0; i <= BLACK_KING; i++) {
+		bits[i] = 0;
+	}
+	for(int pos = 0; pos < 64; pos++) {
+		cin >> piece;
+		bits[piece] |= mask_sq(pos);		
+		cerr << piece << " ";
+	}
+	cerr << endl;
+	cin >> key;
+	// for the fucking chars
+	cin >> piece;
+	move_count = piece;
+	cin >> piece;
+	fifty_move_ply = piece;
+	cin >> piece;
+	enpassant = piece;
+	cin >> castling_rights[0]; 
+	cin >> castling_rights[1]; 
+	cin >> castling_rights[2]; 
+	cin >> castling_rights[3]; 
+	cin >> side;
+	cin >> xside;
 }

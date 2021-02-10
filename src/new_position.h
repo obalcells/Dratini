@@ -9,7 +9,7 @@
 class NewPosition {
     public:
         NewPosition();
-        NewPosition(const std::string&);
+        NewPosition(const std::string& str, bool read_from_file = false);
         ~NewPosition();
 
         BitBoard& get_board();

@@ -10,6 +10,10 @@
 #define ll long long
 #define endl '\n'
 
+using std::cout;
+using std::cin;
+using std::cerr;
+
 #define RESET_COLOR "\033[0m"
 #define EMPTY_COLOR "\033[37m"
 #define BLACK_COLOR "\033[36m"
@@ -151,7 +155,7 @@ inline bool operator==(const NewMove& a, const NewMove& b) {
 }
 
 inline bool operator!=(const NewMove& a, const NewMove& b) {
-    return a.bits == b.bits;
+    return a.bits != b.bits;
 }
 
 inline bool operator<(const NewMove& a, const NewMove& b) {

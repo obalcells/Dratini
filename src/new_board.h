@@ -28,9 +28,13 @@ extern std::vector<uint64_t> castling_mask;
 extern const char piece_char[12];
 
 struct BitBoard {
-	BitBoard(const std::string& fen) {
+    BitBoard(const std::string& str, bool read_from_file = false) {
 		init_data();
-		set_from_fen(fen);
+        if(read_from_file == false) {
+            set_from_fen(str);
+        } else {
+            set_from_file(str);
+        }
 	}
 
 	BitBoard() {
@@ -47,6 +51,7 @@ struct BitBoard {
 
     void clear_board();
     void set_from_fen(const std::string&);
+    void set_from_file(const std::string&);
     void set_square(const int, const int);
     void set_square(const int, const int, bool);
     void set_enpassant(const int);
@@ -82,6 +87,7 @@ struct BitBoard {
     bool fast_move_valid(const NewMove&) const;
     void print_board() const;
     void print_bitboard(uint64_t) const;
+    void print_bitboard_data() const;
 
     void quick_check(const std::string&);
     void same(const Position&) const;

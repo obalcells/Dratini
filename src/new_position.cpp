@@ -10,8 +10,8 @@ NewPosition::NewPosition() {
     board_history.push_back(static_cast<BitBoard>(BitBoard()));
 }
 
-NewPosition::NewPosition(const std::string& fen) {
-    board_history.push_back(static_cast<BitBoard>(BitBoard(fen)));
+NewPosition::NewPosition(const std::string& str, bool read_from_file) {
+    board_history.push_back(static_cast<BitBoard>(BitBoard(str, read_from_file)));
 }
 
 NewPosition::~NewPosition() {
