@@ -2,17 +2,16 @@
 
 #include <vector>
 
-#include "new_board.h"
-#include "new_defs.h"
+#include "board.h"
 #include "defs.h"
 
-class NewPosition {
+class Position {
     public:
-        NewPosition();
-        NewPosition(const std::string& str, bool read_from_file = false);
-        ~NewPosition();
+        Position();
+        Position(const std::string& str, bool read_from_file = false);
+        ~Position();
 
-        BitBoard& get_board();
+        Board& get_board();
         uint64_t get_key() const;
         int get_move_count() const;
         void print_board() const;
@@ -20,16 +19,16 @@ class NewPosition {
         bool only_kings_left() const;
         void debug(int) const;
 
-        NewMove pair_to_move(int, int);
-        void make_move(const NewMove&);
+        Move pair_to_move(int, int);
+        void make_move(const Move);
         bool make_move_from_str(const std::string&);
-        bool move_valid(const NewMove&);
+        bool move_valid(const Move);
         bool move_valid(int, int);
         void take_back();
         void set_from_fen(const std::string&);
 
-        std::vector<BitBoard> board_history; 
-        std::vector<NewMove> move_history;
+        std::vector<Board> board_history; 
+        std::vector<Move> move_history;
 };
 
 

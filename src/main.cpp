@@ -1,54 +1,63 @@
 #include <iostream>
 #include <vector>
 #include "defs.h"
-#include "data.h"
 #include "search.h"
+#include "position.h"
 #include "board.h"
-#include "gen.h"
-#include "book.h"
-#include "stats.h"
-// #include "eval.h"
+// #include "book.h"
 #include "tt.h"
 
-Statistics stats;
 TranspositionTable tt;
 
 int main() {
-	init_book();
+	cerr << "Hi!" << endl;
+
+	// init_book();
 	tt.allocate(32);
+	cerr << "Finished allocating" << endl;
 	Position position = Position();
-	for(;;) {
-		int game_result = position.game_over();
-		if(game_result != -1) {
-			if(game_result == WHITE) {
-				std::cout << "White wins" << '\n';
-			} else if(game_result == BLACK) {
-				std::cout << "Black wins" << '\n';
-			} else {
-				std::cout << "Draw" << '\n';
-			} 
+	cerr << "Initalized board" << endl;
+	
+	while(true) {
+		if(position.get_board().side == WHITE) {
+			position.print_board();
 		}
-		position.print_board();
-		if(position.side == BLACK) {
-			Move next_move = think(position);
-			position.make_move(next_move);
-			taken_moves.push_back(next_move);
+
+		if(position.get_board().checkmate()) {
+			if(position.get_board().side == WHITE) {
+				cout << MAGENTA_COLOR << "Black wins" << RESET_COLOR << endl;
+			} else {
+				cout << MAGENTA_COLOR << "White wins" << RESET_COLOR << endl;
+			}
+			cout << endl << endl;
+			position = Position();
+			continue;
+		} else if(position.get_board().stalemate()) {
+			cout << MAGENTA_COLOR << "Draw" << RESET_COLOR << endl;
+			cout << endl << endl;
+			position = Position();
 			continue;
 		}
-		std::cout << "\nengine> ";
+
+		if(position.get_board().side == BLACK) {
+			cerr << MAGENTA_COLOR << "Side when starting to think is " << (position.get_board().side == WHITE ? "WHITE" : "BLACK") << RESET_COLOR << endl;
+			Move next_move = think(position);
+			cerr << "Finished thinking" << endl;
+			position.make_move(next_move);
+			continue;
+		}
+
+		cout << "\nengine> ";
 		std::string raw_input;
-		std::cin >> raw_input;
-		if(raw_input == "exit") break;
-		Move move = NULL_MOVE;
-		if(!parse_move(raw_input, move)) {
+		cin >> raw_input;
+
+		if(raw_input == "exit") {
+			break;
+		} else if(!position.make_move_from_str(raw_input)) { // we make the move here
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;
 			continue;
-		}
-		if(position.move_valid(move)) { // move is valid
-			position.make_move(move);
-			taken_moves.push_back(move);
 		} else {
-			std::cout << "Invalid move '" <<  raw_input << endl;
+			cerr << "Side after making move is " << (position.get_board().side == WHITE ? "WHITE" : "BLACK") << endl;
 		}
 	}
 }

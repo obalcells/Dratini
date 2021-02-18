@@ -30,23 +30,23 @@ void TranspositionTable::clear() {
     }
 }
 
-// returns true/false if the move will fail high or low
-bool TranspositionTable::retrieve_data(uint64_t key, Move& move, int& score, int& flags, int alpha, int beta, int depth, int ply) {
+bool TranspositionTable::retrieve_data(uint64_t& key, Move& move, int& score, int& bound, int alpha, int beta, int depth, int ply) {
     Entry* entry;
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
-            entry->flags = (entry->flags & EXACT_BOUND) | (tt_date << 2);
+            bound = entry->flags & EXACT_BOUND;
             move = entry->move;
             if(entry->depth >= depth) {
-                flags = entry->flags;
                 score = entry->score;
-                /*
-                if score is minimum we should add the ply
-                if score is maximum we should subtract the ply 
-                */
-                if(((entry->flags & UPPER_BOUND) && score <= alpha)
-                || ((entry->flags & LOWER_BOUND) && score >= beta))
+                if(score <= -CHECKMATE) {
+                    score += ply;
+                } else if(score >= CHECKMATE) {
+                    score -= ply;
+                }
+                if((bound == EXACT_BOUND)
+                || (bound == UPPER_BOUND && score <= alpha)
+                || (bound == LOWER_BOUND && score >= beta))
                     return true;
             }
         }
@@ -56,7 +56,7 @@ bool TranspositionTable::retrieve_data(uint64_t key, Move& move, int& score, int
 }
 
 // returns true if the position was found in the table
-bool TranspositionTable::retrieve_move(uint64_t key, Move& move) {
+bool TranspositionTable::retrieve_move(uint64_t& key, Move& move) {
     Entry* entry;
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {

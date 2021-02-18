@@ -4,9 +4,8 @@
 #include <cassert>
 #include <sstream>
 #include "defs.h"
-#include "data.h"
-#include "board.h"
 
+/*
 void load_external();
 void load_internal();
 
@@ -276,3 +275,4 @@ void load_internal() {
     // book_addline(0,"g1f3 d7d5 c2c4 e7e6 g2g3 g8f6 f1g2 f8e7 e1g1 e8g8 b2b3 c7c5 c4d5 f6d5 c1b2 b8c6 d24 b7b6 b1c3 d5c3");
     book_addline(0,"g1f3 d7d5 c2c4 d5c4 e2e3 c7c5 f1c4 e7e6 e1g1 g8f6 b2b3 b8c6 c1b2 a7a6 a2a4 f8e7");
 }
+*/

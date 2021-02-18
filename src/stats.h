@@ -30,5 +30,3 @@ private:
     std::vector<float> elapsed_time_in_phase;
     float last_checked_time;
 };
-
-extern Statistics stats;

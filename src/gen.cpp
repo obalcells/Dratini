@@ -1,221 +1,494 @@
 #include <vector>
+#include <iostream>
 #include <cassert>
-#include <cstdlib>
-#include <algorithm>
-#include <random>
 #include "defs.h"
-#include "data.h"
-#include "board.h"
-#include "stats.h"
+#include "position.h"
+#include "magicmoves.h"
+#include "bitboard.h"
 
-namespace {
-    std::mt19937 g(std::random_device {}());
-}
+uint64_t get_attackers(int, bool, const Board*);
+uint64_t get_blockers(int, bool, const Board*);
+uint64_t get_between(int, int, const Board*);
+void generate_evasions(std::vector<Move>&, const Board*);
+void generate_captures(std::vector<Move>&, const Board*);
+void generate_quiet(std::vector<Move>&, const Board*);
 
-void add_move(Position& position, Move move) {
-    stats.change_phase(CHECK);
-	if(position.move_valid(move)) {
-		Position prev_position = position; // this is extremely slow
-    	position.make_move(move);
-    	if (position.in_check(position.xside)) {
-			throw("Position is invalid after it has been marked as valid by move_valid checker");
-		}
-		position = prev_position;
-        int score = history[position.side][from(move)][to(move)];
-        if (position.piece[to(move)] != EMPTY) {
-            score = 10000 + piece_value[position.piece[to(move)]] - piece_value[position.piece[from(move)]];
-        }
-        unordered_move_stack.push_back(std::make_pair(score, move));
+void generate_moves(std::vector<Move>& moves, Board* board, bool quiesce) {
+    std::vector<Move> tmp_moves;
+    if(board->in_check()) {
+        generate_evasions(tmp_moves, board);
+    } else {
+        generate_captures(tmp_moves, board);
+        if(!quiesce)
+            generate_quiet(tmp_moves, board);
     }
-	stats.revert_phase();
-}
-
-void order_and_push() {
-    stats.change_phase(MOVE_ORD);
-#ifndef SELF_PLAY
-    sort(unordered_move_stack.rbegin(), unordered_move_stack.rend());
-#else
-    std::shuffle(unordered_move_stack.begin(), unordered_move_stack.end(), g);
-#endif
-    while(!unordered_move_stack.empty()) {
-        move_stack.push_back(unordered_move_stack.back().second);
-        unordered_move_stack.pop_back();
+    /* we will delete this later */
+    for(int i = 0; i < (int)tmp_moves.size(); i++) {
+        // if(board.fast_move_valid(tmp_moves[i]))
+        if(board->move_valid(tmp_moves[i])) {
+            moves.push_back(tmp_moves[i]);
+        }
     }
 }
 
-void generate_capture_moves(Position& position) {
-    stats.change_phase(CAP_MOVE_GEN);
-    for (char pos = 0; pos < 64; pos++) {
-        if (position.color[pos] == position.side) {
-            if (position.piece[pos] == PAWN) {
-                // diagonal-capture
-                char one_forward = (position.side == WHITE ? pos + 8 : pos - 8);
-                if (valid_distance(pos, one_forward - 1) &&
-                    position.color[one_forward - 1] == position.xside)
-                    add_move(position, Move(pos, one_forward - 1));
-                if (valid_distance(pos, one_forward + 1) &&
-                    position.color[one_forward + 1] == position.xside)
-                    add_move(position, Move(pos, one_forward + 1));
-                // enpassant
-                if ((position.side == WHITE && row(pos) == 4) ||
-                    (position.side == BLACK && row(pos) == 3)) {
-                    // to the left
-                    if (col(pos) > 0 && position.color[pos - 1] == position.xside &&
-                        position.piece[pos - 1] == PAWN &&
-                        position.enpassant == col(pos - 1)) {
-                        if (position.side == WHITE)
-                            add_move(position, Move(pos, pos + 7));
-                        else
-                            add_move(position, Move(pos, pos - 9));
-                    }
-                    // to the right
-                    else if (col(pos) < 7 && position.color[pos + 1] == position.xside &&
-                        position.piece[pos + 1] == PAWN &&
-                        position.enpassant == col(pos + 1)) {
-                        if (position.side == WHITE)
-                            add_move(position, Move(pos, pos + 9));
-                        else
-                            add_move(position, Move(pos, pos - 7));
-                    }
-                }
-                continue;
-            }
-
-            const int p = position.piece[pos];
-
-            for (int i = 0; offset[p][i]; i++) {
-                int delta = offset[p][i];
-
-                if (!slide[p]) {
-                    assert(p == KNIGHT || p == KING);
-                    if (valid_distance(pos, pos + delta) &&
-                        position.color[pos + delta] != position.side) {
-                        add_move(position, Move(pos, pos + delta));
-                    }
-                } else {
-                    assert(p == BISHOP || p == ROOK || p == QUEEN);
-                    int new_pos = pos;
-                    while (valid_pos(new_pos + delta) &&
-                        distance(new_pos, new_pos + delta) <= 2 &&
-                        position.color[new_pos + delta] != position.side) {
-                        add_move(position, Move(new_pos, new_pos + delta));
-                        if (position.color[new_pos] == position.xside) break; // we eat
-                        new_pos = new_pos + delta;
-                    }
-                }
-            }
+/* returns a bitboard containing all the pieces which are attacking sq */
+uint64_t get_blockers(int sq, bool attacker_side, const Board* board) {
+    uint64_t blockers = 0;
+    
+    /* pawns */
+    if(board->get_piece(sq) != EMPTY) {
+        if(attacker_side == BLACK) {
+            if((mask_sq(sq) & ~COL_0) && board->get_piece(sq + 7) == BLACK_PAWN)
+                blockers |= mask_sq(sq + 7); 
+            if((mask_sq(sq) & ~COL_7) && board->get_piece(sq + 9) == BLACK_PAWN)
+                blockers |= mask_sq(sq + 9);
+        } else {
+            if((mask_sq(sq) & ~COL_0) && board->get_piece(sq - 9) == WHITE_PAWN)
+                blockers |= mask_sq(sq - 9);
+            if((mask_sq(sq) & ~COL_7) && board->get_piece(sq - 7) == WHITE_PAWN) 
+                blockers |= mask_sq(sq - 7);
         }
-	}
-	order_and_push();
+    } else {
+        if(attacker_side == WHITE) {
+            if(row(sq) > 0 && board->get_piece(sq - 8) == WHITE_PAWN)
+                blockers |= mask_sq(sq - 8);
+            else if(row(sq) == 3 && board->get_piece(sq - 8) == EMPTY && board->get_piece(sq - 16) == WHITE_PAWN)
+                blockers |= mask_sq(sq - 16);
+        } else {
+            if(row(sq) < 7 && board->get_piece(sq + 8) == BLACK_PAWN)
+                blockers |= mask_sq(sq + 8);
+            else if(row(sq) == 4 && board->get_piece(sq + 8) == EMPTY && board->get_piece(sq + 16) == BLACK_PAWN)
+                blockers |= mask_sq(sq + 16);
+        }
+    }
+
+    blockers |= Rmagic(sq, board->get_all_mask()) & 
+                (board->get_rook_mask(attacker_side) | board->get_queen_mask(attacker_side));
+    blockers |= Bmagic(sq, board->get_all_mask()) &
+                (board->get_bishop_mask(attacker_side) | board->get_queen_mask(attacker_side));
+    blockers |= knight_attacks[sq] &
+                board->get_knight_mask(attacker_side);
+
+    return blockers;
 }
 
-void generate_moves(Position & position) {
-    stats.change_phase(MOVE_GEN);
-    /* Brute-force move generation for testing bitboard-based generation */
-    /*
-    for(int from_sq = 0; from_sq < 64; from_sq++) if(position.color[from_sq] == position.side) { 
-        for(int to_sq = 0; to_sq < 64; to_sq++) {
-            if(position.move_valid(Move(from_sq, to_sq))) { 
-                move_stack.push_back(Move(from_sq, to_sq));
-                // add_move(position, Move(from_sq, to_sq));
+/* returns a bitboard containing all the pieces from a certain side which are attacking sq */
+uint64_t get_attackers(int sq, bool attacker_side, const Board* board) {
+    uint64_t attackers = 0;
+
+    /* pawns */
+    if(attacker_side == BLACK) {
+        if((mask_sq(sq) & ~COL_0) && board->get_piece(sq + 7) == BLACK_PAWN)
+            attackers |= mask_sq(sq + 7); 
+        if((mask_sq(sq) & ~COL_7) && board->get_piece(sq + 9) == BLACK_PAWN)
+            attackers |= mask_sq(sq + 9);
+    } else {
+        if((mask_sq(sq) & ~COL_0) && board->get_piece(sq - 9) == WHITE_PAWN)
+            attackers |= mask_sq(sq - 9);
+        if((mask_sq(sq) & ~COL_7) && board->get_piece(sq - 7) == WHITE_PAWN) 
+            attackers |= mask_sq(sq - 7);
+    }
+
+    attackers |= Rmagic(sq, board->get_all_mask()) & 
+                (board->get_rook_mask(attacker_side) | board->get_queen_mask(attacker_side));
+    attackers |= Bmagic(sq, board->get_all_mask()) &
+                (board->get_bishop_mask(attacker_side) | board->get_queen_mask(attacker_side));
+    attackers |= knight_attacks[sq] &
+                board->get_knight_mask(attacker_side);
+
+    return attackers;
+}
+
+/* returns a bitboard with the squares between from_sq and to_sq */
+/* it takes into account the type of piece at from_sq            */
+uint64_t get_between(int from_sq, int to_sq, const Board* board) {
+    const int piece = board->get_piece(from_sq);
+
+    if(row(from_sq) == row(to_sq) || col(from_sq) == col(to_sq)) {
+        if(piece == WHITE_ROOK || piece == BLACK_ROOK || piece == WHITE_QUEEN || piece == BLACK_QUEEN) {
+            const uint64_t all_mask = board->get_all_mask();
+            return Rmagic(from_sq, all_mask) & Rmagic(to_sq, all_mask) & ~all_mask;
+        }       
+    } else if(abs(row(from_sq) - row(to_sq)) == abs(col(from_sq) - col(to_sq))) {
+        if(piece == WHITE_BISHOP || piece == BLACK_BISHOP || piece == WHITE_QUEEN || piece == BLACK_QUEEN) {
+            const uint64_t all_mask = board->get_all_mask();
+            return Bmagic(from_sq, all_mask) & Bmagic(to_sq, all_mask) & ~all_mask;
+        }
+    }
+
+    return 0;
+}
+
+/* we assume that king is in check */
+void generate_evasions(std::vector<Move>& moves, const Board* board) {
+    const uint64_t king_mask = board->get_king_mask(board->side);
+    const int king_pos = lsb(king_mask);
+    int from_sq, to_sq; 
+    uint64_t king_attackers = get_attackers(king_pos, board->xside, board);    
+
+    if(popcnt(king_attackers) == 1) {
+        /* a piece (different than the checked king) will try to eat the attacker */
+        int attacker_pos = lsb(king_attackers);
+
+        /* special case: the attacker is a pawn and we eat it enpass */
+        if(board->side == BLACK && (mask_sq(attacker_pos) & ROW_3) && board->enpassant == col(attacker_pos)) {
+            if(col(attacker_pos) > 0 && board->get_piece(attacker_pos - 1) == BLACK_PAWN)
+                moves.push_back(Move(attacker_pos - 1, attacker_pos - 8, ENPASSANT_MOVE));
+            if(col(attacker_pos) < 7 && board->get_piece(attacker_pos + 1) == BLACK_PAWN) {
+                moves.push_back(Move(attacker_pos + 1, attacker_pos - 8, ENPASSANT_MOVE));
+            }
+        } else if(board->side == WHITE && (mask_sq(attacker_pos) & ROW_4) && board->enpassant == col(attacker_pos)) {
+            if(col(attacker_pos) > 0 && board->get_piece(attacker_pos - 1) == WHITE_PAWN)  
+                moves.push_back(Move(attacker_pos - 1, attacker_pos + 8, ENPASSANT_MOVE));
+            if(col(attacker_pos) < 7 && board->get_piece(attacker_pos + 1) == WHITE_PAWN)    
+                moves.push_back(Move(attacker_pos + 1, attacker_pos + 8, ENPASSANT_MOVE));
+        }
+
+        uint64_t attackers_of_attacker = get_attackers(attacker_pos, board->side, board);
+
+        while(attackers_of_attacker) {
+            from_sq = pop_first_bit(attackers_of_attacker);
+            moves.push_back(Move(from_sq, attacker_pos, CAPTURE_MOVE));
+        }
+
+        /* a piece (different than the checked king) will try to block the attack without eating anything */
+        uint64_t positions_between = get_between(attacker_pos, king_pos, board);
+        while(positions_between) {
+            to_sq = pop_first_bit(positions_between);
+            uint64_t blockers = get_blockers(to_sq, board->side, board);
+
+            /* special case: we block a square by eating enpass */
+            if(board->enpassant == col(to_sq)) {
+                if(board->side == WHITE && row(to_sq) == 5) {
+                    if(col(to_sq) > 0 && board->get_piece(to_sq - 9) == WHITE_PAWN)
+                        moves.push_back(Move(to_sq - 9, to_sq, ENPASSANT_MOVE));
+                    if(col(to_sq) < 7 && board->get_piece(to_sq - 7) == WHITE_PAWN)
+                        moves.push_back(Move(to_sq - 7, to_sq, ENPASSANT_MOVE));
+                } else if(board->side == BLACK && row(to_sq) == 2) {
+                    if(col(to_sq) > 0 && board->get_piece(to_sq + 7) == BLACK_PAWN)
+                        moves.push_back(Move(to_sq + 7, to_sq, ENPASSANT_MOVE));
+                    if(col(to_sq) < 7 && board->get_piece(to_sq + 9) == BLACK_PAWN)
+                        moves.push_back(Move(to_sq + 9, to_sq, ENPASSANT_MOVE));
+                }
+            }
+
+            while(blockers) {
+                from_sq = pop_first_bit(blockers);
+                moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
             }
         }
     }
-    order_and_push();
-    return;
-    */
 
-    for (int pos = 0; pos < 64; pos++) {
-        if (position.color[pos] == position.side) {
-            if (position.piece[pos] == PAWN) {
-                // one forward
-                char one_forward = (position.side == WHITE ? pos + 8 : pos - 8);
-                int captured = EMPTY;
-                if (row(one_forward) == 0 || row(one_forward) == 7) captured = PAWN;
-                if (position.color[one_forward] == EMPTY)
-                    add_move(position, Move(pos, one_forward));
-                // two forward
-                if ((position.side == WHITE && row(pos) == 1) ||
-                    (position.side == BLACK && row(pos) == 7)) {
-                    char two_forward = (position.side == WHITE ? pos + 16 : pos - 16);
-                    if (position.color[one_forward] == EMPTY &&
-                        position.color[two_forward] == EMPTY) {
-                        add_move(position, Move(pos, two_forward));
-                    }
-                }
-                // eating
-                if (valid_distance(pos, one_forward - 1) &&
-                    position.color[one_forward - 1] == position.xside) {
-                    add_move(position, Move(pos, one_forward - 1));
-                }
-                if (valid_distance(pos, one_forward + 1) &&
-                    position.color[one_forward + 1] == position.xside) {
-                    add_move(position, Move(pos, one_forward + 1));
-                }
-                // enpassant
-                if ((position.side == WHITE && row(pos) == 4) ||
-                    (position.side == BLACK && row(pos) == 3)) {
-                    // to the left
-                    if (col(pos) > 0 && position.color[pos - 1] == position.xside &&
-                        position.piece[pos - 1] == PAWN &&
-                        position.enpassant == col(pos - 1)) {
-                        if (position.side == WHITE)
-                            add_move(position, Move(pos, pos + 7));
-                        else
-                            add_move(position, Move(pos, pos - 9));
-                        // to the right
-                    } else if (col(pos) < 7 &&
-                        position.color[pos + 1] == position.xside &&
-                        position.piece[pos + 1] == PAWN &&
-                        position.enpassant == col(pos + 1)) {
-                        if (position.side == WHITE)
-                            add_move(position, Move(pos, pos + 9));
-                        else
-                            add_move(position, Move(pos, pos - 7));
-                    }
-                }
-                continue;
-            } else {
-                if (position.piece[pos] == KING) {
-                    // castling
-                    if (position.side == WHITE && (position.castling & 4)) {
-                        if ((position.castling & 1) && position.move_valid(Move(4, 2)))
-                            add_move(position, Move(4, 2));
-                        if ((position.castling & 2) && position.move_valid(Move(4, 6)))
-                            add_move(position, Move(4, 6));
-                    } else if (position.side == BLACK && position.castling & 32) {
-                        if ((position.castling & 8) && position.move_valid(Move(60, 58)))
-                            add_move(position, Move(60, 58));
-                        if ((position.castling & 16) && position.move_valid(Move(60, 62)))
-                            add_move(position, Move(60, 62));
-                    }
-                }
+    /* we just move the king, remember that we will check whether a move is valid later */
+    uint64_t attack_mask = king_attacks[king_pos] & ~board->get_side_mask(board->side);
+    while(attack_mask) {
+        to_sq = pop_first_bit(attack_mask);
+        if(board->get_piece(to_sq) != EMPTY)
+            moves.push_back(Move(king_pos, to_sq, CAPTURE_MOVE)); 
+        else
+            moves.push_back(Move(king_pos, to_sq, QUIET_MOVE)); 
+    }
+}
 
-                const int p = position.piece[pos];
+/* we assume that the king isn't in check */
+void generate_captures(std::vector<Move>& moves, const Board* board) {
+    const bool side = board->side;
+    const bool xside = board->xside;
+    const uint64_t all_mask = board->get_all_mask();
+    const uint64_t xside_mask = board->get_side_mask(xside);
+    const uint64_t pawn_mask = board->get_pawn_mask(side);
+    uint64_t mask, attack_mask;
+    int from_sq, to_sq;
 
-                for (int i = 0; offset[p][i]; i++) {
-                    int delta = offset[p][i];
+    /* first we generate pawn moves */
+    if(board->side == WHITE) {
 
-                    if (!slide[p]) {
-                        assert(p == KNIGHT || p == KING);
-                        if (valid_distance(pos, pos + delta) &&
-                            position.color[pos + delta] != position.side) {
-                            add_move(position, Move(pos, pos + delta));
-                        }
-                    } else {
-                        assert(p == BISHOP || p == ROOK || p == QUEEN);
-                        int new_pos = pos;
-                        while (valid_pos(new_pos + delta) &&
-                            distance(new_pos, new_pos + delta) <= 2 &&
-                            position.color[new_pos + delta] != position.side) {
-                            add_move(position, Move(new_pos, new_pos + delta));
-                            if (position.color[new_pos] == position.xside) break; // we eat
-                            new_pos = new_pos + delta;
-                        }
-                    }
-                }
-            }
+        /* enpassant capture */
+        if(board->enpassant != NO_ENPASSANT) {
+            int enpassant_sq = 40 + int(board->enpassant);
+            assert(board->get_piece(enpassant_sq - 8) == BLACK_PAWN);
+            /* eating to the left (sq -> sq + 7) */
+            if(board->enpassant < 7 && board->get_piece(enpassant_sq - 7) == WHITE_PAWN)
+                moves.push_back(Move(enpassant_sq - 7, enpassant_sq, ENPASSANT_MOVE));
+            /* eating to the right (sq -> sq + 9) */
+            if(board->enpassant > 0 && board->get_piece(enpassant_sq - 9) == WHITE_PAWN)
+                moves.push_back(Move(enpassant_sq - 9, enpassant_sq, ENPASSANT_MOVE));
         }
-	}
-    order_and_push();
+
+        /* promotion eating diagonally to the left (sq -> sq + 7) */
+        mask = ((pawn_mask & ROW_6 & ~COL_0) << 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            /* Move constructor:  'from'    'to'     'move type'    */
+            moves.push_back(Move(to_sq - 7, to_sq, QUEEN_PROMOTION));
+            // moves.push_back(Move(to_sq - 7, to_sq, KNIGHT_PROMOTION));
+        }
+
+        /* promotion eating diagonally to the right (sq -> sq + 9) */
+        mask = ((pawn_mask & ROW_6 & ~COL_7) << 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 9, to_sq, QUEEN_PROMOTION));
+            // moves.push_back(Move(to_sq - 9, to_sq, KNIGHT_PROMOTION));
+        }
+
+        /* promotion front (sq -> sq + 8) */
+        mask = ((pawn_mask & ROW_6) << 8) & ~all_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 8, to_sq, QUEEN_PROMOTION));
+            // moves.push_back(Move(to_sq - 8, to_sq, KNIGHT_PROMOTION));
+        }
+
+        /* pawn capture to the left (sq -> sq + 7) */
+        mask = ((pawn_mask & ~ROW_6 & ~COL_0) << 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 7, to_sq, CAPTURE_MOVE));
+        }
+
+        /* pawn capture to the right (sq -> sq + 9) */
+        mask = ((pawn_mask & ~ROW_6 & ~COL_7) << 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 9, to_sq, CAPTURE_MOVE));
+        }
+    } else {
+        /* enpassant capture */
+        if(board->enpassant != NO_ENPASSANT) {
+            int enpassant_sq = 16 + int(board->enpassant);
+            assert(board->get_piece(enpassant_sq + 8) == WHITE_PAWN);
+            /* to the left (sq -> sq - 9) */
+            if(board->enpassant < 7 && board->get_piece(enpassant_sq + 9) == BLACK_PAWN)
+                moves.push_back(Move(enpassant_sq + 9, enpassant_sq, ENPASSANT_MOVE));
+            /* to the right (sq -> sq - 7) */
+            if(board->enpassant > 0 && board->get_piece(enpassant_sq + 7) == BLACK_PAWN)
+                moves.push_back(Move(enpassant_sq + 7, enpassant_sq, ENPASSANT_MOVE));
+        }
+
+        /* promotion eating diagonally to the left (sq -> sq - 9) */
+        mask = ((pawn_mask & ROW_1 & ~COL_0) >> 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 9, to_sq, QUEEN_PROMOTION));
+            // moves.push_back(Move(to_sq + 9, to_sq, KNIGHT_PROMOTION));
+        }
+
+        /* promotion eating diagonally to the right (sq -> sq - 7) */
+        mask = ((pawn_mask & ROW_1 & ~COL_7) >> 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 7, to_sq, QUEEN_PROMOTION));
+            // moves.push_back(Move(to_sq + 7, to_sq, KNIGHT_PROMOTION));
+        }
+
+        /* promotion front (sq -> sq - 8) */
+        mask = ((pawn_mask & ROW_1) >> 8) & ~all_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 8, to_sq, QUEEN_PROMOTION));
+            // moves.push_back(Move(to_sq + 8, to_sq, KNIGHT_PROMOTION));
+        }
+
+        /* pawn capture to the left (sq -> sq - 9) */
+        mask = ((pawn_mask & ~ROW_1 & ~COL_0) >> 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 9, to_sq, CAPTURE_MOVE));
+        }
+
+        /* pawn capture to the right (sq -> sq - 7) */
+        mask = ((pawn_mask & ~ROW_1 & ~COL_7) >> 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 7, to_sq, CAPTURE_MOVE));
+        }
+    }
+
+    /* king captures */
+    mask = board->get_king_mask(side);
+    assert(mask != 0);
+    from_sq = pop_first_bit(mask);
+    attack_mask = king_attacks[from_sq] & xside_mask;
+    while(attack_mask) {
+        assert(attack_mask != 0);
+        to_sq = pop_first_bit(attack_mask);
+        assert(to_sq >= 0 && to_sq < 64);
+        moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+    }
+
+    assert(mask == 0);
+
+    /* knight captures */
+    mask = board->get_knight_mask(side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = knight_attacks[from_sq] & xside_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+        }
+    }
+
+    /* bishop and queen captures */
+    mask = board->get_bishop_mask(side) | board->get_queen_mask(side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Bmagic(from_sq, all_mask) & xside_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+        }
+    }
+
+    /* rook and queen captures */
+    mask = board->get_rook_mask(side) | board->get_queen_mask(side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Rmagic(from_sq, all_mask) & xside_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+        }
+    }
+}
+
+/* we assume that the king isn't in check */
+void generate_quiet(std::vector<Move>& moves, const Board* board) {
+    const bool side = board->side;
+    const bool xside = board->xside;
+    const uint64_t all_mask = board->get_all_mask(); 
+    const uint64_t pawn_mask = board->get_pawn_mask(side);
+    const uint64_t xside_mask = board->get_all_mask(); 
+    uint64_t mask, attack_mask;
+    int from_sq, to_sq;
+
+    if(side == WHITE) {
+        /* front only one square (no promotion) (sq -> sq + 8) */
+        mask = ((pawn_mask & ~ROW_6) << 8) & ~all_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 8, to_sq, QUIET_MOVE));
+        }
+        
+        /* frontal two squares (sq -> sq + 8) */
+        mask = ((pawn_mask & ROW_1) << 8) & ~all_mask;
+        mask = ((mask & ROW_2) << 8) & ~all_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 16, to_sq, QUIET_MOVE));
+        }
+    } else {
+        /* front only one square (no promotion) (sq -> sq - 8) */
+        mask = ((pawn_mask & ~ROW_1) >> 8) & ~all_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 8, to_sq, QUIET_MOVE));
+        }
+
+        /* frontal two squares (sq -> sq - 16) */
+        mask = ((pawn_mask & ROW_6) >> 8) & ~all_mask;
+        mask = ((mask & ROW_5) >> 8) & ~all_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 16, to_sq, QUIET_MOVE));
+        }
+    }
+
+    /* generate the castling moves */
+    if(side == WHITE) {
+        /* white queen side castling */
+        if(board->castling_rights[WHITE_QUEEN_SIDE]
+        && !(all_mask & castling_mask[WHITE_QUEEN_SIDE])
+        && !board->is_attacked(D1))
+            moves.push_back(Move(E1, C1, CASTLING_MOVE));
+        /* white king side castling */
+        if(board->castling_rights[WHITE_KING_SIDE]
+        && !(all_mask & castling_mask[WHITE_KING_SIDE])
+        && !board->is_attacked(F1)) 
+            moves.push_back(Move(E1, G1, CASTLING_MOVE));
+    } else if(side == BLACK) {
+        /* black queen side castling */
+        if(board->castling_rights[BLACK_QUEEN_SIDE]
+        && !(all_mask & castling_mask[BLACK_QUEEN_SIDE])
+        && !board->is_attacked(D8))
+            moves.push_back(Move(E8, C8, CASTLING_MOVE));
+        /* black king side castling */
+        if(board->castling_rights[BLACK_KING_SIDE]
+        && !(all_mask & castling_mask[BLACK_KING_SIDE])
+        && !board->is_attacked(F8))
+            moves.push_back(Move(E8, G8, CASTLING_MOVE));
+    }
+
+    // int moves_prev = (int)moves.size();
+
+    /* king */
+    mask = board->get_king_mask(side);
+    from_sq = pop_first_bit(mask);  
+    attack_mask = king_attacks[from_sq] & ~all_mask;
+    while(attack_mask) {
+        to_sq = pop_first_bit(attack_mask);
+        moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+    }
+
+    // std::cout << moves.size() - moves_prev << " king moves have been generated" << endl;
+    // std::cout << "These are the king moves:" << endl;
+    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
+    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
+    // }
+    // moves_prev = moves.size();
+
+    /* knight */
+    mask = board->get_knight_mask(side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = knight_attacks[from_sq] & ~all_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+        }
+    }
+
+    // std::cout << moves.size() - moves_prev << " knight moves have been generated" << endl;
+    // std::cout << "These are the knight moves:" << endl;
+    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
+    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
+    // }
+    // moves_prev = moves.size();
+
+    /* bishop and queen */
+    mask = board->get_bishop_mask(side) | board->get_queen_mask(side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Bmagic(from_sq, all_mask) & ~all_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+        }
+    }
+
+    // std::cout << moves.size() - moves_prev << " bishop and queen moves have been generated" << endl;
+    // std::cout << "These are the bq moves:" << endl;
+    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
+    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
+    // }
+    // moves_prev = moves.size();
+
+    /* rooks and queen */
+    mask = board->get_rook_mask(side) | board->get_queen_mask(side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Rmagic(from_sq, all_mask) & ~all_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+        }
+    }
+
+    // std::cout << moves.size() - moves_prev << " rook and queen moves have been generated" << endl;
+    // std::cout << "These are the rq moves:" << endl;
+    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
+    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
+    // }
+    // moves_prev = moves.size();
 }

@@ -24,25 +24,15 @@ using std::cerr;
 #define RED_COLOR "\x1B[31m"
 
 #define NO_ENPASSANT 8
-#define ENPASSANT_INDEX 6
-#define CASTLING_INDEX 7
 
 #define row(x)(x >> 3)
 #define col(x)(x & 7)
 
-#ifndef MAX_DEPTH
-#define MAX_DEPTH 32
-#endif
-
-#ifndef MAX_SEARCH_TIME
-#define MAX_SEARCH_TIME 5000.0
-#endif
-
-/* old move representation */
 typedef uint16_t Move;
-#define Move(from, to) (from | (to << 6))
-#define from(move) (move & 63)
-#define to(move) ((move >> 6) & 63)
+#define Move(from, to, flag) (from | (to << 6) | (flag << 12))
+#define get_from(move) (move & 63)
+#define get_to(move) ((move >> 6) & 63)
+#define get_flag(move) (move >> 12)
 #define is_null(move) (move == NULL_MOVE)
 
 enum Squares {
@@ -58,8 +48,7 @@ enum Squares {
 
 enum Sides {
 	WHITE = 0,
-	BLACK = 1,
-	EMPTY = 6
+	BLACK = 1
 };
 
 enum Pieces {
@@ -84,10 +73,10 @@ enum SidePieces {
 	BLACK_ROOK = 9,
 	BLACK_QUEEN = 10,
 	BLACK_KING = 11,
-    NEW_EMPTY = 12
+    EMPTY = 12
 };
 
-enum NewMoveTypes {
+enum MoveTypes {
 	NULL_MOVE,
 	QUIET_MOVE,
     CAPTURE_MOVE, 
@@ -99,16 +88,6 @@ enum NewMoveTypes {
 	QUEEN_PROMOTION
 };
 
-enum OldMoveTypes {
-    /* NULL_MOVE = 0, */
-    NORMAL_MOVE = 0,
-    /*
-    ENPASSANT_MOVE = 1,
-    CASTLING_MOVE = 2,
-    PROMOTION_MOVE = 3
-    */
-};
-
 enum Castling {
     WHITE_QUEEN_SIDE,
     WHITE_KING_SIDE,
@@ -116,55 +95,33 @@ enum Castling {
     BLACK_KING_SIDE
 };
 
-struct NewMove {
-	uint16_t bits;
-	NewMove() {
-		bits = 0;
-	}
-    NewMove(int from, int to, int flag) {
-        bits = from | (to << 6) | (flag << 12);
-    }
-    std::string get_str() const {
-        std::string ans = "";
-        ans += char('a' + col(get_from()));
-        ans += char('1' + row(get_from()));
-        ans += char('a' + col(get_to()));
-        ans += char('1' + row(get_to()));
-        return ans;
-    }
-    bool is_move_null() const {
-        return bits == 0;
-    }
-    int get_from() const {
-        return bits & 63;
-    }
-    int get_to() const {
-        return (bits >> 6) & 63;
-    }
-    int get_flag() const {
-        return (bits >> 12);
-    }
-    friend std::ostream& operator<<(std::ostream& out, const NewMove& move);
-    friend bool operator==(const NewMove& a, const NewMove& b);
-    friend bool operator!=(const NewMove& a, const NewMove& b);
-    friend bool operator<(const NewMove& a, const NewMove& b);
+const int piece_value[12] = {
+	100, 350, 350, 500, 1000, 999999,
+	100, 350, 350, 500, 1000, 999999
 };
 
-inline bool operator==(const NewMove& a, const NewMove& b) {
-    return a.bits == b.bits;
-}
+const int CHECKMATE = 100000;
+const int MIN_DEPTH_FOR_WINDOW = 5;
+const int INITIAL_WINDOW_SIZE = 30;
+const int MAX_PLY = 12;
+const int MIN_NULL_MOVE_PRUNING_DEPTH = 2;
+const int MIN_BETA_PRUNING_DEPTH = 8;
+const int BETA_MARGIN = 85;
+const float MAX_SEARCH_TIME = 5000000; 
+const int MAX_HISTORY_BONUS = 300;
+const int HISTORY_MULTIPLIER = 32;
+const int HISTORY_DIVISOR = 32;
 
-inline bool operator!=(const NewMove& a, const NewMove& b) {
-    return a.bits != b.bits;
-}
+struct Thread;
+typedef std::vector<Move> PV;
 
-inline bool operator<(const NewMove& a, const NewMove& b) {
-    return a.bits < b.bits;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const NewMove& move) {
-    os << move.get_str();
-    return os;
+inline std::string get_str(Move move) {
+    std::string ans = "";
+    ans += char('a' + col(get_from(move)));
+    ans += char('1' + row(get_from(move)));
+    ans += char('a' + col(get_to(move)));
+    ans += char('1' + row(get_to(move)));
+    return ans;
 }
 
 inline uint64_t mask_sq(int sq) {
@@ -252,36 +209,20 @@ inline std::string pos_to_str(int sq) {
     return ans;
 }
 
-inline std::string move_to_str(Move move) {
+inline std::string move_to_str(const Move move) {
     std::string ans = "";
-    ans += char('a' + col(from(move)));
-    ans += char('1' + row(from(move)));
-    ans += char('a' + col(to(move)));
-    ans += char('1' + row(to(move)));
+    ans += char('a' + col(get_from(move)));
+    ans += char('1' + row(get_from(move)));
+    ans += char('a' + col(get_to(move)));
+    ans += char('1' + row(get_to(move)));
     return ans;
 }
 
-inline std::string move_to_str(const NewMove& move) {
+inline std::string move_to_str(int from_sq, int to_sq) {
     std::string ans = "";
-    ans += char('a' + col(move.get_from()));
-    ans += char('1' + row(move.get_from()));
-    ans += char('a' + col(move.get_to()));
-    ans += char('1' + row(move.get_to()));
+    ans += char('a' + col(from_sq));
+    ans += char('1' + row(from_sq));
+    ans += char('a' + col(to_sq));
+    ans += char('1' + row(to_sq));
     return ans;
-}
-
-inline bool parse_move(std::string raw_input, Move& move) {
-    if ((int) raw_input.size() != 4) return false;
-    int col_1 = raw_input[0] - 'a';
-    int row_1 = raw_input[1] - '1';
-    int col_2 = raw_input[2] - 'a';
-    int row_2 = raw_input[3] - '1';
-    if (row_1 >= 0 && row_1 < 8 &&
-        col_1 >= 0 && col_1 < 8 &&
-        row_2 >= 0 && row_2 < 8 &&
-        col_2 >= 0 && col_2 < 8) {
-			move = Move(row_1 * 8 + col_1, row_2 * 8 + col_2);
-			return true;
-    }
-	return false;
 }

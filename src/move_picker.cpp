@@ -4,10 +4,9 @@
 
 #include "defs.h" 
 #include "move_picker.h"
-#include "new_board.h"
-#include "new_gen.h"
+#include "board.h"
+#include "gen.h"
 #include "magicmoves.h"
-#include "new_gen.h"
 #include "tt.h"
 #include "bitboard.h"
 
@@ -16,17 +15,12 @@
 // early stopping in SEE? (Just whether it's good or bad)
 // bad captures or quiet moves, which should go first?
 
-static const int piece_value[12] = {
-	100, 350, 350, 500, 1000, 999999,
-	100, 350, 350, 500, 1000, 999999
-};
-
-static inline bool move_is_straight(const NewMove move) {
-	return row(move.get_from()) == row(move.get_to()) || col(move.get_from()) == col(move.get_to());
+static inline bool move_is_straight(const Move move) {
+	return row(get_from(move)) == row(get_to(move)) || col(get_from(move)) == col(get_to(move));
 }
 
-static inline bool move_is_diagonal(const NewMove move) {
-	return abs(row(move.get_from()) - row(move.get_to())) == abs(col(move.get_from()) - col(move.get_to()));
+static inline bool move_is_diagonal(const Move move) {
+	return abs(row(get_from(move)) - row(get_to(move))) == abs(col(get_from(move)) - col(get_to(move)));
 }
 
 uint64_t MovePicker::get_attackers(int to_sq, bool attacker_side) const { 
@@ -93,10 +87,10 @@ int MovePicker::next_lva(const uint64_t& attacker_mask, bool attacker_side) cons
 	return -1;
 }
 
-int MovePicker::fast_see(const NewMove& move) {
+int MovePicker::fast_see(const Move move) const {
 	// cout << BLUE_COLOR << "RUNNING FAST SEE" << RESET_COLOR << endl;
-	const int to_sq = move.get_to();
-	int from_sq = move.get_from(), depth = 0, side = board->side;	
+	const int to_sq = get_to(move);
+	int from_sq = get_from(move), depth = 0, side = board->side;	
 	int piece_at_to = board->get_piece(to_sq);
 	uint64_t attacker_mask = get_attackers(to_sq, board->side) | get_attackers(to_sq, board->xside);	
 
@@ -132,9 +126,7 @@ int MovePicker::fast_see(const NewMove& move) {
 				if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][SOUTHEAST];
 				else _diagonal_mask = diagonal_mask[from_sq][SOUTHWEST];
 			}
-			// cout << "Move is " << move_to_str(Move(from_sq, to_sq)) << endl;
-			// cout << "And diagonal mask is:" << endl;
-			// board->print_bitboard(_diagonal_mask);
+
 			attacker_mask |= Bmagic(from_sq, occ_mask) & _diagonal_mask
 			& (board->get_queen_mask(side) | board->get_bishop_mask(side) | board->get_queen_mask(!side) | board->get_bishop_mask(!side)); 
 		} else if(move_is_straight(move)) {
@@ -156,14 +148,12 @@ int MovePicker::fast_see(const NewMove& move) {
 		}
 	}
 
-	score[0] = 10000;
+	score[0] = 10000; // we want to force the capture at the root
 	score[depth + 1] = -score[depth];
-	// cout << "Score at biggest depth is " << score[depth] << endl;
 
 	while(depth > 0) {
-		// Minimax optimization. At each node you can choose between:
-		// 1) Not making the capture
-		// 2) Making the capture and assuming that the other side will play optimally after your capture
+		// Minimax optimization. At each node you can choose between not making the capture
+		// or making the capture and assuming that the other side will play optimally after that
 		score[depth] = std::max(-score[depth - 1], -score[depth + 1]);
 		depth--;
 	}
@@ -172,18 +162,11 @@ int MovePicker::fast_see(const NewMove& move) {
 }
 
 // don't avoid doing stupid captures when at root
-int MovePicker::slow_see(const NewMove& move, bool root) {
-	// if(root) {
-	// 	cout << "At root" << endl;
-	// }
-	// cout << "Board now is:" << endl;
-	// board->print_board();
-	// cout << RESET_COLOR;
-
-	const int piece_from = board->get_piece(move.get_from());
-	const int piece_captured = board->get_piece(move.get_to());
-	const int from_sq = move.get_from();
-	const int to_sq = move.get_to();
+int MovePicker::slow_see(const Move move, bool root) {
+	const int piece_from = board->get_piece(get_from(move));
+	const int piece_captured = board->get_piece(get_to(move));
+	const int from_sq = get_from(move);
+	const int to_sq = get_to(move);
 
 	// making the capture
 	// setting the 'to' square
@@ -196,22 +179,12 @@ int MovePicker::slow_see(const NewMove& move, bool root) {
 	const int captured_piece_value = piece_value[piece_captured];
 	const int lva_square = lva(to_sq);
 
-	// if(root) {
-	// 	cout << BLUE_COLOR << "At SEE, root = " << (root ? "yes" : "no") << " and move made is " << move.get_str() << RESET_COLOR << endl;	
-	// } else {
-	// 	cout << "At SEE, root = " << (root ? "yes" : "no") << " and move made is " << move.get_str() << endl;	
-	// }
-	// board->print_board();
-	// cout << "LVA now is " << lva_square << endl;
-
 	int score;
 
 	if(lva_square == -1) {
-		// cout << "LVA square is -1, just returning" << endl;
 		score = captured_piece_value;
 	} else {
-		// cout << "Running another SEE" << endl;
-		score = captured_piece_value - slow_see(NewMove(lva_square, move.get_to(), CAPTURE_MOVE), false);
+		score = captured_piece_value - slow_see(Move(lva_square, get_to(move), CAPTURE_MOVE), false);
 	}
 
 	// unmaking move 
@@ -229,60 +202,95 @@ int MovePicker::slow_see(const NewMove& move, bool root) {
 	return score;
 }
 
-void MovePicker::sort_evasions() {
-	while(!compatible_move_stack.empty()) {
-		move_stack.push_back(NewMoveWithScore(compatible_move_stack.back(), 1));
-		compatible_move_stack.pop_back();
-	}
-}
-
 void MovePicker::sort_captures() {
 	while(!compatible_move_stack.empty()) {
-		BitBoard prev_board = *board;
-		int s1 = slow_see(compatible_move_stack.back());
-		int s2 = fast_see(compatible_move_stack.back());
-		cout << "Move is " << compatible_move_stack.back().get_str() << endl;
-		cout << "And board is:" << endl;
-		board->print_board();
-		// cout << "Board data is:";
-		// board->print_bitboard_data();
-		if(s1 != s2) {
-			cout << RED_COLOR << "Scores don't match" << RESET_COLOR << endl;
-			cout << "Slow is " << s1 << " and fast is " << s2 << endl;
-			assert(s1 == s2);
-		} else {
-			cout << GREEN_COLOR << s1 << RESET_COLOR << endl;
+        Move move = compatible_move_stack.back();
+
+        const int from = get_from(move);
+        const int to = get_to(move);
+        const int piece = board->piece_at[from]; 
+        int captured = board->piece_at[to];
+
+		if(board->color_at[from] != board->side) {
+			cerr << RED_COLOR << "Oh no! something went wrong" << RESET_COLOR << endl;
+			cerr << "Board is:" << endl;
+			board->print_board();
 		}
-		move_stack.push_back(NewMoveWithScore(compatible_move_stack.back(), slow_see(compatible_move_stack.back(), true)));
-		assert(prev_board == *board);
+
+		assert(board->color_at[from] == board->side);
+        assert(get_flag(move) != QUIET_MOVE);
+
+        if(get_flag(move) != CAPTURE_MOVE) {
+            captured = PAWN;
+        }
+
+		if(move_to_str(move) == "a6c5") {
+			cerr << GREEN_COLOR << "Move " << move_to_str(move) << " is here!!!" << endl;
+			cerr << "Board looks like this at the moment " << thread->ply << endl;
+			board->print_board();
+			cerr << RESET_COLOR;
+		}
+
+        move_stack.push_back(MoveWithScore(
+            move,
+            thread->capture_history[piece][to][captured] + 50000 * (get_flag(move) == QUEEN_PROMOTION)
+        ));
+
 		compatible_move_stack.pop_back();
 	}
+
 	std::sort(move_stack.begin(), move_stack.end());
 } 
 
 void MovePicker::sort_quiet() {
 	while(!compatible_move_stack.empty()) {
-		move_stack.push_back(NewMoveWithScore(compatible_move_stack.back(), 1));
+        Move move = compatible_move_stack.back();
+
+        const int from = get_from(move);
+        const int to = get_to(move);
+
+		if(board->color_at[from] != board->side) {
+			cerr << RED_COLOR << "Oh no! something went wrong" << RESET_COLOR << endl;
+			cerr << "Move is " << move_to_str(move) << endl;
+			cerr << "Board is:" << endl;
+			board->print_board();
+			cerr << "Board data is: " << endl;
+			board->print_bitboard_data();
+		}
+
+		assert(board->color_at[from] == board->side);
+
+		if(move_to_str(move) == "a6c5") {
+			cerr << GREEN_COLOR << "Move " << move_to_str(move) << " is here!!!" << endl;
+			cerr << "Board looks like this at the moment " << thread->ply << endl;
+			board->print_board();
+			cerr << RESET_COLOR;
+		}
+
+        move_stack.push_back(MoveWithScore(
+            move,
+            thread->quiet_history[board->side][from][to]
+        ));
+
 		compatible_move_stack.pop_back();
 	}
+
+	std::sort(move_stack.begin(), move_stack.end());
 }
 
-NewMove MovePicker::next_move() {
+Move MovePicker::next_move() {
 	switch(phase) {
 		case HASH:
 			phase = GENERATE_CAPTURES;
-			Move _hash_move;
-			if(false && tt.retrieve_move(board->key, _hash_move)) {
-				assert(board->move_valid(hash_move));
-				hash_move.bits = _hash_move;
-				return hash_move;
+			if(tt_move != NULL_MOVE && board->move_valid(tt_move)) {
+				return tt_move;
 			}
 
 		case GENERATE_CAPTURES:
 			// if we are in check we skip ahead to the evasions
 			if(board->in_check()) {
 				generate_evasions(compatible_move_stack, board);	
-				sort_evasions();
+				sort_quiet();
 				phase = QUIET;
 				return next_move();
 			} else {
@@ -293,27 +301,54 @@ NewMove MovePicker::next_move() {
 
 		case GOOD_CAPTURES:
 			while(!move_stack.empty() && move_stack[move_stack.size() - 1].score >= 0) {
-				NewMove move = move_stack.back().move;
+				Move move = move_stack.back().move;
 				move_stack.pop_back();
-				if(move != hash_move && board->fast_move_valid(move)) {
+				// still need to implement SEE check here
+				if(move != tt_move && board->fast_move_valid(move)) {
 					return move;
 				}
 			}
-			phase = KILLERS;
+			phase = FIRST_KILLER;
 
-		case KILLERS:
-			// killer moves haven't been yet implemented 
+		case FIRST_KILLER:
+			phase = SECOND_KILLER;
+
+            if(!captures_only) {
+				if(thread->killers[thread->ply][0] != tt_move
+				&& thread->killers[thread->ply][0] != NULL_MOVE
+				&& board->fast_move_valid(thread->killers[thread->ply][0])) {
+					return thread->killers[thread->ply][0];
+				}
+            }
+
+		case SECOND_KILLER:
 			phase = BAD_CAPTURES;
+
+			if(!captures_only) {
+				if(thread->killers[thread->ply][1] != tt_move
+				&& thread->killers[thread->ply][1] != NULL_MOVE
+				&& thread->killers[thread->ply][1] != thread->killers[thread->ply][0] 
+				&& board->fast_move_valid(thread->killers[thread->ply][0])) {
+					return thread->killers[thread->ply][0];
+				}
+			}
 
 		case BAD_CAPTURES:
 			while(!move_stack.empty()) {
-				NewMove move = move_stack.back().move;
+				Move move = move_stack.back().move;
 				move_stack.pop_back();
-				if(move != hash_move && board->fast_move_valid(move)) {
+
+				if(move != tt_move
+				&& board->fast_move_valid(move)) {
 					return move;
 				}
 			}
-			phase = GENERATE_QUIET;
+            if(captures_only) {
+                phase = DONE;
+                break;
+            } else {
+				phase = GENERATE_QUIET;
+			}
 
 		case GENERATE_QUIET:
 			generate_quiet(compatible_move_stack, board);			
@@ -322,12 +357,16 @@ NewMove MovePicker::next_move() {
 
 		case QUIET:
 			while(!move_stack.empty()) {
-				NewMove move = move_stack.back().move;
+				Move move = move_stack.back().move;
 				move_stack.pop_back();
-				if(move != hash_move && board->fast_move_valid(move)) {
+
+				if(move != tt_move
+				&& move != thread->killers[thread->ply][1]
+				&& move != thread->killers[thread->ply][1] 
+				&& board->fast_move_valid(move)) {
 					return move;
 				}
 			}	
 	}
-	return NewMove(); // null move
+	return NULL_MOVE; // null move
 }

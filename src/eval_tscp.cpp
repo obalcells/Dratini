@@ -4,8 +4,7 @@
 #include <vector>
 #include <string.h>
 #include "defs.h"
-#include "board.h"
-#include "data.h"
+#include "position.h"
 
 int eval_light_pawn(int);
 int eval_dark_pawn(int);
@@ -136,7 +135,7 @@ int pawn_rank[2][10];
 int piece_mat[2];  /* the value of a side's pieces */
 int pawn_mat[2];  /* the value of a side's pawns */
 
-int eval_tscp(const Position& pos)
+int eval_tscp(const Board& pos)
 {
 #ifdef SELF_PLAY
 	return (rand() % 1000) - 500;
@@ -155,12 +154,12 @@ int eval_tscp(const Position& pos)
 	pawn_mat[LIGHT] = 0;
 	pawn_mat[DARK] = 0;
 	for (i = 0; i < 64; ++i) {
-		if (pos.color[i] == EMPTY)
+		if (pos.color_at[i] == EMPTY)
 			continue;
-		if (pos.piece[i] == PAWN) {
-			pawn_mat[pos.color[i]] += piece_value[PAWN];
+		if (pos.piece_at[i] == PAWN) {
+			pawn_mat[pos.color_at[i]] += piece_value[PAWN];
 			f = COL(i) + 1;  /* add 1 because of the extra file in the array */
-			if (pos.color[i] == LIGHT) {
+			if (pos.color_at[i] == LIGHT) {
 				if (pawn_rank[LIGHT][f] < ROW(i))
 					pawn_rank[LIGHT][f] = ROW(i);
 			}
@@ -170,17 +169,17 @@ int eval_tscp(const Position& pos)
 			}
 		}
 		else
-			piece_mat[pos.color[i]] += piece_value[pos.piece[i]];
+			piece_mat[pos.color_at[i]] += piece_value[pos.piece_at[i]];
 	}
 
 	/* this is the second pass: evaluate each piece */
 	score[LIGHT] = piece_mat[LIGHT] + pawn_mat[LIGHT];
 	score[DARK] = piece_mat[DARK] + pawn_mat[DARK];
 	for (i = 0; i < 64; ++i) {
-		if (pos.color[i] == EMPTY)
+		if (pos.color_at[i] == EMPTY)
 			continue;
-		if (pos.color[i] == LIGHT) {
-			switch (pos.piece[i]) {
+		if (pos.color_at[i] == LIGHT) {
+			switch (pos.piece_at[i]) {
 				case PAWN:
 					score[LIGHT] += eval_light_pawn(i);
 					break;
@@ -209,7 +208,7 @@ int eval_tscp(const Position& pos)
 			}
 		}
 		else {
-			switch (pos.piece[i]) {
+			switch (pos.piece_at[i]) {
 				case PAWN:
 					score[DARK] += eval_dark_pawn(i);
 					break;

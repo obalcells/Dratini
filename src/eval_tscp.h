@@ -1,1 +1,3 @@
-extern int eval_tscp(const Position&);
+#include "position.h"
+
+extern int eval_tscp(const Board&);

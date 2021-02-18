@@ -3,7 +3,6 @@
 #include <iomanip>
 
 #include "defs.h"
-#include "data.h"
 #include "stats.h"
 
 void Statistics::init() {
