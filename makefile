@@ -19,7 +19,7 @@ TEST_FILES += $(wildcard test/*.cpp)
 TEST_FILES := $(filter-out test/debug.cpp, $(TEST_FILES))
 DEBUG_FILES := $(filter-out src/main.cpp, $(SRC_FILES)) test/debug.cpp
 
-default: debug 
+default: build 
 
 debug:
 	g++ $(TESTING_L_FLAGS) $(TESTING_C_FLAGS) $(DEBUG_FILES) -o debug.sh

@@ -13,25 +13,28 @@ void generate_evasions(std::vector<Move>&, const Board*);
 void generate_captures(std::vector<Move>&, const Board*);
 void generate_quiet(std::vector<Move>&, const Board*);
 
-void generate_moves(std::vector<Move>& moves, Board* board, bool quiesce) {
+void generate_moves(std::vector<Move>& moves, const Board* board, bool quiesce) {
     std::vector<Move> tmp_moves;
     if(board->in_check()) {
         generate_evasions(tmp_moves, board);
     } else {
         generate_captures(tmp_moves, board);
-        if(!quiesce)
+        if(!quiesce) {
+            cerr << "Before generating quiet board looks like this:" << endl;
+            board->print_board();
             generate_quiet(tmp_moves, board);
+        }
     }
     /* we will delete this later */
     for(int i = 0; i < (int)tmp_moves.size(); i++) {
         // if(board.fast_move_valid(tmp_moves[i]))
-        if(board->move_valid(tmp_moves[i])) {
+        if(board->fast_move_valid(tmp_moves[i])) {
             moves.push_back(tmp_moves[i]);
         }
     }
 }
 
-/* returns a bitboard containing all the pieces which are attacking sq */
+// returns a bitboard containing all the pieces which are attacking sq 
 uint64_t get_blockers(int sq, bool attacker_side, const Board* board) {
     uint64_t blockers = 0;
     
@@ -72,7 +75,7 @@ uint64_t get_blockers(int sq, bool attacker_side, const Board* board) {
     return blockers;
 }
 
-/* returns a bitboard containing all the pieces from a certain side which are attacking sq */
+// returns a bitboard containing all the pieces from a certain side which are attacking sq */
 uint64_t get_attackers(int sq, bool attacker_side, const Board* board) {
     uint64_t attackers = 0;
 
@@ -192,6 +195,9 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
 
 /* we assume that the king isn't in check */
 void generate_captures(std::vector<Move>& moves, const Board* board) {
+    cerr << "Generating captures:" << endl;
+    board->print_board();
+
     const bool side = board->side;
     const bool xside = board->xside;
     const uint64_t all_mask = board->get_all_mask();
@@ -355,6 +361,9 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
 
 /* we assume that the king isn't in check */
 void generate_quiet(std::vector<Move>& moves, const Board* board) {
+    cerr << "Generating quiets:" << endl; 
+    board->print_board();
+
     const bool side = board->side;
     const bool xside = board->xside;
     const uint64_t all_mask = board->get_all_mask(); 
@@ -420,7 +429,7 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
             moves.push_back(Move(E8, G8, CASTLING_MOVE));
     }
 
-    // int moves_prev = (int)moves.size();
+    int moves_prev = (int)moves.size();
 
     /* king */
     mask = board->get_king_mask(side);
@@ -431,12 +440,12 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
     }
 
-    // std::cout << moves.size() - moves_prev << " king moves have been generated" << endl;
-    // std::cout << "These are the king moves:" << endl;
-    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
-    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
-    // }
-    // moves_prev = moves.size();
+    std::cout << moves.size() - moves_prev << " king moves have been generated" << endl;
+    std::cout << "These are the king moves:" << endl;
+    for(int i = moves.size() - 1; i >= moves_prev; i--) {
+        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
+    }
+    moves_prev = moves.size();
 
     /* knight */
     mask = board->get_knight_mask(side);
@@ -449,30 +458,36 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         }
     }
 
-    // std::cout << moves.size() - moves_prev << " knight moves have been generated" << endl;
-    // std::cout << "These are the knight moves:" << endl;
-    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
-    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
-    // }
-    // moves_prev = moves.size();
+    std::cout << moves.size() - moves_prev << " knight moves have been generated" << endl;
+    std::cout << "These are the knight moves:" << endl;
+    for(int i = moves.size() - 1; i >= moves_prev; i--) {
+        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
+    }
+    moves_prev = moves.size();
 
     /* bishop and queen */
+    cerr << "Bishop mask was the following" << endl;
+    board->print_bitboard(board->get_bishop_mask(side));
+
+    cerr << "Queen mask was the following" << endl;
+    board->print_bitboard(board->get_queen_mask(side));
+
     mask = board->get_bishop_mask(side) | board->get_queen_mask(side);
     while(mask) {
         from_sq = pop_first_bit(mask);
-        attack_mask = Bmagic(from_sq, all_mask) & ~all_mask;
+        attack_mask = Bmagic(from_sq, all_mask) & (~all_mask);
         while(attack_mask) {
             to_sq = pop_first_bit(attack_mask);
             moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
         }
     }
 
-    // std::cout << moves.size() - moves_prev << " bishop and queen moves have been generated" << endl;
-    // std::cout << "These are the bq moves:" << endl;
-    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
-    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
-    // }
-    // moves_prev = moves.size();
+    std::cout << moves.size() - moves_prev << " bishop and queen moves have been generated" << endl;
+    std::cout << "These are the bq moves:" << endl;
+    for(int i = moves.size() - 1; i >= moves_prev; i--) {
+        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
+    }
+    moves_prev = moves.size();
 
     /* rooks and queen */
     mask = board->get_rook_mask(side) | board->get_queen_mask(side);
@@ -485,10 +500,10 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         }
     }
 
-    // std::cout << moves.size() - moves_prev << " rook and queen moves have been generated" << endl;
-    // std::cout << "These are the rq moves:" << endl;
-    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
-    //     std::cout << move_to_str(Move(get_from(moves[i]), get_to(moves[i]))) << endl;
-    // }
-    // moves_prev = moves.size();
+    std::cout << moves.size() - moves_prev << " rook and queen moves have been generated" << endl;
+    std::cout << "These are the rq moves:" << endl;
+    for(int i = moves.size() - 1; i >= moves_prev; i--) {
+        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
+    }
+    moves_prev = moves.size();
 }

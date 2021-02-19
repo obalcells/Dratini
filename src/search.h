@@ -4,7 +4,7 @@
 #include "board.h"
 #include "position.h"
 
-Move think(const Position& position);
+Move think(const Board&);
 void aspiration_window(Thread&);
 int search(Thread&, PV&, int, int, int);
 int q_search(Thread&, PV&, int, int);
@@ -14,17 +14,17 @@ void update_capture_history(Thread&, const Move, const std::vector<Move>&, const
 struct Thread {
    int ply, index, depth, nodes, root_value;     
    Move best_move, ponder_move;
-   Position position;
+   Board board;
    std::vector<Move> move_stack;
    Move killers[MAX_PLY][2] = { NULL_MOVE };
    int quiet_history[2][64][64] = { 0 };
    int capture_history[6][64][6] = { 0 };
 
-    Thread(Position _position) {
+    Thread(Board _board) {
         best_move = NULL_MOVE;
         nodes = index = ply = 0;
         depth = 1;
-        position = _position;
+        board = _board;
     }
 };
 

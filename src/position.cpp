@@ -1,3 +1,4 @@
+/*
 #include <iostream>
 #include <string>
 #include <cassert>
@@ -22,7 +23,6 @@ Position::~Position() {
 void Position::set_from_fen(const std::string& fen) {
 	board_history.clear();
 	board_history.push_back(static_cast<Board>(Board(fen)));
-	/* reset the other variables, which we don't have yet */
 }
 
 Board& Position::get_board() {
@@ -43,7 +43,7 @@ void Position::make_move(const Move move) {
     Board& board = board_history.back();
     assert(board.key == board.calculate_key());
     board.make_move(move);
-    board.update_classic_board();
+    board.check_classic();
     board.key = board.calculate_key();
     // board.update_key(board_history[board_history.size() - 2], move);
     // assert(board.key == board.calculate_key());
@@ -57,56 +57,8 @@ void Position::make_move(const Move move) {
     }
 }
 
-Move Position::pair_to_move(int from_sq, int to_sq) {
-    Board& board = board_history.back(); 
-    int flags = 0;
-    int piece = board.get_piece(from_sq);
-    bool side = board.side;
-
-    if(piece == EMPTY)
-        return NULL_MOVE;
-
-    if((piece == BLACK_PAWN || piece == WHITE_PAWN) && (row(to_sq) == 0 || row(to_sq) == 7)) {
-        if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7))
-            return NULL_MOVE;
-        flags = QUEEN_PROMOTION;
-        /*
-        std::cout << "Which piece should the pawn be promoted to (q, r, b, k)? " << endl;
-        std::string piece_str;
-        std::cin >> piece_str;
-        switch(piece) {
-            case 'q':
-                flags = QUEEN_PROMOTION;
-                break;
-            case 'r':
-                flags = ROOK_PROMOTION;
-                break;
-            case 'b':
-                flags = BISHOP_PROMOTION;
-                break;
-            case 'k':
-                flags = KNIGHT_PROMOTION;
-                break;
-            default:
-                std::cout << "Invalid piece" << endl;
-                return false;
-        }
-        */
-    } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
-        flags = CASTLING_MOVE;
-    } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == EMPTY) {
-        flags = ENPASSANT_MOVE;
-    } else if(board.get_piece(to_sq) != EMPTY) {
-        flags = CAPTURE_MOVE;
-    } else {
-        flags = QUIET_MOVE;
-    }
-
-    return Move(from_sq, to_sq, flags);
-}
-
-/* returns false if move is invalid, otherwise it applies the move and returns true */
-bool Position::make_move_from_str(const std::string& str_move) {
+// returns false if move is invalid, otherwise it applies the move and returns true
+bool Board::make_move_from_str(const std::string& str_move) {
     cerr << "Making move from string" << endl;
 
     if(str_move.size() != 4
@@ -131,28 +83,26 @@ bool Position::make_move_from_str(const std::string& str_move) {
         if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7))
             return false;
         flags = QUEEN_PROMOTION;
-        /*
-        std::cout << "Which piece should the pawn be promoted to (q, r, b, k)? " << endl;
-        std::string piece_str;
-        std::cin >> piece_str;
-        switch(piece) {
-            case 'q':
-                flags = QUEEN_PROMOTION;
-                break;
-            case 'r':
-                flags = ROOK_PROMOTION;
-                break;
-            case 'b':
-                flags = BISHOP_PROMOTION;
-                break;
-            case 'k':
-                flags = KNIGHT_PROMOTION;
-                break;
-            default:
-                std::cout << "Invalid piece" << endl;
-                return false;
-        }
-        */
+        // std::cout << "Which piece should the pawn be promoted to (q, r, b, k)? " << endl;
+        // std::string piece_str;
+        // std::cin >> piece_str;
+        // switch(piece) {
+        //     case 'q':
+        //         flags = QUEEN_PROMOTION;
+        //         break;
+        //     case 'r':
+        //         flags = ROOK_PROMOTION;
+        //         break;
+        //     case 'b':
+        //         flags = BISHOP_PROMOTION;
+        //         break;
+        //     case 'k':
+        //         flags = KNIGHT_PROMOTION;
+        //         break;
+        //     default:
+        //         std::cout << "Invalid piece" << endl;
+        //         return false;
+        // }
     } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
         flags = CASTLING_MOVE;
     } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && board.get_piece(to_sq) == EMPTY) {
@@ -170,8 +120,6 @@ bool Position::make_move_from_str(const std::string& str_move) {
     if(!board.move_valid(move))
         return false;
 
-    board.quick_check("Inside make move but before make_move");
-
     make_move(move);
 
     return true;
@@ -185,7 +133,7 @@ bool Position::move_valid(const Move move) {
     return board_history.back().move_valid(move);
 }
 
-/* returns false if move is invalid, otherwise it applies the move and returns true */
+// returns false if move is invalid, otherwise it applies the move and returns true
 bool Position::move_valid(int from_sq, int to_sq) {
     Board& board = board_history.back(); 
     int flags = 0;
@@ -196,8 +144,9 @@ bool Position::move_valid(int from_sq, int to_sq) {
         return false;
 
     if((piece == WHITE_PAWN || piece == BLACK_PAWN) && (row(to_sq) == 0 || row(to_sq) == 7)) {
-        if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7))
+        if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7)) {
             return false;
+        }
         flags = QUEEN_PROMOTION;
     } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
         flags = CASTLING_MOVE;
@@ -216,7 +165,7 @@ bool Position::move_valid(int from_sq, int to_sq) {
     return board.move_valid(move);
 }
 
-/* take back the last move in move history */
+// take back the last move in move history
 void Position::take_back() {
     assert(!board_history.empty());
     board_history.pop_back();
@@ -245,3 +194,4 @@ bool Position::only_kings_left() const {
         return true;
     return false;
 }
+*/
