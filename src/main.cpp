@@ -11,9 +11,7 @@ TranspositionTable tt;
 int main() {
 	// init_book();
 	tt.allocate(32);
-	cerr << "Finished allocating" << endl;
 	Board board = Board();
-	cerr << "Initalized board" << endl;
 	
 	while(true) {
 		if(board.checkmate()) {
@@ -40,10 +38,8 @@ int main() {
 		}
 
 		if(board.side == BLACK) {
-			cerr << MAGENTA_COLOR << "Side when starting to think is " << (board.side == WHITE ? "WHITE" : "BLACK") << RESET_COLOR << endl;
 			Move next_move = think(board);
 			board.make_move(next_move);
-			cout << "Finished thinking" << endl;
 			assert(board.side == WHITE);
 			continue;
 		}
@@ -57,8 +53,6 @@ int main() {
 		} else if(!board.make_move_from_str(raw_input)) { // we make the move here
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;
 			continue;
-		} else {
-			cerr << "Side after making move is " << (board.side == WHITE ? "WHITE" : "BLACK") << endl;
 		}
 	}
 }

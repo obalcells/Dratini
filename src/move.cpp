@@ -3,9 +3,20 @@
 #include "magicmoves.h"
 #include "gen.h"
 
+#define clear_square(sq, non_side_piece, _side) assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq))); bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
+#define clear_square(sq, piece) assert((bits[piece] & mask_sq(sq)) != 0); assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece)); assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK)); assert(occ_mask & mask_sq(sq)); bits[piece] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0); assert((bits[piece] & mask_sq(sq)) == 0);
+
 void Board::take_back(const UndoData& undo_data) {
     side = xside;
     xside = !xside;
+
+	fifty_move_ply--;
+	if(side == BLACK) {
+		move_count--;
+	}
+
+	assert(fifty_move_ply >= 0);
+	assert(move_count >= 0);
 
     assert(!keys.empty());
     keys.pop_back();
@@ -49,17 +60,20 @@ void Board::take_back(const UndoData& undo_data) {
                     break;
 				}
                 case G1: {
-                    clear_square(G1, WHITE_ROOK);
+					assert(get_piece(F1) == WHITE_ROOK);
+                    clear_square(F1, WHITE_ROOK);
                     set_square(H1, WHITE_ROOK);
                     break;
 				}
                 case C8: {
-                    clear_square(C8, BLACK_ROOK);
+					assert(get_piece(D8) == BLACK_ROOK);
+                    clear_square(D8, BLACK_ROOK);
                     set_square(A8, BLACK_ROOK);
                     break;
 				}
                 case G8: {
-                    clear_square(G8, BLACK_ROOK);
+					assert(get_piece(F8) == BLACK_ROOK);
+                    clear_square(F8, BLACK_ROOK);
                     set_square(H8, BLACK_ROOK);
                     break;
 				}
@@ -104,6 +118,8 @@ void Board::take_back(const UndoData& undo_data) {
 }
 
 UndoData Board::make_move(const Move move) {
+	assert(key == calculate_key());
+
 	int from_sq = get_from(move);
 	int to_sq = get_to(move);
 	int flag = get_flag(move);
@@ -115,11 +131,12 @@ UndoData Board::make_move(const Move move) {
 		piece = -1;
 		flag = -1;
 	} else if(flag == QUIET_MOVE) {
+		assert(get_piece(to_sq) == EMPTY);
 		clear_square(from_sq, piece);
 		set_square(to_sq, piece);
 	} else if(flag == CAPTURE_MOVE) {
         undo_data.captured_piece = get_piece(to_sq);
-		clear_square(to_sq, get_piece(to_sq));
+		clear_square(to_sq, undo_data.captured_piece);
 		clear_square(from_sq, piece);
 		set_square(to_sq, piece);
 	} else if(flag == CASTLING_MOVE) {
@@ -130,15 +147,15 @@ UndoData Board::make_move(const Move move) {
 		else if(from_sq == E8 && to_sq == G8) { rook_from = H8; rook_to = F8; }
 		else assert(false);
         undo_data.captured_piece = get_piece(rook_from);
-		clear_square(from_sq, KING, side);
-		clear_square(rook_from, ROOK, side);
+		clear_square(from_sq, KING + (side == WHITE ? 0 : 6));
+		clear_square(rook_from, ROOK + (side == WHITE ? 0 : 6));
 		set_square(to_sq, KING, side);
 		set_square(rook_to, ROOK, side);
 	} else if(flag == ENPASSANT_MOVE) {
 		int adjacent = row(from_sq) * 8 + col(to_sq);
         undo_data.captured_piece = get_piece(adjacent);
 		clear_square(from_sq, piece);
-		clear_square(adjacent, PAWN, xside);
+		clear_square(adjacent, PAWN + (xside == WHITE ? 0 : 6));
 		set_square(to_sq, piece);
 	} else {
 		int promotion_piece;
@@ -159,10 +176,10 @@ UndoData Board::make_move(const Move move) {
 				assert(false);
 				break;
 		}
-		clear_square(from_sq, PAWN, side);
+		clear_square(from_sq, PAWN + (side == WHITE ? 0 : 6));
 		if(get_piece(to_sq) != EMPTY) {
             undo_data.captured_piece = get_piece(to_sq);
-			clear_square(to_sq, get_piece(to_sq));
+			clear_square(to_sq, undo_data.captured_piece);
         }
 		set_square(to_sq, promotion_piece, side); // we have to pass the side too
 	}
@@ -184,7 +201,7 @@ UndoData Board::make_move(const Move move) {
 		move_count++;
 	}
 	side = !side;
-	xside = !side;
+	xside = !xside;
 
     update_key(undo_data);
     keys.push_back(key);
@@ -326,6 +343,14 @@ bool Board::fast_move_valid(const Move move) const {
 	const int piece_to = get_piece(get_to(move));
 	const int from_sq = get_from(move);
 	const int to_sq = get_to(move);
+	const int flag = get_flag(move);
+
+	if((flag == QUIET_MOVE && get_piece(to_sq) != EMPTY)
+	|| (flag == CAPTURE_MOVE && get_piece(to_sq) == EMPTY)
+	|| (get_color(from_sq) != side)
+	|| (get_color(to_sq) == side)) {
+		return false;
+	}
 
 	// This code underneath is equivalent to just doing:
 	// bool in_check_after_move = in_check();
@@ -431,7 +456,7 @@ bool Board::move_valid(const Move move) {
 		int adjacent = 8 * row(from_sq) + col(to_sq);
 		assert(get_piece(adjacent) == WHITE_PAWN || get_piece(adjacent) == BLACK_PAWN);
 		uint64_t bb_before = get_pawn_mask(side);
-		clear_square(adjacent, PAWN, xside);
+		clear_square(adjacent, PAWN + (xside == WHITE ? 0 : 6));
         assert(bb_before == get_pawn_mask(side));
 		assert(get_piece(to_sq) == EMPTY);
 		set_square(to_sq, piece);
@@ -440,11 +465,11 @@ bool Board::move_valid(const Move move) {
 		assert(adjacent != to_sq && adjacent != from_sq);
 	} else {
 		captured_piece = get_piece(to_sq);
+		clear_square(from_sq, piece);
 		if(captured_piece != EMPTY) {
 			clear_square(to_sq, captured_piece);
         }
 		set_square(to_sq, piece);
-		clear_square(from_sq, piece);
 	}
 
 	const bool in_check_after_move = is_attacked(lsb(get_king_mask(side)));
@@ -452,14 +477,14 @@ bool Board::move_valid(const Move move) {
 	// reverse the modifications
 	if(flag == ENPASSANT_MOVE) {
 		const int adjacent = 8 * row(from_sq) + col(to_sq);
-		set_square(adjacent, PAWN, xside);
 		clear_square(to_sq, piece);
+		set_square(adjacent, PAWN + (xside == WHITE ? 0 : 6));
 		set_square(from_sq, piece);
 	} else {
+		clear_square(to_sq, piece);
 		if(captured_piece != EMPTY) {
 			set_square(to_sq, captured_piece);
         }
-		clear_square(to_sq, piece);
 		set_square(from_sq, piece);
 	}
 

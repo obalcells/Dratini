@@ -49,7 +49,7 @@ struct Board {
     void take_back(const UndoData&);
 
     // error checking
-    bool error_check() const;
+    void error_check() const;
     bool same(const Board& other) const;
     void check_classic();
 
@@ -71,8 +71,8 @@ struct Board {
     void set_square(const int, const int);
     void set_square(const int, const int, bool);
     void set_enpassant(const int);
-    void clear_square(const int, const int);
-    void clear_square(const int, const int, bool);
+    // void clear_square(const int, const int);
+    // void clear_square(const int, const int, bool);
     bool is_empty(const int);
     uint64_t get_piece_mask(int) const;
     uint64_t get_all_mask() const;
@@ -101,8 +101,13 @@ private:
     std::vector<uint64_t> keys;
 
     friend bool operator==(const Board& a, const Board& b);
+    friend bool operator!=(const Board& a, const Board& b);
 };
 
 inline bool operator==(const Board& a, const Board& b) {
     return a.same(b);
+}
+
+inline bool operator!=(const Board& a, const Board& b) {
+    return !a.same(b);
 }

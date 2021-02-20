@@ -54,12 +54,8 @@ void aspiration_window(Thread& thread) {
     }
 
     while(!stop_search) {
-        // cerr << "Searching " << alpha << " " << beta << " from aspiration window with depth " << thread.depth << endl;
-        cerr << RED_COLOR << "Side at the beginning is " << (thread.board.side == WHITE ? "WHITE" : "BLACK") << RESET_COLOR << endl;
         int value = search(thread, pv, alpha, beta, thread.depth);
         assert(thread.ply == 0);
-        // cerr << GREEN_COLOR << "Finished searching" << RESET_COLOR << endl;
-        // assert(thread.board.color_at[get_from(pv[0])] == thread.board.side);
         
         if(value >= beta) {
            beta = std::min(CHECKMATE, beta + delta); 
@@ -80,17 +76,8 @@ void aspiration_window(Thread& thread) {
 }
 
 int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
-    cerr << endl;
-    cerr << MAGENTA_COLOR << "Beginning of search" << RESET_COLOR << endl;
-    cerr << endl;
-
     bool is_root = thread.ply == 0;    
     bool is_pv = (alpha != beta - 1);
-
-    assert(thread.ply >= 0);
-
-    // cerr << BLUE_COLOR << "Depth is " << depth << RESET_COLOR << endl;
-    // cerr << GREEN_COLOR << (board.side ? "WHITE" : "BLACK") << RESET_COLOR << endl;
 
     // early exit conditions
     if(!is_root) {
@@ -103,7 +90,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     if((thread.nodes & 1023) == 0) {
-        // cerr << thread.nodes << " " << elapsed_time() << endl;
         if(elapsed_time() >= MAX_SEARCH_TIME) {
             stop_search = true;
         }
@@ -114,19 +100,20 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     thread.nodes++;
+    
+    bool in_check = thread.board.in_check();
 
-    if(depth <= 0 && !thread.board.in_check()) {
+    if(depth <= 0 && !in_check) {
         return q_search(thread, pv, alpha, beta);
     }
 
     pv.clear();
     thread.killers[thread.ply + 1][0] = NULL_MOVE;
     thread.killers[thread.ply + 1][1] = NULL_MOVE;
-
     PV child_pv;
     Move tt_move = NULL_MOVE, best_move, move;
     std::vector<Move> captures_tried, quiets_tried;
-    int best_score = -CHECKMATE, tt_score, tt_bound = -1;
+    int score, best_score = -CHECKMATE, tt_score, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
     if(tt.retrieve_data(
@@ -135,20 +122,12 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     )) {
        return tt_score; 
     }
-    
-    cerr << 6 << endl;
-
-    bool in_check = thread.board.in_check();
 
     if(in_check) {
         depth++;
     }
 
-    cerr << 7 << endl;
-
     int eval_score = eval_tscp(thread.board);
-
-    cerr << 8.6 << endl;
 
     // beta pruning
     if(!is_pv
@@ -159,14 +138,14 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     // null move pruning
-    if(false
-    && !is_pv
+    if(!is_pv
     && !in_check 
     && eval_score >= beta
     && depth >= MIN_NULL_MOVE_PRUNING_DEPTH
     && thread.move_stack[thread.ply - 1] != NULL_MOVE
     && (tt_bound == -1 || tt_score >= beta || tt_bound != UPPER_BOUND)) {
         UndoData undo_data = thread.board.make_move(NULL_MOVE);
+        thread.board.error_check();
         thread.move_stack.push_back(NULL_MOVE);
         thread.ply++;
 
@@ -174,6 +153,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         assert(thread.move_stack.back() == NULL_MOVE);
         thread.move_stack.pop_back();
         thread.board.take_back(undo_data);
+        thread.board.error_check();
         thread.ply--;
 
         if(null_move_value >= beta) {
@@ -181,74 +161,53 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
     }
 
-    cerr << MAGENTA_COLOR << "Initially, the board looks like this " << thread.ply << endl;
-    thread.board.print_board();
-    cerr << endl << endl << RESET_COLOR;
-
-    // we know this is constant
-    Board initial_board = thread.board;
-
-    // assert(board_at_beginning == initial_board);
-
-    cerr << "Initial board is " << thread.ply << endl;
-    initial_board.print_board();
-
-    MovePicker move_picker(thread, tt_move, initial_board);
-
-    // bool debug_now = (thread.ply == 7 && initial_board.get_data() == "3 1 2 4 12 2 1 3 0 12 0 12 5 0 0 0 12 12 12 12 12 12 12 12 12 0 12 0 0 12 12 12 12 12 12 12 12 12 12 12 12 12 12 12 6 7 12 12 6 6 6 6 12 6 6 6 9 7 8 10 11 12 12 9 1106155485056437330 4 2 8 0 0 1 1 1 0");
-    // 
-    // if(debug_now) {
-        // cerr << GREEN_COLOR << "Debugging now" << endl << RESET_COLOR;
-    // }
+    MovePicker move_picker = MovePicker(thread, tt_move);
 
     while(true) {
-        // assert(board_at_beginning == initial_board);
-        // assert(board_at_beginning == *move_picker.board);
-
-        cerr << MAGENTA_COLOR << "Next move" << endl << RESET_COLOR;
         move = move_picker.next_move();
-        cerr << MAGENTA_COLOR << "After next move" << endl << RESET_COLOR;
-
-        // assert(board_at_beginning == initial_board);
-        // assert(board_at_beginning == *move_picker.board);
 
         if(move == NULL_MOVE || stop_search) {
             break;
         }
 
-        cerr << "Making move " << move_to_str(move) << endl;
-
         if(!thread.board.move_valid(move)) {
             continue;
         }
 
-        if(false && thread.board.color_at[get_from(move)] != thread.board.side) {
-            cerr << "The following move is being done from the wrong side: " << move_to_str(move) << endl;
-            cerr << "Board at the moment is " << thread.ply << endl;
+        if(get_flag(move) == QUIET_MOVE && thread.board.color_at[get_to(move)] != EMPTY) {
+            cerr << "A quiet move was generated, which is actually capturing a piece" << endl;
+            cerr << "Move is: " << move_to_str(move) << endl;
+            cerr << "Ply is " << thread.ply << endl;
+            cerr << "Thread board is:" << endl;
             thread.board.print_board();
-            // assert(*move_picker.board == thread.board);
-            // assert(board_at_beginning == thread.board);
-            cerr << "Color at that position is " << (int)thread.board.color_at[get_from(move)] << endl;
-            assert(false);
+            cerr << "MovePicker board is:" << endl;
+            move_picker.board->print_board();
+            assert(thread.board.get_piece(get_to(move)) == EMPTY);
+            assert(thread.board.color_at[get_to(move)] == EMPTY);
+            assert(move_picker.board->get_piece(get_to(move)) == EMPTY);
+            assert(move_picker.board->color_at[get_to(move)] == EMPTY);
         }
+        assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
 
-        bool color_before_move = thread.board.side;
-
-        const Board board_before_move = thread.board;
+        if(thread.board.color_at[get_from(move)] != thread.board.side) {
+            cerr << "The following move is being done from the wrong side: " << move_to_str(move) << endl;
+            cerr << "Ply is: " << thread.ply << endl;
+            cerr << "Board at the moment is: " << endl;
+            thread.board.print_board();
+            cerr << "Color at that position is " << (int)thread.board.color_at[get_from(move)] << endl;
+        }
+        assert(thread.board.color_at[get_from(move)] == thread.board.side);
 
         UndoData undo_data = thread.board.make_move(move);
+        thread.board.error_check();
         thread.move_stack.push_back(move);
         thread.ply++;
-
-        bool color_after_move = thread.board.side;
 
         if(get_flag(move) == QUIET_MOVE || get_flag(move) == CASTLING_MOVE) {
             quiets_tried.push_back(move);
         } else {
             captures_tried.push_back(move);
         }
-
-        int score;
 
         if(best_score == -CHECKMATE) {
             score = -search(thread, child_pv, -beta, -alpha, depth - 1); 
@@ -261,22 +220,9 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
 
         thread.board.take_back(undo_data);
+        thread.board.error_check();
         thread.move_stack.pop_back();
         thread.ply--;
-
-        // assert(!thread.board.error_check());
-
-        // assert(board_before_move == thread.board);
-
-        bool color_after_taking_back = thread.board.side;
-
-        if(color_before_move == color_after_move || color_before_move != color_after_taking_back) {
-            cerr << "There was a problem with the side when making the following move " << move_to_str(move) << endl;
-            cerr << "Position is the following:" << endl;
-            thread.board.print_board();
-            assert(color_before_move != color_after_move);
-            assert(color_before_move == color_after_taking_back);
-        }  
 
         if(score > best_score) {
             best_score = score;
@@ -291,21 +237,12 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                     pv.push_back(child_pv[i]);
                 }
 
-                PV other_pv;
-                other_pv.push_back(move);
-                other_pv.insert(other_pv.end(), child_pv.begin(), child_pv.end());
-
-                // they must be the same
-                assert(pv.size() == other_pv.size());
-                for(int i = 0; i < (int)pv.size(); i++) {
-                    assert(pv[i] == other_pv[i]);
+                if(is_root) {
+                    for(int i = 0; i < (int)pv.size(); i++) {
+                        cout << move_to_str(pv[i]) << " ";
+                    }
+                    cout << endl;
                 }
-
-                cerr << "PV update: (color now is " << (thread.board.side == WHITE ? "white" : "black") << ")" << endl; 
-                for(int i = 0; i < (int)pv.size(); i++) {
-                    cerr << move_to_str(pv[i]) << " ";
-                }
-                cerr << endl;
 
                 assert(!pv.empty());
 
@@ -370,7 +307,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     }
 
     Move tt_move = NULL_MOVE;
-    int tt_score, tt_bound = -1;
+    int score, tt_score, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
     if(tt.retrieve_data(
@@ -382,8 +319,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
 
     PV child_pv;
     Move best_move;
-    int eval_score = tt_bound != -1 ? tt_score : eval_tscp(thread.board);
-    int best_score = eval_score;
+    int best_score = tt_bound != -1 ? tt_score : eval_tscp(thread.board);
 
     // eval pruning
     alpha = std::max(alpha, best_score);
@@ -391,11 +327,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
         return alpha;
     }
 
-    // cerr << "q 6" << endl;
-
-    Board initial_board = thread.board;
-    
-    MovePicker move_picker(thread, tt_move, initial_board, true);
+    MovePicker move_picker(thread, tt_move, true);
 
     while(true) {
         Move move = move_picker.next_move(); 
@@ -481,20 +413,12 @@ void update_capture_history(Thread& thread, const Move best_move, const std::vec
         const int piece = thread.board.piece_at[from];
         int captured = thread.board.piece_at[to];
 
-        if(flag == NULL_MOVE || flag == QUIET_MOVE || flag == CASTLING_MOVE) {
-            // cerr << "Bad flag in capture moves " << flag << endl;
-        }
-
         assert(flag != NULL_MOVE && flag != QUIET_MOVE && flag != CASTLING_MOVE);
 
         if(flag != CAPTURE_MOVE) {
             captured = PAWN;
         }
         
-        if(!(captured >= PAWN && captured <= KING)) {
-            // cerr << "Incorrect captured " << captured;
-        }
-
         assert(captured >= PAWN && captured <= KING);
 
         int entry = thread.capture_history[piece][to][captured];

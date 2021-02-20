@@ -46,6 +46,10 @@ enum Squares {
 	A8, B8, C8, D8, E8, F8, G8, H8
 };
 
+const char piece_char[13] = { 
+    'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k', '_' 
+};
+
 enum Sides {
 	WHITE = 0,
 	BLACK = 1
@@ -103,11 +107,11 @@ const int piece_value[12] = {
 const int CHECKMATE = 100000;
 const int MIN_DEPTH_FOR_WINDOW = 5;
 const int INITIAL_WINDOW_SIZE = 30;
-const int MAX_PLY = 6;
+const int MAX_PLY = 32;
 const int MIN_NULL_MOVE_PRUNING_DEPTH = 2;
 const int MIN_BETA_PRUNING_DEPTH = 8;
 const int BETA_MARGIN = 85;
-const float MAX_SEARCH_TIME = 5000000; 
+const float MAX_SEARCH_TIME = 5000; 
 const int MAX_HISTORY_BONUS = 300;
 const int HISTORY_MULTIPLIER = 32;
 const int HISTORY_DIVISOR = 32;

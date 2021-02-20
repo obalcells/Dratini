@@ -20,8 +20,6 @@ void generate_moves(std::vector<Move>& moves, const Board* board, bool quiesce) 
     } else {
         generate_captures(tmp_moves, board);
         if(!quiesce) {
-            cerr << "Before generating quiet board looks like this:" << endl;
-            board->print_board();
             generate_quiet(tmp_moves, board);
         }
     }
@@ -79,16 +77,16 @@ uint64_t get_blockers(int sq, bool attacker_side, const Board* board) {
 uint64_t get_attackers(int sq, bool attacker_side, const Board* board) {
     uint64_t attackers = 0;
 
-    /* pawns */
+    // pawns
     if(attacker_side == BLACK) {
-        if((mask_sq(sq) & ~COL_0) && board->get_piece(sq + 7) == BLACK_PAWN)
+        if((mask_sq(sq) & ~COL_0) && sq + 7 < 64 && board->get_piece(sq + 7) == BLACK_PAWN)
             attackers |= mask_sq(sq + 7); 
-        if((mask_sq(sq) & ~COL_7) && board->get_piece(sq + 9) == BLACK_PAWN)
+        if((mask_sq(sq) & ~COL_7) && sq + 9 < 64 && board->get_piece(sq + 9) == BLACK_PAWN)
             attackers |= mask_sq(sq + 9);
     } else {
-        if((mask_sq(sq) & ~COL_0) && board->get_piece(sq - 9) == WHITE_PAWN)
+        if((mask_sq(sq) & ~COL_0) && sq - 9 >= 0 && board->get_piece(sq - 9) == WHITE_PAWN)
             attackers |= mask_sq(sq - 9);
-        if((mask_sq(sq) & ~COL_7) && board->get_piece(sq - 7) == WHITE_PAWN) 
+        if((mask_sq(sq) & ~COL_7) && sq - 7 >= 0 && board->get_piece(sq - 7) == WHITE_PAWN) 
             attackers |= mask_sq(sq - 7);
     }
 
@@ -130,10 +128,10 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
     uint64_t king_attackers = get_attackers(king_pos, board->xside, board);    
 
     if(popcnt(king_attackers) == 1) {
-        /* a piece (different than the checked king) will try to eat the attacker */
+        // a piece (different than the checked king) will try to eat the attacker
         int attacker_pos = lsb(king_attackers);
 
-        /* special case: the attacker is a pawn and we eat it enpass */
+        // special case: the attacker is a pawn and we eat it enpass 
         if(board->side == BLACK && (mask_sq(attacker_pos) & ROW_3) && board->enpassant == col(attacker_pos)) {
             if(col(attacker_pos) > 0 && board->get_piece(attacker_pos - 1) == BLACK_PAWN)
                 moves.push_back(Move(attacker_pos - 1, attacker_pos - 8, ENPASSANT_MOVE));
@@ -154,13 +152,14 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
             moves.push_back(Move(from_sq, attacker_pos, CAPTURE_MOVE));
         }
 
-        /* a piece (different than the checked king) will try to block the attack without eating anything */
+        // a piece (different than the checked king) will try to block the attack without eating anything
         uint64_t positions_between = get_between(attacker_pos, king_pos, board);
         while(positions_between) {
             to_sq = pop_first_bit(positions_between);
+            assert(board->get_piece(to_sq) == EMPTY);
             uint64_t blockers = get_blockers(to_sq, board->side, board);
 
-            /* special case: we block a square by eating enpass */
+            // special case: we block a square by eating enpass
             if(board->enpassant == col(to_sq)) {
                 if(board->side == WHITE && row(to_sq) == 5) {
                     if(col(to_sq) > 0 && board->get_piece(to_sq - 9) == WHITE_PAWN)
@@ -177,6 +176,7 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
 
             while(blockers) {
                 from_sq = pop_first_bit(blockers);
+                assert(board->get_piece(to_sq) == EMPTY);
                 moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
             }
         }
@@ -186,18 +186,16 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
     uint64_t attack_mask = king_attacks[king_pos] & ~board->get_side_mask(board->side);
     while(attack_mask) {
         to_sq = pop_first_bit(attack_mask);
-        if(board->get_piece(to_sq) != EMPTY)
+        if(board->get_piece(to_sq) != EMPTY) {
             moves.push_back(Move(king_pos, to_sq, CAPTURE_MOVE)); 
-        else
+        } else {
             moves.push_back(Move(king_pos, to_sq, QUIET_MOVE)); 
+        }
     }
 }
 
 /* we assume that the king isn't in check */
 void generate_captures(std::vector<Move>& moves, const Board* board) {
-    cerr << "Generating captures:" << endl;
-    board->print_board();
-
     const bool side = board->side;
     const bool xside = board->xside;
     const uint64_t all_mask = board->get_all_mask();
@@ -206,26 +204,25 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
     uint64_t mask, attack_mask;
     int from_sq, to_sq;
 
-    /* first we generate pawn moves */
+    // first we generate pawn moves 
     if(board->side == WHITE) {
-
-        /* enpassant capture */
+        // enpassant capture
         if(board->enpassant != NO_ENPASSANT) {
             int enpassant_sq = 40 + int(board->enpassant);
             assert(board->get_piece(enpassant_sq - 8) == BLACK_PAWN);
-            /* eating to the left (sq -> sq + 7) */
+            // eating to the left (sq -> sq + 7)
             if(board->enpassant < 7 && board->get_piece(enpassant_sq - 7) == WHITE_PAWN)
                 moves.push_back(Move(enpassant_sq - 7, enpassant_sq, ENPASSANT_MOVE));
-            /* eating to the right (sq -> sq + 9) */
+            // eating to the right (sq -> sq + 9)
             if(board->enpassant > 0 && board->get_piece(enpassant_sq - 9) == WHITE_PAWN)
                 moves.push_back(Move(enpassant_sq - 9, enpassant_sq, ENPASSANT_MOVE));
         }
 
-        /* promotion eating diagonally to the left (sq -> sq + 7) */
+        // promotion eating diagonally to the left (sq -> sq + 7)
         mask = ((pawn_mask & ROW_6 & ~COL_0) << 7) & xside_mask;
         while(mask) {
             to_sq = pop_first_bit(mask);
-            /* Move constructor:  'from'    'to'     'move type'    */
+            // Move constructor:  'from'    'to'     'move type'    
             moves.push_back(Move(to_sq - 7, to_sq, QUEEN_PROMOTION));
             // moves.push_back(Move(to_sq - 7, to_sq, KNIGHT_PROMOTION));
         }
@@ -361,9 +358,6 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
 
 /* we assume that the king isn't in check */
 void generate_quiet(std::vector<Move>& moves, const Board* board) {
-    cerr << "Generating quiets:" << endl; 
-    board->print_board();
-
     const bool side = board->side;
     const bool xside = board->xside;
     const uint64_t all_mask = board->get_all_mask(); 
@@ -374,55 +368,55 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
 
     if(side == WHITE) {
         /* front only one square (no promotion) (sq -> sq + 8) */
-        mask = ((pawn_mask & ~ROW_6) << 8) & ~all_mask;
+        mask = ((pawn_mask & (~ROW_6)) << 8) & (~all_mask);
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 8, to_sq, QUIET_MOVE));
         }
         
         /* frontal two squares (sq -> sq + 8) */
-        mask = ((pawn_mask & ROW_1) << 8) & ~all_mask;
-        mask = ((mask & ROW_2) << 8) & ~all_mask;
+        mask = ((pawn_mask & ROW_1) << 8) & (~all_mask);
+        mask = ((mask & ROW_2) << 8) & (~all_mask);
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 16, to_sq, QUIET_MOVE));
         }
     } else {
         /* front only one square (no promotion) (sq -> sq - 8) */
-        mask = ((pawn_mask & ~ROW_1) >> 8) & ~all_mask;
+        mask = ((pawn_mask & (~ROW_1)) >> 8) & (~all_mask);
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 8, to_sq, QUIET_MOVE));
         }
 
         /* frontal two squares (sq -> sq - 16) */
-        mask = ((pawn_mask & ROW_6) >> 8) & ~all_mask;
-        mask = ((mask & ROW_5) >> 8) & ~all_mask;
+        mask = ((pawn_mask & ROW_6) >> 8) & (~all_mask);
+        mask = ((mask & ROW_5) >> 8) & (~all_mask);
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 16, to_sq, QUIET_MOVE));
         }
     }
 
-    /* generate the castling moves */
+    // generate the castling moves 
     if(side == WHITE) {
-        /* white queen side castling */
+        // white queen side castling
         if(board->castling_rights[WHITE_QUEEN_SIDE]
         && !(all_mask & castling_mask[WHITE_QUEEN_SIDE])
         && !board->is_attacked(D1))
             moves.push_back(Move(E1, C1, CASTLING_MOVE));
-        /* white king side castling */
+        // white king side castling
         if(board->castling_rights[WHITE_KING_SIDE]
         && !(all_mask & castling_mask[WHITE_KING_SIDE])
         && !board->is_attacked(F1)) 
             moves.push_back(Move(E1, G1, CASTLING_MOVE));
     } else if(side == BLACK) {
-        /* black queen side castling */
+        // black queen side castling
         if(board->castling_rights[BLACK_QUEEN_SIDE]
         && !(all_mask & castling_mask[BLACK_QUEEN_SIDE])
         && !board->is_attacked(D8))
             moves.push_back(Move(E8, C8, CASTLING_MOVE));
-        /* black king side castling */
+        // black king side castling
         if(board->castling_rights[BLACK_KING_SIDE]
         && !(all_mask & castling_mask[BLACK_KING_SIDE])
         && !board->is_attacked(F8))
@@ -434,44 +428,24 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
     /* king */
     mask = board->get_king_mask(side);
     from_sq = pop_first_bit(mask);  
-    attack_mask = king_attacks[from_sq] & ~all_mask;
+    attack_mask = king_attacks[from_sq] & (~all_mask);
     while(attack_mask) {
         to_sq = pop_first_bit(attack_mask);
         moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
     }
 
-    std::cout << moves.size() - moves_prev << " king moves have been generated" << endl;
-    std::cout << "These are the king moves:" << endl;
-    for(int i = moves.size() - 1; i >= moves_prev; i--) {
-        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
-    }
-    moves_prev = moves.size();
-
     /* knight */
     mask = board->get_knight_mask(side);
     while(mask) {
         from_sq = pop_first_bit(mask);
-        attack_mask = knight_attacks[from_sq] & ~all_mask;
+        attack_mask = knight_attacks[from_sq] & (~all_mask);
         while(attack_mask) {
             to_sq = pop_first_bit(attack_mask);
             moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
         }
     }
 
-    std::cout << moves.size() - moves_prev << " knight moves have been generated" << endl;
-    std::cout << "These are the knight moves:" << endl;
-    for(int i = moves.size() - 1; i >= moves_prev; i--) {
-        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
-    }
-    moves_prev = moves.size();
-
-    /* bishop and queen */
-    cerr << "Bishop mask was the following" << endl;
-    board->print_bitboard(board->get_bishop_mask(side));
-
-    cerr << "Queen mask was the following" << endl;
-    board->print_bitboard(board->get_queen_mask(side));
-
+    // bishop and queen
     mask = board->get_bishop_mask(side) | board->get_queen_mask(side);
     while(mask) {
         from_sq = pop_first_bit(mask);
@@ -482,14 +456,7 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         }
     }
 
-    std::cout << moves.size() - moves_prev << " bishop and queen moves have been generated" << endl;
-    std::cout << "These are the bq moves:" << endl;
-    for(int i = moves.size() - 1; i >= moves_prev; i--) {
-        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
-    }
-    moves_prev = moves.size();
-
-    /* rooks and queen */
+    // rooks and queen
     mask = board->get_rook_mask(side) | board->get_queen_mask(side);
     while(mask) {
         from_sq = pop_first_bit(mask);
@@ -500,10 +467,11 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         }
     }
 
-    std::cout << moves.size() - moves_prev << " rook and queen moves have been generated" << endl;
-    std::cout << "These are the rq moves:" << endl;
-    for(int i = moves.size() - 1; i >= moves_prev; i--) {
-        std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
-    }
-    moves_prev = moves.size();
+    // To debug moves generated for each piece:
+    // std::cout << moves.size() - moves_prev << " ? moves have been generated" << endl;
+    // std::cout << "These are the ? moves:" << endl;
+    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
+    //     std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
+    // }
+    // moves_prev = moves.size();
 }

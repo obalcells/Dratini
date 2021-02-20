@@ -1,7 +1,8 @@
 *.o
 *.swo
+*.vscode
 .vscode
-dratini
+*.DS_Store
 .DS_Store
 *.sh
 .clang-format
