@@ -161,18 +161,82 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
     }
 
-    MovePicker move_picker = MovePicker(thread, tt_move);
+    cerr << "-------------------" << endl << endl;
 
+    const Board board_before_before = thread.board;
+    std::vector<Move> bad_gm_1, gm_1;
+    if(in_check) {
+        generate_evasions(bad_gm_1, &thread.board);
+    } else {
+        generate_quiet(bad_gm_1, &thread.board);
+        generate_captures(bad_gm_1, &thread.board);
+    }
+
+    for(int i = (int)bad_gm_1.size(); i >= 0; i--) {
+        if(thread.board.fast_move_valid(bad_gm_1[i])) {
+            gm_1.push_back(bad_gm_1[i]);
+        }
+    }
+
+    assert(board_before_before == thread.board);
+
+    const Board board_before = thread.board;
+    MovePicker move_picker = MovePicker(thread, tt_move);
+    std::vector<Move> gm_2;
     while(true) {
         move = move_picker.next_move();
+        if(move == NULL_MOVE) {
+            break;
+        }
+        gm_2.push_back(move);
+    }
+    assert(board_before == thread.board);
+
+    sort(gm_1.begin(), gm_1.end());
+    sort(gm_2.begin(), gm_2.end());
+
+
+    for(int i = 0; i < (int)gm_1.size(); i++) {
+        cerr << move_to_str(gm_1[i]) << " ";
+    }
+    cerr << endl;
+
+    for(int i = 0; i < (int)gm_2.size(); i++) {
+        cerr << move_to_str(gm_2[i]) << " ";
+    }
+    cerr << endl;
+
+    assert(gm_1.size() == gm_2.size());
+
+    for(int i = 0; i < (int)gm_1.size(); i++) {
+        if(gm_1[i] != gm_2[i]) {
+            cerr << "At i = " << i << " there are different moves " << move_to_str(gm_1[i]) << " " << move_to_str(gm_2[i]) << endl;
+            cerr << "Board is:" << endl;
+            thread.board.print_board();
+        }
+        assert(gm_1[i] == gm_2[i]);
+    }
+
+    move_picker = MovePicker(thread, tt_move);
+
+    while(true) {
+        assert(thread.board.key == thread.board.calculate_key());
+        move = move_picker.next_move();
+        if(is_root) {
+            cerr << "Move returned is " << move_to_str(move) << " at ply " << thread.ply << endl;
+        } 
+        assert(thread.board.key == thread.board.calculate_key());
 
         if(move == NULL_MOVE || stop_search) {
             break;
         }
 
         if(!thread.board.move_valid(move)) {
-            continue;
+            cerr << "Move returned by move picker is invalid: " << move_to_str(move) << endl; 
+            cerr << "Board looks like this:" << endl;
+            thread.board.print_board();
         }
+        assert(thread.board.move_valid(move));
 
         if(get_flag(move) == QUIET_MOVE && thread.board.color_at[get_to(move)] != EMPTY) {
             cerr << "A quiet move was generated, which is actually capturing a piece" << endl;
@@ -180,12 +244,12 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             cerr << "Ply is " << thread.ply << endl;
             cerr << "Thread board is:" << endl;
             thread.board.print_board();
-            cerr << "MovePicker board is:" << endl;
-            move_picker.board->print_board();
+            // cerr << "MovePicker board is:" << endl;
+            // move_picker.board->print_board();
             assert(thread.board.get_piece(get_to(move)) == EMPTY);
             assert(thread.board.color_at[get_to(move)] == EMPTY);
-            assert(move_picker.board->get_piece(get_to(move)) == EMPTY);
-            assert(move_picker.board->color_at[get_to(move)] == EMPTY);
+            // assert(move_picker.board->get_piece(get_to(move)) == EMPTY);
+            // assert(move_picker.board->color_at[get_to(move)] == EMPTY);
         }
         assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
 
@@ -337,8 +401,11 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
         }
 
         if(!thread.board.move_valid(move)) {
-            continue;
+            cerr << "(Q) Move returned by move picker is invalid: " << move_to_str(move) << endl;
+            cerr << "Board looks like this:" << endl;
+            thread.board.print_board();
         }
+        assert(thread.board.move_valid(move));
 
         UndoData undo_data = thread.board.make_move(move);
         thread.ply++;

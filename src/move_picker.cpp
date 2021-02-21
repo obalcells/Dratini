@@ -10,11 +10,6 @@
 #include "tt.h"
 #include "bitboard.h"
 
-// Tradeoffs:
-// use sort() once or linearly scan for each move?
-// early stopping in SEE? (Just whether it's good or bad)
-// bad captures or quiet moves, which should go first?
-
 static inline bool move_is_straight(const Move move) {
 	return row(get_from(move)) == row(get_to(move)) || col(get_from(move)) == col(get_to(move));
 }
@@ -27,15 +22,15 @@ uint64_t MovePicker::get_attackers(const int to_sq, const bool attacker_side) co
     uint64_t attackers = 0;
 
     if(attacker_side == BLACK) {
-        if((mask_sq(to_sq) & ~COL_0) && board->get_piece(to_sq + 7) == BLACK_PAWN)
-            attackers |= mask_sq(to_sq + 7); 
-        if((mask_sq(to_sq) & ~COL_7) && board->get_piece(to_sq + 9) == BLACK_PAWN)
-            attackers |= mask_sq(to_sq + 9);
+		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && board->get_piece(to_sq + 7) == BLACK_PAWN)
+        	return to_sq + 7;
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && board->get_piece(to_sq + 9) == BLACK_PAWN)
+        	return to_sq + 9; 
     } else {
-        if((mask_sq(to_sq) & ~COL_0) && board->get_piece(to_sq - 9) == WHITE_PAWN)
-            attackers |= mask_sq(to_sq - 9);
-        if((mask_sq(to_sq) & ~COL_7) && board->get_piece(to_sq - 7) == WHITE_PAWN) 
-            attackers |= mask_sq(to_sq - 7);
+        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && board->get_piece(to_sq - 9) == WHITE_PAWN)
+        	return to_sq - 9; 
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && board->get_piece(to_sq - 7) == WHITE_PAWN) 
+        	return to_sq - 7;
     }
 
     attackers |= Rmagic(to_sq, board->get_all_mask()) & 
@@ -52,14 +47,14 @@ uint64_t MovePicker::get_attackers(const int to_sq, const bool attacker_side) co
 // least valuable attacker - we assume that attacker side is 'side'
 int MovePicker::lva(int to_sq) const {
     if(board->side == BLACK) {
-        if((mask_sq(to_sq) & ~COL_0) && board->get_piece(to_sq + 7) == BLACK_PAWN)
+		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && board->get_piece(to_sq + 7) == BLACK_PAWN)
         	return to_sq + 7;
-        if((mask_sq(to_sq) & ~COL_7) && board->get_piece(to_sq + 9) == BLACK_PAWN)
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && board->get_piece(to_sq + 9) == BLACK_PAWN)
         	return to_sq + 9; 
     } else {
-        if((mask_sq(to_sq) & ~COL_0) && board->get_piece(to_sq - 9) == WHITE_PAWN)
+        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && board->get_piece(to_sq - 9) == WHITE_PAWN)
         	return to_sq - 9; 
-        if((mask_sq(to_sq) & ~COL_7) && board->get_piece(to_sq - 7) == WHITE_PAWN) 
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && board->get_piece(to_sq - 7) == WHITE_PAWN) 
         	return to_sq - 7;
     }
 	if(knight_attacks[to_sq] & board->get_knight_mask(board->side))
@@ -139,10 +134,9 @@ int MovePicker::fast_see(const Move move) const {
 		depth--;
 	}
 
-	return score[1];
+	return std::max(0, score[1]);
 }
 
-// don't avoid doing stupid captures when at root
 int MovePicker::slow_see(const Move move, const bool root) {
 	const int piece_from = board->get_piece(get_from(move));
 	const int piece_captured = board->get_piece(get_to(move));
@@ -183,176 +177,160 @@ int MovePicker::slow_see(const Move move, const bool root) {
 	return score;
 }
 
-void MovePicker::sort_captures() {
-	while(!compatible_move_stack.empty()) {
-        Move move = compatible_move_stack.back();
+// this things's fault
+void MovePicker::delete_move(int index) {
+	assert(!move_stack.empty());
+	assert(scores.size() == move_stack.size());
+	move_stack[index] = move_stack[move_stack.size() - 1];
+	scores[index] = move_stack[scores.size() - 1];
+	move_stack.pop_back();
+	scores.pop_back();
+}
 
-		assert(get_flag(move) != QUIET_MOVE);
+int MovePicker::get_best_index() const {
+	int best_index = -1, best_score = -1;
 
-        const int from = get_from(move);
-        const int to = get_to(move);
-        const int piece = board->piece_at[from]; 
-        int captured = board->piece_at[to];
-
-        assert(get_flag(move) != QUIET_MOVE);
-
-        if(get_flag(move) != CAPTURE_MOVE) {
-            captured = PAWN;
-        }
-
-        move_stack.push_back(MoveWithScore(
-            move,
-            thread->capture_history[piece][to][captured] + 50000 * (get_flag(move) == QUEEN_PROMOTION)
-        ));
-
-		compatible_move_stack.pop_back();
+	for(int index = 1; index < (int)scores.size(); index++) {
+		if(scores[index] > best_score) {
+			best_index = index;	
+			best_score = scores[index];
+		}
 	}
 
-	std::sort(move_stack.begin(), move_stack.end());
+	return best_index;
+}
+
+void MovePicker::sort_captures() {
+	for(int i = 0; i < move_stack.size(); i++) {
+		scores.push_back(
+            thread->capture_history[board->piece_at[get_from(move_stack[i])]][get_to(move_stack[i])][board->piece_at[get_to(move_stack[i])]]
+			+ 50000 + 50000 * (get_flag(move_stack[i]) == QUEEN_PROMOTION)
+		);
+	}
+	assert(move_stack.size() == scores.size());
 } 
 
 void MovePicker::sort_quiet() {
-	while(!compatible_move_stack.empty()) {
-        Move move = compatible_move_stack.back();
-
-        const int from = get_from(move);
-        const int to = get_to(move);
-		const int flag = get_flag(move);
-
-		if(flag == QUIET_MOVE && board->color_at[to] != EMPTY) {
-			cerr << endl << endl;
-			cerr << "We are generating a move with flag QUIET_MOVE which is actually capturing another piece" << endl;
-			cerr << "Move is: " << move_to_str(move) << endl;
-			cerr << "Board is:" << endl;
-			board->print_board();
-		}
-		assert(flag != QUIET_MOVE || board->color_at[to] == EMPTY);
-
-		if(board->color_at[from] != board->side) {
-			cerr << endl << endl;
-			cerr << "An invalid move is being generated" << endl;
-			cerr << RED_COLOR << "Oh no! something went wrong" << RESET_COLOR << endl;
-			cerr << "Move is: " << move_to_str(move) << endl;
-			cerr << "Board is:" << endl;
-			board->print_board();
-			// we generate all the quiet moves again and output them
-			compatible_move_stack.clear();
-			generate_quiet(compatible_move_stack, board);
-			cerr << "List of quiet moves generated is the following:" << endl;
-			for(int i = 0; i < (int)compatible_move_stack.size(); i++) {
-				cerr << move_to_str(compatible_move_stack[i]) << " ";
-			}
-			cerr << endl;
-		}
-		assert(board->color_at[from] == board->side);
-
-        move_stack.push_back(MoveWithScore(
-            move,
-            thread->quiet_history[board->side][from][to]
-        ));
-
-		compatible_move_stack.pop_back();
-	}
-
-	std::sort(move_stack.begin(), move_stack.end());
+	for(int i = 0; i < move_stack.size(); i++) {
+		scores.push_back(
+            thread->quiet_history[board->side][get_from(move_stack[i])][get_to(move_stack[i])]
+		);
+	}	
+	assert(move_stack.size() == scores.size());
 }
 
 Move MovePicker::next_move() {
-	const Board board_before = *board;
 	switch(phase) {
-		case HASH:
+		case HASH: {
 			phase = GENERATE_CAPTURES;
-			if(tt_move != NULL_MOVE && board->fast_move_valid(tt_move)) {
+			if(false
+			&& tt_move != NULL_MOVE
+			&& board->move_valid(tt_move)) {
+				assert(false);
 				return tt_move;
 			}
-			// assert(board_before == *board);
+		}
 
-		case GENERATE_CAPTURES:
+		case GENERATE_CAPTURES: {
 			// if we are in check we skip ahead to the evasions
 			if(board->in_check()) {
-				compatible_move_stack.clear();
-				generate_evasions(compatible_move_stack, board);	
+				assert(move_stack.empty());
+				generate_evasions(move_stack, board);
 				sort_quiet();
 				phase = QUIET;
 				return next_move();
 			} else {
-				compatible_move_stack.clear();
-				generate_captures(compatible_move_stack, board);
+				assert(move_stack.empty());
+				generate_captures(move_stack, board);
 				sort_captures();
 				phase = GOOD_CAPTURES;
 			}
+		}
 
-		case GOOD_CAPTURES:
-			while(!move_stack.empty() && move_stack[move_stack.size() - 1].score >= 0) {
-				Move move = move_stack.back().move;
-				move_stack.pop_back();
-				// still need to implement SEE check here
-				if(move != tt_move
-				&& board->fast_move_valid(move)) {
+		case GOOD_CAPTURES: {
+			int best_index = get_best_index();		
+			while(best_index != -1) {
+				if(move_stack[best_index] == tt_move
+				|| !board->fast_move_valid(move_stack[best_index])) {
+					delete_move(best_index);	
+					best_index = get_best_index();
+				} else if(!fast_see(move_stack[best_index])) {
+					scores[best_index] = -1;
+					best_index = get_best_index();
+				} else {
+					const Move move = move_stack[best_index];
+					delete_move(best_index);
 					return move;
 				}
 			}
 			phase = FIRST_KILLER;
+		}
 
-		case FIRST_KILLER:
+		case FIRST_KILLER: {
 			phase = SECOND_KILLER;
 
             if(!captures_only) {
-				if(thread->killers[thread->ply][0] != NULL_MOVE
+				if(false
+				&& thread->killers[thread->ply][0] != NULL_MOVE
 				&& thread->killers[thread->ply][0] != tt_move
-				&& board->fast_move_valid(thread->killers[thread->ply][0])) {
+				&& board->move_valid(thread->killers[thread->ply][0])) {
+					assert(false);
 					return thread->killers[thread->ply][0];
 				}
             }
+		}
 
-		case SECOND_KILLER:
+		case SECOND_KILLER: {
 			phase = BAD_CAPTURES;
 
 			if(!captures_only) {
-				if(thread->killers[thread->ply][1] != NULL_MOVE
+				if(false
+				&& thread->killers[thread->ply][1] != NULL_MOVE
 				&& thread->killers[thread->ply][1] != tt_move
 				&& thread->killers[thread->ply][1] != thread->killers[thread->ply][0] 
-				&& board->fast_move_valid(thread->killers[thread->ply][0])) {
-					return thread->killers[thread->ply][0];
+				&& board->move_valid(thread->killers[thread->ply][1])) {
+					assert(false);
+					return thread->killers[thread->ply][1];
 				}
 			}
+		}
 
-		case BAD_CAPTURES:
+		case BAD_CAPTURES: {
 			while(!move_stack.empty()) {
-				Move move = move_stack.back().move;
-				move_stack.pop_back();
-
+				const Move move = move_stack[0];
+				delete_move(0);
 				if(move != tt_move
-				&& board->fast_move_valid(move)) {
-					return move;
-				}
-			}
-
-            if(captures_only) {
-                phase = DONE;
-                break;
-            } else {
-				phase = GENERATE_QUIET;
-			}
-
-		case GENERATE_QUIET:
-			compatible_move_stack.clear();
-			generate_quiet(compatible_move_stack, board);			
-			sort_quiet();
-			phase = QUIET;
-
-		case QUIET:
-			while(!move_stack.empty()) {
-				Move move = move_stack.back().move;
-				move_stack.pop_back();
-
-				if(move != tt_move
-				&& move != thread->killers[thread->ply][1]
-				&& move != thread->killers[thread->ply][1] 
 				&& board->fast_move_valid(move)) {
 					return move;
 				}
 			}	
+			assert(move_stack.empty());
+			if(captures_only) {
+				phase = DONE;
+				return NULL_MOVE;
+			}
+			phase = GENERATE_QUIET;
+		}
+
+		case GENERATE_QUIET: {
+			assert(move_stack.empty());
+			generate_quiet(move_stack, board);			
+			sort_quiet();
+			phase = QUIET;
+		}
+
+		case QUIET: {
+			int best_index = get_best_index();
+			while(best_index != -1) {
+				const Move move = move_stack[best_index];
+				delete_move(best_index);
+				if(move != tt_move
+				&& board->fast_move_valid(move)) {
+					return move;
+				}
+				best_index = get_best_index();
+			}	
+		}
 	}
 
 	return NULL_MOVE;

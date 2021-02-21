@@ -58,6 +58,8 @@ class MovePicker {
 		int fast_see(const Move) const; 
 
 	// private:
+		void delete_move(int);
+		int get_best_index() const;
 		int next_lva(const uint64_t&, bool) const;
 		int lva(const int) const;
 		void check_xrays(uint64_t& attacker_mask, const int from_sq, const int to_sq) const;
@@ -69,9 +71,8 @@ class MovePicker {
 		int phase;
 		bool captures_only;
 		Move tt_move; 
-		std::vector<MoveWithScore> move_stack;
-		std::vector<Move> compatible_move_stack;
-		// std::vector<int> scores;
+		std::vector<Move> move_stack;
+		std::vector<int> scores;
 		Board* board;
 		Thread* thread;
 };

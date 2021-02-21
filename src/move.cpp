@@ -345,7 +345,9 @@ bool Board::fast_move_valid(const Move move) const {
 	const int to_sq = get_to(move);
 	const int flag = get_flag(move);
 
-	if((flag == QUIET_MOVE && get_piece(to_sq) != EMPTY)
+	if(from_sq < 0 || from_sq > 63
+	|| to_sq < 0 || to_sq > 63
+	|| (flag == QUIET_MOVE && get_piece(to_sq) != EMPTY)
 	|| (flag == CAPTURE_MOVE && get_piece(to_sq) == EMPTY)
 	|| (get_color(from_sq) != side)
 	|| (get_color(to_sq) == side)) {
@@ -404,8 +406,12 @@ bool Board::move_valid(const Move move) {
 	int to_sq = get_to(move);
 	int flag = get_flag(move);
 
-	if(from_sq < 0 || from_sq >= 64 || to_sq < 0 || to_sq >= 64)
+	if(from_sq < 0 || from_sq >= 64
+	|| to_sq < 0 || to_sq >= 64
+	|| (flag == QUIET_MOVE && get_piece(to_sq) != EMPTY)
+	|| (flag == CAPTURE_MOVE && get_piece(to_sq) == EMPTY)) {
 		return false;
+	}
 
 	int piece = get_piece(from_sq); 
 
@@ -487,6 +493,7 @@ bool Board::move_valid(const Move move) {
         }
 		set_square(from_sq, piece);
 	}
+
 
 	if(in_check_after_move) {
 		return false;

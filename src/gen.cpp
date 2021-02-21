@@ -423,8 +423,6 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
             moves.push_back(Move(E8, G8, CASTLING_MOVE));
     }
 
-    int moves_prev = (int)moves.size();
-
     /* king */
     mask = board->get_king_mask(side);
     from_sq = pop_first_bit(mask);  
@@ -456,6 +454,8 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         }
     }
 
+    int moves_prev = (int)moves.size();
+
     // rooks and queen
     mask = board->get_rook_mask(side) | board->get_queen_mask(side);
     while(mask) {
@@ -468,10 +468,11 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
     }
 
     // To debug moves generated for each piece:
-    // std::cout << moves.size() - moves_prev << " ? moves have been generated" << endl;
-    // std::cout << "These are the ? moves:" << endl;
-    // for(int i = moves.size() - 1; i >= moves_prev; i--) {
-    //     std::cout << move_to_str(get_from(moves[i]), get_to(moves[i])) << endl;
+    // std::cout << moves.size() - moves_prev << " rook and queen moves have been generated" << endl;
+    // std::cout << "These are the moves:" << endl;
+    // for(int i = moves_prev; i < moves.size(); i++) {
+    //     assert(move_to_str(moves[i]) != "h8f2");
+    //     std::cout << move_to_str(moves[i]) << endl;
     // }
     // moves_prev = moves.size();
 }
