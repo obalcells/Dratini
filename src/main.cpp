@@ -3,6 +3,7 @@
 #include "defs.h"
 #include "search.h"
 #include "board.h"
+#include "move_picker.h"
 // #include "book.h"
 #include "tt.h"
 
@@ -15,6 +16,7 @@ int main() {
 	
 	while(true) {
 		if(board.checkmate()) {
+			return 0;
 			if(board.side == WHITE) {
 				board.print_board();
 				cout << MAGENTA_COLOR << "Black wins" << RESET_COLOR << endl;
@@ -26,6 +28,7 @@ int main() {
 			board = Board();
 			continue;
 		} else if(board.stalemate()) {
+			return 0;
 			board.print_board();
 			cout << MAGENTA_COLOR << "Draw" << RESET_COLOR << endl;
 			cout << endl << endl;
@@ -43,6 +46,15 @@ int main() {
 			assert(board.side == WHITE);
 			continue;
 		}
+
+		/*
+		else {
+			Move next_move = MovePicker::get_random_move(board);
+			board.make_move(next_move);
+			assert(board.side == BLACK);
+			continue;
+		}
+		*/
 
 		cout << "\nengine> ";
 		std::string raw_input;

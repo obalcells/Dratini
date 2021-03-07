@@ -18,6 +18,34 @@ static inline bool move_is_diagonal(const Move move) {
 	return abs(row(get_from(move)) - row(get_to(move))) == abs(col(get_from(move)) - col(get_to(move)));
 }
 
+Move MovePicker::get_random_move(const Board& board) {
+	std::vector<Move> moves; 
+
+	generate_moves(moves, &board);
+
+    std::string rng_seed_str = "Dratini";
+    std::seed_seq _seed (rng_seed_str.begin(), rng_seed_str.end());
+    auto rng = std::default_random_engine { _seed };
+	std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
+
+	if(moves.empty()) {
+		return NULL_MOVE;
+	}
+
+	int index = dist(rng) % (long long)moves.size();
+	int iterations = 0;
+
+	while(!board.fast_move_valid(moves[index])) {
+		iterations++;
+		index = dist(rng) % (long long)moves.size();
+		assert(iterations < 1000);
+	}
+
+	assert(board.fast_move_valid(moves[index]));
+
+	return moves[index];
+}
+
 uint64_t MovePicker::get_attackers(const int to_sq, const bool attacker_side) const { 
     uint64_t attackers = 0;
 
@@ -33,12 +61,9 @@ uint64_t MovePicker::get_attackers(const int to_sq, const bool attacker_side) co
         	return to_sq - 7;
     }
 
-    attackers |= Rmagic(to_sq, board->get_all_mask()) & 
-                (board->get_rook_mask(attacker_side) | board->get_queen_mask(attacker_side));
-    attackers |= Bmagic(to_sq, board->get_all_mask()) &
-                (board->get_bishop_mask(attacker_side) | board->get_queen_mask(attacker_side));
-    attackers |= knight_attacks[to_sq] &
-                board->get_knight_mask(attacker_side);
+    attackers |= Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(attacker_side) | board->get_queen_mask(attacker_side));
+    attackers |= Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(attacker_side) | board->get_queen_mask(attacker_side));
+    attackers |= knight_attacks[to_sq] & board->get_knight_mask(attacker_side);
 
     return attackers;
 }
@@ -187,10 +212,15 @@ void MovePicker::delete_move(int index) {
 	scores.pop_back();
 }
 
-int MovePicker::get_best_index() const {
-	int best_index = -1, best_score = -1;
+int MovePicker::get_best_index(bool no_min) const {
+	if(move_stack.empty()) {
+		return -1;
+	}
 
-	for(int index = 1; index < (int)scores.size(); index++) {
+	int best_index = (no_min ? 0 : -1), best_score = -1;
+
+	assert(scores.size() == move_stack.size());
+	for(int index = 0; index < (int)scores.size(); index++) {
 		if(scores[index] > best_score) {
 			best_index = index;	
 			best_score = scores[index];
@@ -213,13 +243,14 @@ void MovePicker::sort_captures() {
 void MovePicker::sort_quiet() {
 	for(int i = 0; i < move_stack.size(); i++) {
 		scores.push_back(
-            thread->quiet_history[board->side][get_from(move_stack[i])][get_to(move_stack[i])]
+            100000 + thread->quiet_history[board->side][get_from(move_stack[i])][get_to(move_stack[i])]
 		);
 	}	
 	assert(move_stack.size() == scores.size());
 }
 
 Move MovePicker::next_move() {
+	tt_move = NULL_MOVE;
 	switch(phase) {
 		case HASH: {
 			phase = GENERATE_CAPTURES;
@@ -320,7 +351,7 @@ Move MovePicker::next_move() {
 		}
 
 		case QUIET: {
-			int best_index = get_best_index();
+			int best_index = get_best_index(true);
 			while(best_index != -1) {
 				const Move move = move_stack[best_index];
 				delete_move(best_index);
@@ -328,10 +359,20 @@ Move MovePicker::next_move() {
 				&& board->fast_move_valid(move)) {
 					return move;
 				}
-				best_index = get_best_index();
+				best_index = get_best_index(true);
 			}	
+			if(!move_stack.empty()) {
+				cerr << "This should be a very small number:" << endl;
+				cerr << scores[0] << endl; 
+				best_index = get_best_index();
+				cerr << "The following number should be -1:" << endl;
+				cerr << best_index << endl;
+			}
+			assert(move_stack.empty());
 		}
 	}
+
+	assert(move_stack.empty());
 
 	return NULL_MOVE;
 }

@@ -161,7 +161,9 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
     }
 
-    cerr << "-------------------" << endl << endl;
+    // cerr << "-------------------" << endl << endl;
+
+    // thread.board.print_board();
 
     const Board board_before_before = thread.board;
     std::vector<Move> bad_gm_1, gm_1;
@@ -172,41 +174,36 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         generate_captures(bad_gm_1, &thread.board);
     }
 
-    for(int i = (int)bad_gm_1.size(); i >= 0; i--) {
+    // cerr << "Moves generated" << endl;
+
+    for(int i = 0; i < (int)bad_gm_1.size(); i++) {
+        // cerr << move_to_str(bad_gm_1[i]) << " "; 
         if(thread.board.fast_move_valid(bad_gm_1[i])) {
             gm_1.push_back(bad_gm_1[i]);
         }
     }
+
+    // cerr << "*********************" << endl << endl;
 
     assert(board_before_before == thread.board);
 
     const Board board_before = thread.board;
     MovePicker move_picker = MovePicker(thread, tt_move);
     std::vector<Move> gm_2;
+
     while(true) {
         move = move_picker.next_move();
         if(move == NULL_MOVE) {
             break;
         }
+        // cerr << "Move is " << move_to_str(move) << endl;
         gm_2.push_back(move);
     }
-    assert(board_before == thread.board);
-
-    sort(gm_1.begin(), gm_1.end());
-    sort(gm_2.begin(), gm_2.end());
-
-
-    for(int i = 0; i < (int)gm_1.size(); i++) {
-        cerr << move_to_str(gm_1[i]) << " ";
-    }
-    cerr << endl;
-
-    for(int i = 0; i < (int)gm_2.size(); i++) {
-        cerr << move_to_str(gm_2[i]) << " ";
-    }
-    cerr << endl;
 
     assert(gm_1.size() == gm_2.size());
+    
+    sort(gm_1.begin(), gm_1.end());
+    sort(gm_2.begin(), gm_2.end());
 
     for(int i = 0; i < (int)gm_1.size(); i++) {
         if(gm_1[i] != gm_2[i]) {

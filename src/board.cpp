@@ -151,8 +151,8 @@ Board::Board() {
 	castling_rights.assign(4, true);
 	init_data();
 
-	// set_from_fen("8/5N2/4p2p/5p1k/1p4rP/1P2Q1P1/P4P1K/5q2 w - - 15 44");
-	set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	set_from_fen("8/5N2/4p2p/5p1k/1p4rP/1P2Q1P1/P4P1K/5q2 w - - 15 44");
+	// set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	// set_from_fen("5n2/8/5k2/8/K7/2p5/8/Q7 w - - 0 1");
 
 	key = calculate_key();
@@ -852,6 +852,7 @@ void Board::print_board() const {
 	for(i = 0; i < 8; i++)
 		std::cout << " " << char('a' + i);
 	std::cout << endl;
+	/*
 	std::cout << "Move count: " << move_count << endl;
 	std::cout << "Fifty move count: " << int(fifty_move_ply) << endl;
 	if(enpassant == 8) {
@@ -865,8 +866,9 @@ void Board::print_board() const {
 	for(i = 0; i < 4; i++)
 		std::cout << (castling_rights[i] ? "Y " : "N ");
 	std::cout << endl;
+	*/
 	std::cout << "Side: " << (side == WHITE ? "WHITE" : "BLACK") << endl;
-	// std::cout << "xSide: " << (xside == WHITE ? "WHITE" : "BLACK") << endl;
+	assert(side != xside);
 }
 
 void Board::print_bitboard(uint64_t bb) const {

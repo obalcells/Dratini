@@ -57,9 +57,11 @@ class MovePicker {
 		int slow_see(const Move, const bool root = true); 
 		int fast_see(const Move) const; 
 
+		static Move get_random_move(const Board&);
+
 	// private:
 		void delete_move(int);
-		int get_best_index() const;
+		int get_best_index(bool no_min = false) const;
 		int next_lva(const uint64_t&, bool) const;
 		int lva(const int) const;
 		void check_xrays(uint64_t& attacker_mask, const int from_sq, const int to_sq) const;
