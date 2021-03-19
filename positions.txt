@@ -20,3 +20,10 @@ Side: WHITE
 rnbqk1nr/pp2b1pp/4p3/2p1p3/2Bp4/3P1Q2/PPP1NPPP/RNB2RK1 w kq - 0 1 
 
 
+Trivial queen mate
+
+8/1q6/8/8/2k5/K7/8/8 w - - 0 1 
+
+Trivial queen mate but now white has a tower
+
+8/1q6/8/R7/2k5/K7/8/8 w - - 0 1

@@ -10,12 +10,12 @@ void Board::take_back(const UndoData& undo_data) {
     side = xside;
     xside = !xside;
 
-	fifty_move_ply--;
+	fifty_move_ply = undo_data.fifty_move_ply;
+
 	if(side == BLACK) {
 		move_count--;
 	}
 
-	assert(fifty_move_ply >= 0);
 	assert(move_count >= 0);
 
     assert(!keys.empty());
@@ -125,7 +125,7 @@ UndoData Board::make_move(const Move move) {
 	int flag = get_flag(move);
 	int piece = get_piece(from_sq);
 
-    UndoData undo_data = UndoData(move, enpassant, castling_rights, piece, EMPTY);
+    UndoData undo_data = UndoData(move, enpassant, castling_rights, piece, EMPTY, fifty_move_ply);
 
 	if(is_null(move)) {
 		piece = -1;
@@ -185,7 +185,7 @@ UndoData Board::make_move(const Move move) {
 	}
 
 	if(piece == WHITE_PAWN || piece == BLACK_PAWN || flag == CAPTURE_MOVE) {
-		fifty_move_ply = -1;
+		fifty_move_ply = 0;
 	}
 
 	if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(from_sq - to_sq) == 16) {

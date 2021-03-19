@@ -16,7 +16,6 @@ int main() {
 	
 	while(true) {
 		if(board.checkmate()) {
-			return 0;
 			if(board.side == WHITE) {
 				board.print_board();
 				cout << MAGENTA_COLOR << "Black wins" << RESET_COLOR << endl;
@@ -26,13 +25,14 @@ int main() {
 			}
 			cout << endl << endl;
 			board = Board();
+			cout << GREEN_COLOR << "Starting new game" << RESET_COLOR << endl;
 			continue;
 		} else if(board.stalemate()) {
-			return 0;
 			board.print_board();
 			cout << MAGENTA_COLOR << "Draw" << RESET_COLOR << endl;
 			cout << endl << endl;
 			board = Board();
+			cout << GREEN_COLOR << "Starting new game" << RESET_COLOR << endl;
 			continue;
 		}
 
@@ -43,7 +43,8 @@ int main() {
 		if(board.side == BLACK) {
 			Move next_move = think(board);
 			board.make_move(next_move);
-			assert(board.side == WHITE);
+			// board.print_board();
+			// return 0;
 			continue;
 		}
 

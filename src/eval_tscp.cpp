@@ -135,12 +135,12 @@ int pawn_rank[2][10];
 int piece_mat[2];  /* the value of a side's pieces */
 int pawn_mat[2];  /* the value of a side's pawns */
 
-int eval_tscp(Board& pos)
+int eval_tscp(const Board& pos)
 {
 #ifdef SELF_PLAY
 	return (rand() % 1000) - 500;
 #endif
-	pos.check_classic();
+	// pos.check_classic();
 	int i;
 	int f;  /* file */
 	int score[2];  /* each side's score */
@@ -241,7 +241,8 @@ int eval_tscp(Board& pos)
 
 	/* the score[] array is set, now return the score relative
 	   to the side to move */
-	return score[pos.side] - score[pos.xside];
+	return -(score[pos.side] - score[pos.xside]);
+	// return (score[pos.side] - score[pos.xside]);
 }
 
 int eval_light_pawn(int sq)

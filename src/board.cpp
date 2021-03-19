@@ -8,7 +8,6 @@
 
 // for debugging purposes
 #define clear_square(sq, non_side_piece, _side) assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq))); bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
-
 #define clear_square(sq, piece) assert((bits[piece] & mask_sq(sq)) != 0); assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece)); assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK)); assert(occ_mask & mask_sq(sq)); bits[piece] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0); assert((bits[piece] & mask_sq(sq)) == 0);
 
 static std::string str_seed = "Dratini is fast!";
@@ -151,7 +150,11 @@ Board::Board() {
 	castling_rights.assign(4, true);
 	init_data();
 
-	set_from_fen("8/5N2/4p2p/5p1k/1p4rP/1P2Q1P1/P4P1K/5q2 w - - 15 44");
+	set_from_fen("5k2/2r5/8/8/4B3/2Q5/2K5/8 b - - 0 1"); // don't do the stupid thing with the rook 
+	// set_from_fen("5k2/4r3/8/8/4B3/2Q5/8/1K6 b - - 0 1"); // don't eat with the rook
+	// set_from_fen("5k2/8/8/8/4r3/2Q5/8/1K6 w - - 0 1"); // do the queen trick
+	// set_from_fen("8/1q6/8/R7/2k5/K7/8/8 w - - 0 1");
+	// set_from_fen("8/1q6/8/8/2k5/K7/8/8 w - - 0 1");
 	// set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	// set_from_fen("5n2/8/5k2/8/K7/2p5/8/Q7 w - - 0 1");
 
@@ -729,6 +732,7 @@ bool Board::stalemate() {
 
 bool Board::is_draw() const {
 	if(fifty_move_ply >= 50) {
+		cerr << "FMP" << endl;
 		return true;
 	}
      

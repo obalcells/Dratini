@@ -15,14 +15,18 @@ struct UndoData {
     Move move;
     uint8_t enpassant;
     std::vector<bool> castling_rights;
-    uint8_t moved_piece, captured_piece;
+    uint8_t moved_piece, captured_piece, fifty_move_ply;
 
-    UndoData(const Move _move, const uint8_t _enpassant, const std::vector<bool>& _castling_rights, const uint8_t _moved_piece, const uint8_t _captured_piece) {
+    UndoData(
+        const Move _move, const uint8_t _enpassant, const std::vector<bool>& _castling_rights,
+        const uint8_t _moved_piece, const uint8_t _captured_piece, const uint8_t _fifty_move_ply
+        ) {
         move = _move;
         enpassant = _enpassant;
         castling_rights = _castling_rights;
         moved_piece = _moved_piece;
         captured_piece = _captured_piece;
+        fifty_move_ply = _fifty_move_ply;
     }
 };
 
@@ -88,6 +92,8 @@ struct Board {
 
     uint64_t calculate_key() const;
 
+    uint8_t fifty_move_ply;
+
 private:
     // internal functions for checking validity and making moves
 	void update_castling_rights(const Move);
@@ -96,7 +102,6 @@ private:
     bool move_diagonal(const Move) const;
     bool check_pawn_move(const Move) const;
 
-    uint8_t fifty_move_ply;
     uint64_t occ_mask;
     std::vector<uint64_t> keys;
 
