@@ -36,11 +36,11 @@ int main() {
 			continue;
 		}
 
-		if(board.side == WHITE) {
+		if(board.side == BLACK) {
 			board.print_board();
 		}
 
-		if(board.side == BLACK) {
+		if(board.side == WHITE) {
 			Move next_move = think(board);
 			board.make_move(next_move);
 			// board.print_board();

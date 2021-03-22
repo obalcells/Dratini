@@ -30,7 +30,8 @@ Move think(const Board& board) {
     initial_time = std::chrono::system_clock::now(); 
     stop_search = false;
 
-    for(main_thread.depth = 1; !stop_search && main_thread.depth <= MAX_PLY; main_thread.depth++) {
+    for(main_thread.depth = 4; !stop_search && main_thread.depth <= 4; main_thread.depth++) {
+    // for(main_thread.depth = 1; !stop_search && main_thread.depth <= MAX_PLY; main_thread.depth++) {
         aspiration_window(main_thread);
     }
 
@@ -50,9 +51,9 @@ void aspiration_window(Thread& thread) {
     }
 
     while(!stop_search) {
-        cerr << "Starting search" << endl;
+        // cerr << "Starting search" << endl;
         int value = search(thread, pv, alpha, beta, thread.depth);
-        cerr << "Finished search" << endl;
+        // cerr << "Finished search" << endl;
         assert(thread.ply == 0);
         
         if(value >= beta) {
@@ -79,24 +80,34 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_root = thread.ply == 0;    
     bool is_pv = (alpha != beta - 1);
 
-    // if(thread.ply == 7 && thread.board.piece_at[E4] != ROOK && thread.board.piece_at[E5] == QUEEN && thread.board.piece_at[D8] == KING) {
-    //     cout << BLUE_COLOR << "Key for the following position is " << thread.board.key << endl;
-    //     thread.board.print_board();
-    //     cout << RESET_COLOR;
-    // }
-    
+    if(thread.board.piece_at[C6] == KING && thread.board.piece_at[B5] == QUEEN && thread.board.piece_at[A7] == KING) {
+        cout << BLUE_COLOR << "Key for the following position is " << thread.board.key << endl;
+        thread.board.print_board();
+        cout << RESET_COLOR;
+    }
+
     bool debug_mode = 
-       (thread.board.key == 1831429529969370284 && thread.ply == 1)
-    || (thread.board.key == 3896492707353244952 && thread.ply == 2)
-    || (thread.board.key == 3169130718734731446 && thread.ply == 3)
-    || (thread.board.key == 3225703390536254957 && thread.ply == 4)
-    || (thread.board.key == 1415909802326832869 && thread.ply == 5)
-    || (thread.board.key == 86345999000238398 && thread.ply == 6)
-    || (thread.board.key == 2823246617117529994 && thread.ply == 7);
-    debug_mode = false;
+       (thread.board.key == 1508007568069500693 && thread.ply == 0)
+    || (thread.board.key == 427469212567584758 && thread.ply == 1)
+    || (thread.board.key == 957821848117016834 && thread.ply == 1)
+    || (thread.board.key == 824685297147295837 && thread.ply == 2)
+    || (thread.board.key == 1362561496610412877 && thread.ply == 3)
+    || (thread.board.key == 2205877339120750570 && thread.ply == 4)
+    || (thread.board.key == 861132736221556449);
+    
+    // bool debug_mode = 
+    //    (thread.board.key == 1831429529969370284 && thread.ply == 1)
+    // || (thread.board.key == 3896492707353244952 && thread.ply == 2)
+    // || (thread.board.key == 3169130718734731446 && thread.ply == 3)
+    // || (thread.board.key == 3225703390536254957 && thread.ply == 4)
+    // || (thread.board.key == 1415909802326832869 && thread.ply == 5)
+    // || (thread.board.key == 86345999000238398 && thread.ply == 6)
+    // || (thread.board.key == 2823246617117529994 && thread.ply == 7);
+    // debug_mode = false;
 
     if(debug_mode) {
         cerr << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
+        cerr << "Ply is " << thread.ply << " and depth left is " << depth << endl;
         thread.board.print_board(); 
     }
 
@@ -164,7 +175,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     int score, best_score = -CHECKMATE, tt_score, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
-    if(false && tt.retrieve_data(
+    if(tt.retrieve_data(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, depth, thread.ply
     )) {
@@ -173,42 +184,46 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     if(in_check) {
+        if(debug_mode) {
+            cerr << "Increasing depth in debug position" << endl;
+            assert(false);
+        }
         depth++;
     }
 
     int eval_score = eval_tscp(thread.board);
 
     // beta pruning
-    // if(!is_pv
-    // && !in_check
-    // && depth >= MIN_BETA_PRUNING_DEPTH
-    // && eval_score - BETA_MARGIN * depth > beta) {
-    //     return eval_score;
-    // }
+    if(!is_pv
+    && !in_check
+    && depth >= MIN_BETA_PRUNING_DEPTH
+    && eval_score - BETA_MARGIN * depth > beta) {
+        return eval_score;
+    }
 
     // null move pruning
-    // if(!is_pv
-    // && !in_check 
-    // && eval_score >= beta
-    // && depth >= MIN_NULL_MOVE_PRUNING_DEPTH
-    // && thread.move_stack[thread.ply - 1] != NULL_MOVE
-    // && (tt_bound == -1 || tt_score >= beta || tt_bound != UPPER_BOUND)) {
-    //     UndoData undo_data = thread.board.make_move(NULL_MOVE);
-    //     thread.board.error_check();
-    //     thread.move_stack.push_back(NULL_MOVE);
-    //     thread.ply++;
+    if(!is_pv
+    && !in_check 
+    && eval_score >= beta
+    && depth >= MIN_NULL_MOVE_PRUNING_DEPTH
+    && thread.move_stack[thread.ply - 1] != NULL_MOVE
+    && (tt_bound == -1 || tt_score >= beta || tt_bound != UPPER_BOUND)) {
+        UndoData undo_data = thread.board.make_move(NULL_MOVE);
+        thread.board.error_check();
+        thread.move_stack.push_back(NULL_MOVE);
+        thread.ply++;
 
-    //     int null_move_value = -search(thread, child_pv, -beta, -beta + 1, depth - 3);
-    //     assert(thread.move_stack.back() == NULL_MOVE);
-    //     thread.move_stack.pop_back();
-    //     thread.board.take_back(undo_data);
-    //     thread.board.error_check();
-    //     thread.ply--;
+        int null_move_value = -search(thread, child_pv, -beta, -beta + 1, depth - 3);
+        assert(thread.move_stack.back() == NULL_MOVE);
+        thread.move_stack.pop_back();
+        thread.board.take_back(undo_data);
+        thread.board.error_check();
+        thread.ply--;
 
-    //     if(null_move_value >= beta) {
-    //         return beta;
-    //     }
-    // }
+        if(null_move_value >= beta) {
+            return beta;
+        }
+    }
 
     MovePicker move_picker = MovePicker(thread, tt_move);
 
@@ -231,11 +246,13 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         assert(thread.board.key == thread.board.calculate_key());
 
         if(move == NULL_MOVE || stop_search) {
-            if(is_root && stop_search) {
+            if(debug_mode && stop_search) {
                 cerr << RED_COLOR << "Timeout!" << RESET_COLOR << endl;
-            } else if(is_root) {
+            } else if(debug_mode) {
                 thread.board.print_board();
+                assert(move == NULL_MOVE);
                 cerr << RED_COLOR << "No moves left" << RESET_COLOR << endl;
+                thread.board.print_board();
             }
             break;
         }
@@ -294,7 +311,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             // score = -search(thread, child_pv, -beta, -alpha, depth - 1);
             
             if(debug_mode) {
-            // if(is_root && move_to_str(move) == "c3f3") {
                 cerr << "Move returns score of " << score << " with alpha " << alpha << " after non-pv search" << endl;
                 cerr << "Here is his pv: " << move_to_str(move);
                 for(int i = 0; i < (int)child_pv.size(); i++) {
@@ -393,7 +409,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         );
     }
 
-    if(is_root || debug_mode) {
+    if(debug_mode) {
         // assert(alpha >= CHECKMATE - 10);
         assert(pv.empty() || pv[0] == best_move);
         cerr << "alpha =  " << alpha << ", beta = " << beta << endl;

@@ -23,7 +23,8 @@ int main() {
 //
 //     a b c d e f g h
 
-    Board board = Board("3k4/8/8/4Q3/8/8/8/1K6 b - - 0 1");    
+    Board board = Board("8/3k4/8/8/4Q3/8/8/1K6 w - - 0 1");
+    // Board board = Board("3k4/8/8/4Q3/8/8/8/1K6 b - - 0 1");    
     cout << "Eval is: " << eval_tscp(board) << endl;
     board.print_board();
 }

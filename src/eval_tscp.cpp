@@ -2,6 +2,7 @@
 /* source code here: http://www.tckerrigan.com/Chess/TSCP/ */
 
 #include <vector>
+#include <iostream>
 #include <string.h>
 #include "defs.h"
 #include "position.h"
@@ -173,9 +174,14 @@ int eval_tscp(const Board& pos)
 			piece_mat[pos.color_at[i]] += piece_value[pos.piece_at[i]];
 	}
 
+
 	/* this is the second pass: evaluate each piece */
 	score[LIGHT] = piece_mat[LIGHT] + pawn_mat[LIGHT];
 	score[DARK] = piece_mat[DARK] + pawn_mat[DARK];
+
+	// cout << "Pre score of side " << (pos.side == WHITE ? "white" : "black") << " " << score[pos.side] << endl; 
+	// cout << "Pre score of side " << (pos.xside == WHITE ? "white" : "black") << " " << score[pos.xside] << endl; 
+
 	for (i = 0; i < 64; ++i) {
 		if (pos.color_at[i] == EMPTY)
 			continue;
@@ -239,10 +245,12 @@ int eval_tscp(const Board& pos)
 		}
 	}
 
+	// cout << "Score of side " << (pos.side == WHITE ? "white" : "black") << " " << score[pos.side] << endl; 
+	// cout << "Score of side " << (pos.xside == WHITE ? "white" : "black") << " " << score[pos.xside] << endl; 
+
 	/* the score[] array is set, now return the score relative
 	   to the side to move */
-	return -(score[pos.side] - score[pos.xside]);
-	// return (score[pos.side] - score[pos.xside]);
+	return (score[pos.side] - score[pos.xside]);
 }
 
 int eval_light_pawn(int sq)
