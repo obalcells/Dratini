@@ -22,6 +22,7 @@ struct Thread {
 
     Thread(Board _board) {
         best_move = NULL_MOVE;
+        root_value = -1;
         nodes = index = ply = 0;
         depth = 1;
         board = _board;

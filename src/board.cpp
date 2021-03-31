@@ -753,8 +753,16 @@ bool Board::is_draw() const {
 	}	
 
     // draw by repetition
-    // later...
-   
+	int n_repetitions = 0;
+
+	for(int i = keys.size() - 2; i >= 0; i--) {
+		if(keys[i] == keys[keys.size() - 1]) {
+			if(++n_repetitions == 3) {
+				return false;
+			}
+		}
+	}
+
     return false;
 }
 

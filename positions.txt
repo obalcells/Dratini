@@ -27,3 +27,23 @@ Trivial queen mate
 Trivial queen mate but now white has a tower
 
 8/1q6/8/R7/2k5/K7/8/8 w - - 0 1
+
+8   . k . . . . . .
+7   . . . . . . . .
+6   . . Q . . . . .
+5   . . . . . . . .
+4   . . . K . . . .
+3   . . . . . . . .
+2   . . . . . . . .
+1   . . . . . . . .
+
+
+    a b c d e f g h
+Side: BLACK
+
+engine> b8a7
+Best move at asp window is d4e4
+Best move at asp window is c6b5
+Best move at asp window is c6b5
+Best move at asp window is d4e4
+It moves the king from d4 to e4, a totally useless move
