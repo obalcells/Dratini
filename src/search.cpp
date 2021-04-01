@@ -80,7 +80,7 @@ void aspiration_window(Thread& thread) {
         // cout << "Finished search" << endl;
         assert(thread.ply == 0);
 
-        if(value >= alpha && value < beta) {
+        if(value > alpha && value < beta) {
             assert(pv.size() > 0);
             if(!stop_search) {
                 thread.root_value = value;
@@ -136,6 +136,22 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     || (thread.board.key == 1913318233855850599 && thread.ply == 5)
     || (thread.board.key == 404053874700670240 && thread.ply == 6);
 
+    // bool debug_mode = 
+    //    (thread.board.key == 1508007568069500693)
+    // || (thread.board.key == 957821848117016834)
+    // || (thread.board.key == 824685297147295837)
+    // || (thread.board.key == 1516646400408157036)
+    // || (thread.board.key == 1384635679415155251)
+    // || (thread.board.key == 1913318233855850599)
+    // || (thread.board.key == 404053874700670240);
+
+    // alternative path
+    debug_mode = debug_mode ||
+        (thread.board.key == 1835259090973306315 && thread.ply == 4)
+    ||  (thread.board.key == 1207642484593356703 && thread.ply == 5);
+
+    // debug_mode = false;
+
     // || (thread.board.key == 1362561496610412877 && thread.ply == 3)
     // || (thread.board.key == 2205877339120750570 && thread.ply == 4)
     // || (thread.board.key == 861132736221556449 && thread.ply == 5)
@@ -149,6 +165,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
+        cout << "Alpha and beta are " << alpha << " " << beta << endl;
         cout << "Ply is " << thread.ply << " and depth left is " << depth << ", initial depth is " << thread.depth << endl;
         debug_node(thread);
         cout << "Key is " << thread.board.key << endl;
@@ -242,6 +259,11 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return eval_score;
     }
 
+    if(debug_mode) {
+        cout << "Checkpoint 3" << endl;
+        cout << "Hasn't been beta-pruned " << alpha << endl;
+    }
+
     // null move pruning
     if(!is_pv
     && !in_check 
@@ -278,8 +300,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                 thread.board.print_board();
                 cout << RESET_COLOR << endl;
             }
-            return null_move_value;
-            // return beta;
+            // return null_move_value;
+            return beta;
         }
     }
 
@@ -289,8 +311,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         assert(thread.board.key == thread.board.calculate_key());
         move = move_picker.next_move();
 
-        if(false && debug_mode) {
-            cout << "Move " << move_to_str(move) << " returned by picker" << endl;
+        if(debug_mode) {
+            cout << "Move " << move_to_str(move) << " returned by picker at ply " << thread.ply << endl;
         }
 
         assert(thread.board.key == thread.board.calculate_key());
@@ -325,16 +347,16 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
 
         if(best_score == -CHECKMATE) {
-            if(false && debug_mode) {
-                cout << "Doing search for move " << move_to_str(move) << endl;
+            if(debug_mode) {
+                cout << "Doing search for move " << move_to_str(move) << "with key " << thread.board.key << endl;
             }
             score = -search(thread, child_pv, -beta, -alpha, depth - 1); 
-            if(false && debug_mode) {
+            if(debug_mode) {
                 cout << "Score is " << score << endl;
             }
         } else {
             if(false && debug_mode) {
-                cout << "Trying small search for move " << move_to_str(move) << endl;
+                cout << "Trying small search for move " << move_to_str(move) << " with key " << thread.board.key << endl;
             }
             score = -search(thread, child_pv, -alpha - 1, -alpha, depth - 1);
             // score = -search(thread, child_pv, -beta, -alpha, depth - 1);
@@ -399,7 +421,9 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                 assert(!pv.empty());
 
                 if(alpha >= beta) {
-                    // cout << "Breaking from the search" << endl;
+                    if(debug_mode) {
+                        cout << "Breaking from the search" << endl;
+                    }
                     break;
                 }
             }
@@ -445,8 +469,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     if(debug_mode) {
         // assert(alpha >= CHECKMATE - 10);
         assert(pv.empty() || pv[0] == best_move);
-        cout << "alpha =  " << alpha << ", beta = " << beta << endl;
-        cout << "At ply = " << thread.ply << ", depth = " << depth << endl;
+        cout << "At Ply = " << thread.ply << ", depth = " << depth << endl;
+        cout << "Alpha =  " << alpha << ", beta = " << beta << endl;
         cout << "Best move is " << move_to_str(best_move) << endl;
         cout << "Score is " << best_score << endl;
         cout << "Board is " << endl;
