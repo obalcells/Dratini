@@ -11,12 +11,12 @@
 #include "tt.h"
 #include "stats.h"
 #include "move_picker.h"
-#include "position.h"
+// #include "position.h"
 #include "search.h"
 
-static bool stop_search;
+// static bool stop_search;
+// static bool interesting_reached;
 static std::chrono::time_point<std::chrono::system_clock> initial_time;
-static bool interesting_reached;
 
 float elapsed_time() {
     auto time_now = std::chrono::system_clock::now();
@@ -24,23 +24,19 @@ float elapsed_time() {
     return duration.count();
 }
 
-Move think(const Board& board) {
+Move think(const Board& board, bool* engine_stop_search) {
     // cout << "Before initializing thread" << endl;
 
-    Thread main_thread = Thread(board);
+    Thread main_thread = Thread(board, engine_stop_search);
     initial_time = std::chrono::system_clock::now(); 
-    stop_search = false;
+    // *main_thread.stop_search = false;
 
-    std::cout << "Board at the beginning" << endl;
-    board.print_board();
-
-    // for(main_thread.depth = 7; !stop_search && main_thread.depth <= 7; main_thread.depth++) {
-    for(main_thread.depth = 6; !stop_search && main_thread.depth <= 6; main_thread.depth += 1) {
-    // for(main_thread.depth = 1; !stop_search && main_thread.depth <= MAX_PLY; main_thread.depth += 1) {
+    // for(main_thread.depth = 6; !(*main_thread.stop_search) && main_thread.depth <= 6; main_thread.depth += 1) {
+    for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= MAX_PLY; main_thread.depth += 1) {
         aspiration_window(main_thread);
-        if(!stop_search) {
-            cout << RED_COLOR << "Searched depth " << main_thread.depth << endl << RESET_COLOR;
-        }
+        // if(!(*main_thread.stop_search)) {
+        //     cout << RED_COLOR << "Searched until depth " << main_thread.depth << endl << RESET_COLOR;
+        // }
     }
 
     assert(main_thread.best_move != NULL_MOVE);
@@ -58,36 +54,33 @@ void aspiration_window(Thread& thread) {
         beta = std::min(CHECKMATE, thread.root_value + delta);
     }
 
-    while(!stop_search) {
+    while(!(*thread.stop_search)) {
         // cout << "Starting search" << endl;
-        interesting_reached = false;
+        // interesting_reached = false;
+        // cout << "Searching with window = " << "(" << alpha << ", " << beta << "), depth = " << thread.depth << endl; 
         int value = search(thread, pv, alpha, beta, thread.depth);
 
-        if(!stop_search) {
-            std::cout << BLUE_COLOR;
-            std::cout << "After asp window with values " << alpha << ", " << beta
-            << " with score " << value << endl;
-            std::cout << "PV is:";
-            for(int i = 0; i < (int)pv.size(); i++) {
-                std::cout << " " << move_to_str(pv[i]);
-            }
-            std::cout << endl;
-            std::cout << RESET_COLOR;
+        if(!(*thread.stop_search)) {
+            // std::cout << BLUE_COLOR;
+            // // std::cout << "After asp window with values " << alpha << ", " << beta
+            // // << " with score " << value << endl;
+            // // std::cout << "PV is:";
+            // for(int i = 0; i < (int)pv.size(); i++) {
+            //     std::cout << " " << move_to_str(pv[i]);
+            // }
+            // std::cout << endl;
+            // std::cout << RESET_COLOR;
         } else {
-            std::cout << "Timeout!" << endl;
+            // std::cout << "Timeout!" << endl;
         }
 
-        // cout << "Finished search" << endl;
         assert(thread.ply == 0);
 
         if(value > alpha && value < beta) {
             assert(pv.size() > 0);
-            if(!stop_search) {
-                thread.root_value = value;
-                thread.best_move = pv[0];
-                cout << "Best move at asp window is " << move_to_str(pv[0]) << endl;
-                thread.ponder_move = pv.size() > 1 ? pv[1] : NULL_MOVE;
-            }
+            thread.root_value = value;
+            thread.best_move = pv[0];
+            thread.ponder_move = pv.size() > 1 ? pv[1] : NULL_MOVE;
             return;
         } else if(value >= CHECKMATE - MAX_PLY) {
             beta = CHECKMATE;
@@ -136,6 +129,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     || (thread.board.key == 1913318233855850599 && thread.ply == 5)
     || (thread.board.key == 404053874700670240 && thread.ply == 6);
 
+    debug_mode = false;
+
     // bool debug_mode = 
     //    (thread.board.key == 1508007568069500693)
     // || (thread.board.key == 957821848117016834)
@@ -150,7 +145,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         (thread.board.key == 1835259090973306315 && thread.ply == 4)
     ||  (thread.board.key == 1207642484593356703 && thread.ply == 5);
 
-    // debug_mode = false;
+    debug_mode = false;
 
     // || (thread.board.key == 1362561496610412877 && thread.ply == 3)
     // || (thread.board.key == 2205877339120750570 && thread.ply == 4)
@@ -196,10 +191,10 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     if((thread.nodes & 1023) == 0 && elapsed_time() >= MAX_SEARCH_TIME) {
-        stop_search = true;
+        *thread.stop_search = true;
     }
 
-    if(stop_search) { 
+    if(*thread.stop_search) { 
         return 0;
     }
 
@@ -317,8 +312,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
         assert(thread.board.key == thread.board.calculate_key());
 
-        if(move == NULL_MOVE || stop_search) {
-            if(debug_mode && stop_search) {
+        if(move == NULL_MOVE || *thread.stop_search) {
+            if(debug_mode && *thread.stop_search) {
                 cout << RED_COLOR << "Timeout!" << RESET_COLOR << endl;
             } else if(debug_mode) {
                 thread.board.print_board();
@@ -370,7 +365,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                 cout << endl;
             }
 
-            if(!stop_search && score >= alpha && score < beta) {
+            if(!*thread.stop_search && score >= alpha && score < beta) {
                 if(false && debug_mode) {
                     cout << "Doing full search" << endl;
                 } 
@@ -402,6 +397,14 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                 pv.push_back(move);
                 for(int i = 0; i < (int)child_pv.size(); i++) {
                     pv.push_back(child_pv[i]);
+                }
+
+                if(false && is_root) {
+                    cout << move_to_str(pv[0]);
+                    for(int i = 0; i < (int)pv.size(); i++) {
+                        cout << " " << move_to_str(pv[i]);
+                    }
+                    cout << endl;
                 }
 
                 if(debug_mode) {
@@ -436,7 +439,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             cout << "Depth is " << depth << ", ply is " << thread.ply << ", initial depth is " << thread.depth << endl;
             cout << "Position is " << endl;
             thread.board.print_board();
-            // assert(false);
+            assert(false);
         }
         return in_check ? -CHECKMATE + thread.ply : 0; // checkmate or stalemate
     }
@@ -486,10 +489,10 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     thread.nodes++;
 
     if((thread.nodes & 1023) == 0 && elapsed_time() >= MAX_SEARCH_TIME) {
-        stop_search = true;
+        *thread.stop_search = true;
     }
 
-    if(stop_search) {
+    if(*thread.stop_search) {
         return 0;
     }
 
@@ -529,7 +532,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     while(true) {
         Move move = move_picker.next_move(); 
 
-        if(stop_search || move == NULL_MOVE) {
+        if(*thread.stop_search || move == NULL_MOVE) {
             break;
         }
 

@@ -4,7 +4,7 @@
 #include "board.h"
 #include "position.h"
 
-Move think(const Board&);
+Move think(const Board&, bool*);
 void aspiration_window(Thread&);
 int search(Thread&, PV&, int, int, int);
 int q_search(Thread&, PV&, int, int);
@@ -19,13 +19,16 @@ struct Thread {
    Move killers[MAX_PLY][2] = { NULL_MOVE };
    int quiet_history[2][64][64] = { 0 };
    int capture_history[6][64][6] = { 0 };
+   bool* stop_search;
 
-    Thread(Board _board) {
+    Thread(Board _board, bool* _stop_search) {
         best_move = NULL_MOVE;
         root_value = -1;
         nodes = index = ply = 0;
         depth = 1;
         board = _board;
+        stop_search = _stop_search;
+        // *stop_search = false;
     }
 };
 

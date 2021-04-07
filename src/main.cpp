@@ -4,15 +4,21 @@
 #include "search.h"
 #include "board.h"
 #include "move_picker.h"
+#include "uci.h"
+#include "position.h"
 // #include "book.h"
 #include "tt.h"
 
 TranspositionTable tt;
 
 int main() {
+	uci();
+
 	// init_book();
 	tt.allocate(32);
+		
 	Board board = Board();
+	bool first_input = true;
 	
 	while(true) {
 		if(board.checkmate()) {
@@ -41,7 +47,8 @@ int main() {
 		}
 
 		if(board.side == WHITE) {
-			Move next_move = think(board);
+			bool dummy_bool = false;
+			Move next_move = think(board, &dummy_bool);
 			board.make_move(next_move);
 			// board.print_board();
 			// return 0;
@@ -61,7 +68,9 @@ int main() {
 		std::string raw_input;
 		cin >> raw_input;
 
-		if(raw_input == "exit") {
+		if(first_input && raw_input == "uci") {
+			uci();
+		} if(raw_input == "exit") {
 			break;
 		} else if(!board.make_move_from_str(raw_input)) { // we make the move here
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;

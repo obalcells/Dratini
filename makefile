@@ -1,6 +1,6 @@
 # compiler flags
-C_FLAGS = -g -w --std=c++17 -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays
-TESTING_C_FLAGS = -g -w --std=c++17
+C_FLAGS = -g -w --std=c++17 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays
+TESTING_C_FLAGS = -g -w -pthread --std=c++17
 SELF_PLAY_FLAGS = $(TESTING_C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4
 
 # link options
@@ -8,7 +8,8 @@ L_FLAGS = -s -lm
 TESTING_L_FLAGS = -lm
 
 # define output name and settings file
-EXE = /Users/balce/Desktop/Dratini/dratini.sh
+# EXE = /Users/balce/Desktop/Dratini/dratini
+EXE = /Users/balce/dratini
 TEST_EXE = /Users/balce/Desktop/Dratini/test.sh
 SELF_PLAY_EXE = /Users/balce/Desktop/Dratini/self_play.sh
 

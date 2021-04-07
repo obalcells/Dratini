@@ -150,14 +150,14 @@ Board::Board() {
 	castling_rights.assign(4, true);
 	init_data();
 
-	set_from_fen("1k6/8/2Q5/8/3K4/8/8/8 w - - 0 1"); // useless king move, delaying the checkmate
+	// set_from_fen("1k6/8/2Q5/8/3K4/8/8/8 w - - 0 1"); // useless king move, delaying the checkmate
 	// set_from_fen("5k2/2r5/8/8/4B3/2Q5/2K5/8 b - - 0 1"); // don't do the stupid thing with the rook 
 	// set_from_fen("5k2/4r3/8/8/4B3/2Q5/8/1K6 b - - 0 1"); // don't eat with the rook
 	// set_from_fen("5k2/8/8/8/4r3/2Q5/8/1K6 w - - 0 1"); // do the queen trick
 	// set_from_fen("8/1q6/8/R7/2k5/K7/8/8 w - - 0 1");
 	// set_from_fen("8/1q6/8/8/2k5/K7/8/8 w - - 0 1");
-	// set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	// set_from_fen("5n2/8/5k2/8/K7/2p5/8/Q7 w - - 0 1");
+	set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
 	key = calculate_key();
 	keys.push_back(key);

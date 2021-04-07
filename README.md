@@ -2,7 +2,7 @@
 
 This may not be the best chess engine, but it is a chess engine.
 
-It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (; It's ELO lies around 1400. 
+It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (; It's ELO lies around 1400.
 
 ## Other engines and chess programming resources
 
@@ -19,8 +19,13 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] New board move making and validity checking
 - [X] Testing new board representation
 - [X] Move generation
-- [ ] Testing move generation
-- [ ] Better Move ordering
-- [ ] New Search optimizations 
+- [X] Testing move generation
+- [X] Better Move ordering
+- [X] Many more things I forgot to write...
+- ...
+- [X] New Search optimizations
+- [ ] Getting Dratini's UCI protocol to work with xboard
+- [ ] Detailed analysis with pseudocode of other engines' search functions (Rodent III, Ethereal and Halogen)
+- [ ] Using cutechess to make Dratini vs. Dratini matches
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
