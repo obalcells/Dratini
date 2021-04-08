@@ -24,7 +24,7 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Many more things I forgot to write...
 - ...
 - [X] New Search optimizations
-- [ ] Getting Dratini's UCI protocol to work with xboard
+- [X] Getting Dratini's UCI protocol to work with xboard
 - [ ] Detailed analysis with pseudocode of other engines' search functions (Rodent III, Ethereal and Halogen)
 - [ ] Using cutechess to make Dratini vs. Dratini matches
 

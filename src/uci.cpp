@@ -24,7 +24,7 @@ struct Engine {
     Board board;
     // TranspositionTable tt;    
     bool stop_search, is_searching; // is_pondering;
-    Move best_move;
+    Move best_move, ponder_move;
 
     Engine() {
         board = Board();
@@ -43,8 +43,8 @@ struct Engine {
 
     void search() {
         stop_search = false;
-        best_move = NULL_MOVE;
-        best_move = think(board, &stop_search);
+        best_move = NULL_MOVE, ponder_move = NULL_MOVE;
+        think(board, &stop_search, best_move, ponder_move);
         assert(stop_search == true);
     }
 };
@@ -82,7 +82,8 @@ void* process_go(void* _go_struct) {
     if(go_struct->engine->is_searching) {
         assert(go_struct->engine->best_move != NULL_MOVE);
         // send statistics...
-        std::cout << "bestmove " << move_to_str(go_struct->engine->best_move) << endl;
+        cout << "bestmove " << move_to_str(go_struct->engine->best_move) << " ponder " << move_to_str(go_struct->engine->ponder_move) << endl;
+        cerr << "out: bestmove " << move_to_str(go_struct->engine->best_move) << " ponder " << move_to_str(go_struct->engine->ponder_move) << endl;
     }
     go_struct->engine->is_searching = false;
 }
@@ -99,9 +100,9 @@ void uci() {
     cerr << read_uci << endl;
 	assert(read_uci == "uci");
 
-    std::cout << "id name Dratini" << endl;
-    std::cout << "id author Oscar Balcells" << endl;
-    std::cout << "uciok" << endl;
+    cout << "id name Dratini" << endl;
+    cout << "id author Oscar Balcells" << endl;
+    cout << "uciok" << endl;
     Engine engine = Engine();
     pthread_t pthread_go;
     std::string line, command;
@@ -135,7 +136,8 @@ void uci() {
             }
         } else if(command == "isready") {
             // assert(engine.is_ready);
-            std::cout << "readyok" << endl;
+            cout << "readyok" << endl;
+            cerr << "out: readyok" << endl;
         } else if(command == "setoption") {
             parse_option(args);
         } else if(command == "register") {

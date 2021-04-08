@@ -215,11 +215,12 @@ UndoData Board::make_move(const Move move) {
 // returns false if move is invalid, otherwise it applies the move and returns true
 // it calls make_move(Move) if the string represents a valid move
 bool Board::make_move_from_str(const std::string& str_move) {
-    if(str_move.size() != 4
-    || (str_move[0] < 'a' || str_move[0] > 'h')
+	if(
+       (str_move[0] < 'a' || str_move[0] > 'h')
     || (str_move[1] < '1' || str_move[1] > '8')
     || (str_move[2] < 'a' || str_move[2] > 'h')
-    || (str_move[3] < '1' || str_move[3] > '8'))
+    || (str_move[3] < '1' || str_move[3] > '8')
+	)
         return false;
 
     int from_sq = (str_move[1] - '1') * 8 + (str_move[0] - 'a');
@@ -236,7 +237,13 @@ bool Board::make_move_from_str(const std::string& str_move) {
         if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7)) {
             return false;
         }
-        flags = QUEEN_PROMOTION;
+		assert(str_move.size() == 6);
+		assert(str_move[4] == ' ');
+		if(str_move[5] == 'Q')      flags = QUEEN_PROMOTION;
+		else if(str_move[5] == 'N') flags = KNIGHT_PROMOTION;
+		else if(str_move[5] == 'R') flags = ROOK_PROMOTION;
+		else if(str_move[5] == 'B') flags = BISHOP_PROMOTION;
+		else assert(false);
     } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
         flags = CASTLING_MOVE;
     } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && get_piece(to_sq) == EMPTY) {

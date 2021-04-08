@@ -220,14 +220,24 @@ inline std::string move_to_str(const Move move) {
     ans += char('1' + row(get_from(move)));
     ans += char('a' + col(get_to(move)));
     ans += char('1' + row(get_to(move)));
+    if(get_flag(move) == QUEEN_PROMOTION) {
+        ans += "=Q"; 
+    } else if(get_flag(move) == BISHOP_PROMOTION) {
+        ans += "=B";
+    } else if(get_flag(move) == KNIGHT_PROMOTION) {
+        ans += "=N";
+    } else if(get_flag(move) == ROOK_PROMOTION) {
+        ans += "=R";
+    }
     return ans;
 }
 
-inline std::string move_to_str(int from_sq, int to_sq) {
-    std::string ans = "";
-    ans += char('a' + col(from_sq));
-    ans += char('1' + row(from_sq));
-    ans += char('a' + col(to_sq));
-    ans += char('1' + row(to_sq));
-    return ans;
-}
+// inline std::string move_to_str(int from_sq, int to_sq) {
+//     std::string ans = "";
+//     ans += char('a' + col(from_sq));
+//     ans += char('1' + row(from_sq));
+//     ans += char('a' + col(to_sq));
+//     ans += char('1' + row(to_sq));
+//     // what if the pawn is promoting? let's just not use this function
+//     return ans;
+// }

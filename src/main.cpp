@@ -13,6 +13,7 @@ TranspositionTable tt;
 
 int main() {
 	uci();
+	return 0;
 
 	// init_book();
 	tt.allocate(32);
@@ -48,7 +49,8 @@ int main() {
 
 		if(board.side == WHITE) {
 			bool dummy_bool = false;
-			Move next_move = think(board, &dummy_bool);
+			Move next_move = NULL_MOVE, ponder_move = NULL_MOVE;
+			think(board, &dummy_bool, next_move, ponder_move);
 			board.make_move(next_move);
 			// board.print_board();
 			// return 0;

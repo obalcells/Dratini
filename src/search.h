@@ -4,7 +4,7 @@
 #include "board.h"
 #include "position.h"
 
-Move think(const Board&, bool*);
+void think(const Board&, bool*, Move&, Move&);
 void aspiration_window(Thread&);
 int search(Thread&, PV&, int, int, int);
 int q_search(Thread&, PV&, int, int);

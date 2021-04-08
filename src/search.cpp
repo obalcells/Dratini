@@ -24,7 +24,7 @@ float elapsed_time() {
     return duration.count();
 }
 
-Move think(const Board& board, bool* engine_stop_search) {
+void think(const Board& board, bool* engine_stop_search, Move& best_move, Move& ponder_move) {
     // cout << "Before initializing thread" << endl;
 
     Thread main_thread = Thread(board, engine_stop_search);
@@ -40,7 +40,8 @@ Move think(const Board& board, bool* engine_stop_search) {
     }
 
     assert(main_thread.best_move != NULL_MOVE);
-    return main_thread.best_move;
+    best_move = main_thread.best_move;
+    ponder_move = main_thread.ponder_move;
 }
 
 void aspiration_window(Thread& thread) {

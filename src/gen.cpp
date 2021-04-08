@@ -224,7 +224,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             // Move constructor:  'from'    'to'     'move type'    
             moves.push_back(Move(to_sq - 7, to_sq, QUEEN_PROMOTION));
-            // moves.push_back(Move(to_sq - 7, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq - 7, to_sq, KNIGHT_PROMOTION));
         }
 
         /* promotion eating diagonally to the right (sq -> sq + 9) */
@@ -232,7 +232,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 9, to_sq, QUEEN_PROMOTION));
-            // moves.push_back(Move(to_sq - 9, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq - 9, to_sq, KNIGHT_PROMOTION));
         }
 
         /* promotion front (sq -> sq + 8) */
@@ -240,7 +240,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 8, to_sq, QUEEN_PROMOTION));
-            // moves.push_back(Move(to_sq - 8, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq - 8, to_sq, KNIGHT_PROMOTION));
         }
 
         /* pawn capture to the left (sq -> sq + 7) */
@@ -274,7 +274,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 9, to_sq, QUEEN_PROMOTION));
-            // moves.push_back(Move(to_sq + 9, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq + 9, to_sq, KNIGHT_PROMOTION));
         }
 
         /* promotion eating diagonally to the right (sq -> sq - 7) */
@@ -282,7 +282,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 7, to_sq, QUEEN_PROMOTION));
-            // moves.push_back(Move(to_sq + 7, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq + 7, to_sq, KNIGHT_PROMOTION));
         }
 
         /* promotion front (sq -> sq - 8) */
@@ -290,7 +290,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 8, to_sq, QUEEN_PROMOTION));
-            // moves.push_back(Move(to_sq + 8, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq + 8, to_sq, KNIGHT_PROMOTION));
         }
 
         /* pawn capture to the left (sq -> sq - 9) */

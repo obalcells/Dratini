@@ -132,7 +132,7 @@ TEST_CASE("Move generation check for correctness") {
                     bool found = false;
                     for(int j = 0; !found && j < (int)fast_move_stack.size(); j++) {
                         if(slow_move_stack[i] == fast_move_stack[j])
-                            found = true;     
+                            found = true;
                     }
                     if(!found)
                         std::cerr << move_to_str(slow_move_stack[i]) << " ";
@@ -148,8 +148,9 @@ TEST_CASE("Move generation check for correctness") {
                         if(fast_move_stack[i] == slow_move_stack[j])
                             found = true;     
                     }
-                    if(!found)
+                    if(!found) {
                     	std::cerr << move_to_str(fast_move_stack[i]) << " ";
+                    }
                 }
                 std::cerr << "***" << endl;
                 std::cerr << endl;
