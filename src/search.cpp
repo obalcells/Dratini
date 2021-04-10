@@ -242,6 +242,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         tt_score, tt_bound, alpha, beta, depth, thread.ply
     )) {
         pv.push_back(tt_move);
+        // should we reset the age of the entry?
         return tt_score; 
     }
 
