@@ -9,7 +9,7 @@ TESTING_L_FLAGS = -lm
 
 # define output name and settings file
 # EXE = /Users/balce/Desktop/Dratini/dratini
-EXE = /Users/balce/dratini
+EXE = /Users/balce/Desktop/Dratini/dratini
 TEST_EXE = /Users/balce/Desktop/Dratini/test.sh
 SELF_PLAY_EXE = /Users/balce/Desktop/Dratini/self_play.sh
 

@@ -112,7 +112,7 @@ const int MIN_NULL_MOVE_PRUNING_DEPTH = 2;
 const int MIN_BETA_PRUNING_DEPTH = 8;
 const int BETA_MARGIN = 85;
 // const float MAX_SEARCH_TIME = 10000; 
-const float MAX_SEARCH_TIME = 20000; 
+const float MAX_SEARCH_TIME = 5000; 
 const int MAX_HISTORY_BONUS = 300;
 const int HISTORY_MULTIPLIER = 32;
 const int HISTORY_DIVISOR = 32;
@@ -215,6 +215,9 @@ inline std::string pos_to_str(int sq) {
 }
 
 inline std::string move_to_str(const Move move) {
+    if(move == NULL_MOVE) {
+        return "0000";
+    }
     std::string ans = "";
     ans += char('a' + col(get_from(move)));
     ans += char('1' + row(get_from(move)));

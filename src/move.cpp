@@ -363,7 +363,8 @@ bool Board::fast_move_valid(const Move move) const {
 
 	// This code underneath is equivalent to just doing:
 	// bool in_check_after_move = in_check();
-	// the problem is that we want the function to be const 
+	// the problem is that we want the function to be const so we can't touch the board
+   
 	if(piece_from == WHITE_KING || piece_from == BLACK_KING) {
 		if((knight_attacks[to_sq] & get_knight_mask(xside))
 		|| (king_attacks[to_sq] & get_king_mask(xside))

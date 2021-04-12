@@ -1,2 +1,3 @@
+uci
 isready
-ucinewgame
+out: readyok
