@@ -254,8 +254,7 @@ Move MovePicker::next_move() {
 	switch(phase) {
 		case HASH: {
 			phase = GENERATE_CAPTURES;
-			if(false
-			&& tt_move != NULL_MOVE
+			if(tt_move != NULL_MOVE
 			&& board->move_valid(tt_move)) {
 				assert(false);
 				return tt_move;
@@ -301,11 +300,9 @@ Move MovePicker::next_move() {
 			phase = SECOND_KILLER;
 
             if(!captures_only) {
-				if(false
-				&& thread->killers[thread->ply][0] != NULL_MOVE
+				if(thread->killers[thread->ply][0] != NULL_MOVE
 				&& thread->killers[thread->ply][0] != tt_move
 				&& board->move_valid(thread->killers[thread->ply][0])) {
-					assert(false);
 					return thread->killers[thread->ply][0];
 				}
             }
@@ -315,12 +312,10 @@ Move MovePicker::next_move() {
 			phase = BAD_CAPTURES;
 
 			if(!captures_only) {
-				if(false
-				&& thread->killers[thread->ply][1] != NULL_MOVE
+				if(thread->killers[thread->ply][1] != NULL_MOVE
 				&& thread->killers[thread->ply][1] != tt_move
 				&& thread->killers[thread->ply][1] != thread->killers[thread->ply][0] 
 				&& board->move_valid(thread->killers[thread->ply][1])) {
-					assert(false);
 					return thread->killers[thread->ply][1];
 				}
 			}

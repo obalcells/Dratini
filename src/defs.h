@@ -111,13 +111,13 @@ const int MAX_PLY = 16;
 const int MIN_NULL_MOVE_PRUNING_DEPTH = 2;
 const int MIN_BETA_PRUNING_DEPTH = 8;
 const int BETA_MARGIN = 85;
-// const float MAX_SEARCH_TIME = 10000; 
-const float MAX_SEARCH_TIME = 5000; 
 const int MAX_HISTORY_BONUS = 300;
+
 const int HISTORY_MULTIPLIER = 32;
 const int HISTORY_DIVISOR = 32;
 
 struct Thread;
+class Board;
 typedef std::vector<Move> PV;
 
 inline std::string get_str(Move move) {

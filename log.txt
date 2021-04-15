@@ -1,3 +1,7 @@
 uci
 isready
 out: readyok
+ucinewgame
+position startpos moves e2e4
+go wtime 300000 btime 300000 movestogo 40
+out: bestmove e7e6 ponder b1c3

@@ -2,9 +2,11 @@
 
 #include <iostream>
 #include "board.h"
+#include "defs.h"
 #include "position.h"
+#include "engine.h"
 
-void think(const Board&, bool*, Move&, Move&);
+void think(Engine&);
 void aspiration_window(Thread&);
 int search(Thread&, PV&, int, int, int);
 int q_search(Thread&, PV&, int, int);

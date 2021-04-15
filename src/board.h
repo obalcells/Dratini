@@ -90,7 +90,7 @@ struct Board {
     int get_piece(const int) const;
     int get_color(const int) const;
 
-    uint64_t calculate_key() const;
+    uint64_t calculate_key(bool is_assert = true) const;
 
     uint8_t fifty_move_ply;
 

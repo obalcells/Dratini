@@ -16,6 +16,8 @@
 float elapsed_time();
 bool move_gives_check(Board&, const Move);
 
+// const float MAX_SEARCH_TIME = 10000; 
+static int max_search_time_ms = 5000; 
 static const int futility_max_depth = 10;
 static int futility_margin[futility_max_depth];
 static const int futility_linear = 35;
@@ -39,9 +41,11 @@ void init_search_data() {
 	}
 }
 
-void think(const Board& board, bool* engine_stop_search, Move& best_move, Move& ponder_move) {
-    Thread main_thread = Thread(board, engine_stop_search);
-    *main_thread.stop_search = false;
+void think(Engine& engine) {
+    engine.stop_search = false;
+    max_search_time_ms = engine.max_search_time_ms;
+    Thread main_thread = Thread(engine.board, &engine.stop_search);
+    
     init_search_data();
 
     for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= MAX_PLY; main_thread.depth += 1) {
@@ -52,8 +56,8 @@ void think(const Board& board, bool* engine_stop_search, Move& best_move, Move& 
     }
 
     assert(main_thread.best_move != NULL_MOVE);
-    best_move = main_thread.best_move;
-    ponder_move = main_thread.ponder_move;
+    engine.best_move = main_thread.best_move;
+    engine.ponder_move = main_thread.ponder_move;
 }
 
 void aspiration_window(Thread& thread) {
@@ -106,13 +110,14 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_root = thread.ply == 0;    
     bool is_pv = (alpha != beta - 1);
 
-    if(false) {
+    if(false) { // debuggging purposes
         cout << BLUE_COLOR << "Key for the following position is " << thread.board.key
              << ", position was found at ply " << thread.ply << endl;
         thread.board.print_board();
         cout << RESET_COLOR;
     }
 
+    // bool debug_mode =  is_root;
     bool debug_mode = false;
 
     if(debug_mode) {
@@ -125,20 +130,18 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     // early exit conditions
-    if(!is_root) {
-        if(thread.board.is_draw()) {
-            return thread.nodes & 2;
-        } 
-        if(thread.ply >= MAX_PLY) {
-            return eval_tscp(thread.board);
-        }
+    if(thread.board.is_draw()) {
+        return thread.nodes & 2;
+    } else if(thread.ply >= MAX_PLY) {
+        return eval_tscp(thread.board);
     }
     
     if(debug_mode) {
         cout << "Checkpoint 1" << endl;
     }
 
-    if((thread.nodes & 1023) == 0 && elapsed_time() >= MAX_SEARCH_TIME) {
+    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time_ms) {
+        cout << RED_COLOR << "Timeout!" << RESET_COLOR << endl;
         *thread.stop_search = true;
     }
 
@@ -262,7 +265,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
 			reduction = std::max(0, reduction);
 
-            score = -search(thread, child_pv, extended_depth - 1 - reduction, -alpha - 1, -alpha);
+            score = -search(thread, child_pv, -alpha - 1, -alpha, extended_depth - 1 - reduction);
 
 			if (score <= alpha) {
                 thread.board.take_back(undo_data);
@@ -399,7 +402,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     pv.clear();
     thread.nodes++;
 
-    if((thread.nodes & 1023) == 0 && elapsed_time() >= MAX_SEARCH_TIME) {
+    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time_ms) {
         *thread.stop_search = true;
     }
 
@@ -546,6 +549,6 @@ bool move_gives_check(Board& board, const Move move) {
 float elapsed_time() {
     auto time_now = std::chrono::system_clock::now();
     std::chrono::duration<float, std::milli> duration = time_now - initial_time;
-    return duration.count();
+    return int(duration.count()); // returns the elapsed time since search started in ms
 }
 

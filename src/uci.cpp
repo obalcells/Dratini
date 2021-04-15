@@ -6,6 +6,7 @@
 #include "search.h"
 #include "defs.h"
 #include "tt.h"
+#include "engine.h"
 
 // Commands we get:
 // * uci
@@ -19,36 +20,6 @@
 // * stop
 // * ponderhit
 // * quit
-
-struct Engine {
-    Board board;
-    // TranspositionTable tt;    
-    bool stop_search, is_searching; // is_pondering;
-    Move best_move, ponder_move;
-
-    Engine() {
-        board = Board();
-        tt.allocate(128);
-    }
-
-    void set_position() {
-        board = Board();
-        tt.clear();
-    }
-
-    void set_position(const std::string& fen) {
-        board = Board(fen);
-        tt.clear();
-    }
-
-    void search() {
-        stop_search = false;
-        best_move = NULL_MOVE, ponder_move = NULL_MOVE;
-        think(board, &stop_search, best_move, ponder_move);
-        assert(stop_search == true);
-    }
-};
-
 // Engine engine; // engine will be a global object
 
 enum {
@@ -74,18 +45,28 @@ std::vector<std::string> split(const std::string &str) {
     return tokens;
 }
 
+Engine engine;
+
 void* process_go(void* _go_struct) {
-    GoStruct* go_struct = (GoStruct*)_go_struct;
-    assert(go_struct->param_name == MOVETIME);
-    go_struct->engine->is_searching = true;
-    go_struct->engine->search();
-    if(go_struct->engine->is_searching) {
-        assert(go_struct->engine->best_move != NULL_MOVE);
-        // send statistics...
-        cout << "bestmove " << move_to_str(go_struct->engine->best_move) << " ponder " << move_to_str(go_struct->engine->ponder_move) << endl;
-        cerr << "out: bestmove " << move_to_str(go_struct->engine->best_move) << " ponder " << move_to_str(go_struct->engine->ponder_move) << endl;
+    // GoStruct* go_struct = (GoStruct*)_go_struct;
+    // assert(go_struct->param_name == MOVETIME);
+    // go_struct->engine->is_searching = true;
+    // think(*go_struct->engine);
+    // if(go_struct->engine->is_searching) {
+    //     assert(go_struct->engine->best_move != NULL_MOVE);
+    //     // send statistics...
+    //     cout << "bestmove " << move_to_str(go_struct->engine->best_move) << " ponder " << move_to_str(go_struct->engine->ponder_move) << endl;
+    //     cerr << "out: bestmove " << move_to_str(go_struct->engine->best_move) << " ponder " << move_to_str(go_struct->engine->ponder_move) << endl;
+    // }
+    // go_struct->engine->is_searching = false;
+    engine.is_searching = true;
+    think(engine);
+    if(engine.is_searching) {
+        assert(engine.best_move != NULL_MOVE);
+        cout << "bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
+        cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
+        engine.is_searching = false;
     }
-    go_struct->engine->is_searching = false;
 }
 
 void parse_option(const std::vector<std::string>& args) {
@@ -103,7 +84,8 @@ void uci() {
     cout << "id name Dratini" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
-    Engine engine = Engine();
+    // Engine engine = Engine();
+    engine = Engine();
     pthread_t pthread_go;
     std::string line, command;
     std::vector<std::string> args;
@@ -163,9 +145,9 @@ void uci() {
         } else if(command == "go") {
             int param_name = MOVETIME, param_value = 0;
             GoStruct* go_struct = (GoStruct*)malloc(sizeof(GoStruct));
-            go_struct->engine = &engine;
-            go_struct->param_name = MOVETIME;
-            go_struct->param_value = 0;
+            // go_struct->engine = &engine;
+            // go_struct->param_name = MOVETIME;
+            // go_struct->param_value = 0;
             pthread_create(&pthread_go, NULL, &process_go, go_struct);
         } else if(command == "stop") {
             engine.stop_search = true;

@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <iostream>
 
 #include "magicmoves.h"
 #include "board.h"
@@ -159,7 +160,7 @@ Board::Board() {
 	// set_from_fen("5n2/8/5k2/8/K7/2p5/8/Q7 w - - 0 1");
 	set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-	key = calculate_key();
+	key = calculate_key(false);
 	keys.push_back(key);
 }
 
@@ -167,7 +168,7 @@ Board::Board(const std::string& str) { // bool read_from_file = false) {
 	castling_rights.assign(4, true);
 	init_data();
 	set_from_fen(str);
-	key = calculate_key();
+	key = calculate_key(false);
 	keys.push_back(key);
 }
 
@@ -572,7 +573,12 @@ void Board::update_castling_rights(const Move move) {
 		castling_rights[BLACK_KING_SIDE] = false;
 }
 
-uint64_t Board::calculate_key() const {
+uint64_t Board::calculate_key(bool is_assert) const {
+	if(is_assert) {
+		cout << "info ..." << endl;
+		// exit(0);
+	}
+
 	uint64_t new_key = 0;
 
 	new_key ^= zobrist_enpassant[enpassant];

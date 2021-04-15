@@ -6,8 +6,8 @@
 #include "move_picker.h"
 #include "uci.h"
 #include "position.h"
-// #include "book.h"
 #include "tt.h"
+#include "engine.h"
 
 TranspositionTable tt;
 
@@ -18,9 +18,11 @@ int main() {
 	// init_book();
 	tt.allocate(32);
 		
-	Board board = Board();
+	Engine engine = Engine("rn3k1r/p3bppp/3p3n/1p6/B5b1/B1q1RNP1/P1P2PK1/1R1Q4 b - - 0 1");
+	// Engine engine = Engine("rnb1k1nr/pppqbppp/3pp3/1B6/3PP3/2N2N2/PPP2PPP/R1BQK2R b KQkq - 0 1");
+	Board& board = engine.board;
 	bool first_input = true;
-	
+
 	while(true) {
 		if(board.checkmate()) {
 			if(board.side == WHITE) {
@@ -43,36 +45,21 @@ int main() {
 			continue;
 		}
 
-		if(board.side == BLACK) {
+		if(board.side == WHITE) {
 			board.print_board();
 		}
 
-		if(board.side == WHITE) {
-			bool dummy_bool = false;
-			Move next_move = NULL_MOVE, ponder_move = NULL_MOVE;
-			think(board, &dummy_bool, next_move, ponder_move);
-			board.make_move(next_move);
-			// board.print_board();
-			// return 0;
+		if(board.side == BLACK) {
+			think(engine);
+			board.make_move(engine.best_move);
 			continue;
 		}
-
-		/*
-		else {
-			Move next_move = MovePicker::get_random_move(board);
-			board.make_move(next_move);
-			assert(board.side == BLACK);
-			continue;
-		}
-		*/
 
 		cout << "\nengine> ";
 		std::string raw_input;
 		cin >> raw_input;
 
-		if(first_input && raw_input == "uci") {
-			uci();
-		} if(raw_input == "exit") {
+		if(raw_input == "exit") {
 			break;
 		} else if(!board.make_move_from_str(raw_input)) { // we make the move here
 			std::cout << endl << "Error at parsing input `" << raw_input << "`, try again" << endl;
