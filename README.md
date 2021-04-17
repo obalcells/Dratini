@@ -25,7 +25,10 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - ...
 - [X] New Search optimizations
 - [X] Getting Dratini's UCI protocol to work with xboard
-- [ ] Detailed analysis with pseudocode of other engines' search functions (Rodent III, Ethereal and Halogen)
-- [ ] Using cutechess to make Dratini vs. Dratini matches
+- [X] Detailed analysis with pseudocode of other engines' search functions (Rodent III, Ethereal and Halogen)
+- [X] Using cutechess to make Dratini vs. Dratini matches
+- [ ] Programming bench 
+- [ ] Creating dir with docs and parallelized cutechess tournaments
+- [ ] Understand profiling and try to use it if it makes sense 
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
