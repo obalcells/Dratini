@@ -127,6 +127,7 @@ void uci() {
             assert(false);
         } else if(command == "ucinewgame") {
             engine.set_position();
+            tt.clear();
         } else if(command == "position") {
             engine.is_searching = false; // stop the search and don't return bestmove
             if(args[1] == "startpos") {

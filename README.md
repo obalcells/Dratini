@@ -28,7 +28,7 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Detailed analysis with pseudocode of other engines' search functions (Rodent III, Ethereal and Halogen)
 - [X] Using cutechess to make Dratini vs. Dratini matches
 - [ ] Programming bench 
-- [ ] Creating dir with docs and parallelized cutechess tournaments
+- [X] Creating dir with docs and parallelized cutechess tournaments
 - [ ] Understand profiling and try to use it if it makes sense 
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)

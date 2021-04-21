@@ -254,9 +254,9 @@ Move MovePicker::next_move() {
 	switch(phase) {
 		case HASH: {
 			phase = GENERATE_CAPTURES;
+            tt_move = NULL_MOVE;
 			if(tt_move != NULL_MOVE
 			&& board->move_valid(tt_move)) {
-				assert(false);
 				return tt_move;
 			}
 		}
