@@ -8,11 +8,13 @@
 #include "position.h"
 #include "tt.h"
 #include "engine.h"
+#include "bench.h"
 
 TranspositionTable tt;
 
 int main() {
-	uci();
+	bench();
+	// uci();
 	return 0;
 
 	// init_book();

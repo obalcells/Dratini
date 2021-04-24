@@ -17,7 +17,8 @@ float elapsed_time();
 bool move_gives_check(Board&, const Move);
 
 // const float MAX_SEARCH_TIME = 10000; 
-static int max_search_time_ms = 5000; 
+static int max_search_time = 5000; 
+static int max_depth = MAX_PLY;
 static const int futility_max_depth = 10;
 static int futility_margin[futility_max_depth];
 static const int futility_linear = 35;
@@ -27,8 +28,13 @@ static const double LMR_coeff = 1.03;
 static int LMR[64][64];
 static std::chrono::time_point<std::chrono::system_clock> initial_time;
 
-void init_search_data() {
+void think(Engine& engine) {
+    engine.stop_search = false;
+    max_search_time = engine.max_search_time;
+    max_depth = engine.max_depth;
+    Thread main_thread = Thread(engine.board, &engine.stop_search);
     initial_time = std::chrono::system_clock::now(); 
+    tt.age();
 
     for(int depth = 0; depth < futility_max_depth; depth++) {
         futility_margin[depth] = futility_constant + futility_linear * depth;
@@ -39,16 +45,8 @@ void init_search_data() {
             LMR[depth][moves_searched] = std::round(LMR_constant + LMR_coeff * log(depth + 1) * log(moves_searched + 1));
 		}
 	}
-}
 
-void think(Engine& engine) {
-    engine.stop_search = false;
-    max_search_time_ms = engine.max_search_time_ms;
-    Thread main_thread = Thread(engine.board, &engine.stop_search);
-    
-    init_search_data();
-
-    for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= MAX_PLY; main_thread.depth += 1) {
+    for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= engine.max_depth; main_thread.depth += 1) {
         aspiration_window(main_thread);
         // if(!(*main_thread.stop_search)) {
         //     cout << RED_COLOR << "Searched until depth " << main_thread.depth << endl << RESET_COLOR;
@@ -56,7 +54,10 @@ void think(Engine& engine) {
     }
 
     assert(main_thread.best_move != NULL_MOVE);
+    engine.search_time = elapsed_time();
+    engine.nodes = main_thread.nodes;
     engine.best_move = main_thread.best_move;
+    engine.score = main_thread.root_value;
     engine.ponder_move = main_thread.ponder_move;
 }
 
@@ -118,7 +119,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     // bool debug_mode =  is_root;
-    bool debug_mode = false;
+    bool debug_mode = false; // true; // false; // true; // false;
 
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
@@ -132,7 +133,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     // early exit conditions
     if(thread.board.is_draw()) {
         return thread.nodes & 2;
-    } else if(thread.ply >= MAX_PLY) {
+    } else if(thread.ply >= max_depth) {
         return eval_tscp(thread.board);
     }
     
@@ -140,8 +141,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         cout << "Checkpoint 1" << endl;
     }
 
-    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time_ms) {
-        cout << RED_COLOR << "Timeout!" << RESET_COLOR << endl;
+    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time) {
         *thread.stop_search = true;
     }
 
@@ -228,9 +228,9 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     MovePicker move_picker = MovePicker(thread, tt_move);
 
     while(true) {
-        assert(thread.board.key == thread.board.calculate_key());
+        // assert(thread.board.key == thread.board.calculate_key());
         move = move_picker.next_move();
-        assert(thread.board.key == thread.board.calculate_key());
+        // assert(thread.board.key == thread.board.calculate_key());
 
         if(move == NULL_MOVE || *thread.stop_search) {
             break;
@@ -250,7 +250,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         assert(thread.board.color_at[get_from(move)] == thread.board.side);
 
         UndoData undo_data = thread.board.make_move(move);
-        thread.board.error_check();
+        // thread.board.error_check();
         thread.move_stack.push_back(move);
         thread.ply++;
 
@@ -402,7 +402,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     pv.clear();
     thread.nodes++;
 
-    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time_ms) {
+    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time) {
         *thread.stop_search = true;
     }
 

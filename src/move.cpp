@@ -118,7 +118,7 @@ void Board::take_back(const UndoData& undo_data) {
 }
 
 UndoData Board::make_move(const Move move) {
-	assert(key == calculate_key());
+	// assert(key == calculate_key());
 
 	int from_sq = get_from(move);
 	int to_sq = get_to(move);
@@ -205,7 +205,7 @@ UndoData Board::make_move(const Move move) {
 
     update_key(undo_data);
     keys.push_back(key);
-    assert(calculate_key() == key);
+    // assert(calculate_key() == key);
 
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
 

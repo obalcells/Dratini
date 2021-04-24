@@ -1,10 +1,12 @@
-#include "board.h"
+#include <string>
+#include <iostream>
 #include "defs.h"
-
-TranspositionTable tt;
+#include "board.h"
+#include "search.h"
+#include "tt.h"
 
 void bench() {
-    tt.init();
+    tt.allocate(32);
     
     static const char *Benchmarks[] = {
         #include "bench.csv"
@@ -13,20 +15,21 @@ void bench() {
 
     Engine engine;
     engine.max_depth = 8;
+    long long total_nodes = 0;
+    float total_time = 0.0;
 
-    for(int i = 0; strcmp(Benchmark[i], ""); i++) {
-        engine.position.set_from_fen(line);
-        search(engine);
+    for(int i = 0; strcmp(Benchmarks[i], ""); i++) {
+        std::string line(Benchmarks[i]);
+        engine.board.set_from_fen(line);
+        think(engine);
 
-        printf("Bench #%d score: %5d, bestmove: %s, ponder: %s, nodes: %d, nps: %f, elapsed: %f",
-                i + 1, engine.score, engine.best_move, engine.ponder_move, engine.nodes, engine.nodes /  
+        printf("Bench #%2d score: %5d, bestmove: %s, ponder: %s, nodes: %7d, nps: %7d, elapsed: %8f\n",
+                i + 1, engine.score, move_to_str(engine.best_move).c_str(), move_to_str(engine.ponder_move).c_str(), engine.nodes, int(float(engine.nodes) / engine.search_time) * 1000, engine.search_time); 
 
         tt.clear();
         total_nodes += engine.nodes;
         total_time += engine.search_time;
     }
     
-    printf("Total nps is: %f", float(total_nodes) / total_time);
-        
-    return 0;
+    printf("Total nps is: %f", int(float(total_nodes) / total_time) * 1000);
 }

@@ -5,10 +5,13 @@
 
 struct Engine {
     Board board;
-    // TranspositionTable tt;    
-    bool stop_search, is_searching; // is_pondering;
+    int max_depth = 32;
+    int nodes, score;
+    float search_time;
+    bool stop_search, is_searching;
+    // bool is_pondering;
     Move best_move, ponder_move;
-    int max_search_time_ms = 8000;
+    int max_search_time = 8000;
 
     Engine() {
         board = Board();

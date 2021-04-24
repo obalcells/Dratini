@@ -33,7 +33,7 @@ struct GoStruct {
     int param_value;
 };
 
-std::vector<std::string> split(const std::string &str) {
+static std::vector<std::string> split(const std::string &str) {
     std::vector<std::string> tokens;
     std::string::size_type start = 0;
     std::string::size_type end = 0;
@@ -81,7 +81,7 @@ void uci() {
     cerr << read_uci << endl;
 	assert(read_uci == "uci");
 
-    cout << "id name Dratini" << endl;
+    cout << "id name Dratinidez" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
     // Engine engine = Engine();
@@ -127,7 +127,7 @@ void uci() {
             assert(false);
         } else if(command == "ucinewgame") {
             engine.set_position();
-            tt.clear();
+            // tt.clear();
         } else if(command == "position") {
             engine.is_searching = false; // stop the search and don't return bestmove
             if(args[1] == "startpos") {
@@ -154,6 +154,8 @@ void uci() {
             engine.stop_search = true;
         } else if(command == "ponderhit") {
             // engine.is_pondering = false;
+        } else if(command == "print") {
+            engine.board.print_board();
         } else if(command == "quit") {
             return;
         }

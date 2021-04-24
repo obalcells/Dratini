@@ -22,13 +22,15 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Testing move generation
 - [X] Better Move ordering
 - [X] Many more things I forgot to write...
-- ...
+- [X] ...
 - [X] New Search optimizations
 - [X] Getting Dratini's UCI protocol to work with xboard
 - [X] Detailed analysis with pseudocode of other engines' search functions (Rodent III, Ethereal and Halogen)
 - [X] Using cutechess to make Dratini vs. Dratini matches
-- [ ] Programming bench 
 - [X] Creating dir with docs and parallelized cutechess tournaments
-- [ ] Understand profiling and try to use it if it makes sense 
+- [X] Understand profiling and try to use it if it makes sense
+- [ ] Programming bench
+- [ ] Be able to play against Sungorus
+- [ ] Writing a good openings book
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
