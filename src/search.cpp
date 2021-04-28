@@ -245,6 +245,12 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             continue;
         }
 
+        if(!thread.board.move_valid(move)) {
+            cout << "Board is: " << endl; 
+            thread.board.print_board();
+            cout << "Invalid move generated is " << move_to_str(move) << endl; 
+            cout << "Flag of the move is " << int(get_flag(move)) << endl;
+        }
         assert(thread.board.move_valid(move));
         assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
         assert(thread.board.color_at[get_from(move)] == thread.board.side);

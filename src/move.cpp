@@ -237,13 +237,19 @@ bool Board::make_move_from_str(const std::string& str_move) {
         if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7)) {
             return false;
         }
-		assert(str_move.size() == 6);
-		assert(str_move[4] == ' ');
-		if(str_move[5] == 'Q')      flags = QUEEN_PROMOTION;
-		else if(str_move[5] == 'N') flags = KNIGHT_PROMOTION;
-		else if(str_move[5] == 'R') flags = ROOK_PROMOTION;
-		else if(str_move[5] == 'B') flags = BISHOP_PROMOTION;
-		else assert(false);
+		if(str_move[4] == ' ' || str_move[4] == '=') {
+			if(str_move[5] == 'Q' || str_move[5] == 'q')     flags = QUEEN_PROMOTION;
+			else if(str_move[5] == 'N' || str_move[5] == 'n') flags = KNIGHT_PROMOTION;
+			else if(str_move[5] == 'R' || str_move[5] == 'r') flags = ROOK_PROMOTION;
+			else if(str_move[5] == 'B' || str_move[5] == 'b') flags = BISHOP_PROMOTION;
+			else assert(false);
+		} else {
+			if(str_move[4] == 'Q' || str_move[4] == 'q')     flags = QUEEN_PROMOTION;
+			else if(str_move[4] == 'N' || str_move[4] == 'n') flags = KNIGHT_PROMOTION;
+			else if(str_move[4] == 'R' || str_move[4] == 'r') flags = ROOK_PROMOTION;
+			else if(str_move[4] == 'B' || str_move[4] == 'b') flags = BISHOP_PROMOTION;
+			else assert(false);
+		}
     } else if((piece == WHITE_KING || piece == BLACK_KING) && abs(col(from_sq) - col(to_sq)) == 2) {
         flags = CASTLING_MOVE;
     } else if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(col(from_sq) - col(to_sq)) == 1 && get_piece(to_sq) == EMPTY) {

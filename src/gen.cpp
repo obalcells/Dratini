@@ -403,24 +403,32 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         // white queen side castling
         if(board->castling_rights[WHITE_QUEEN_SIDE]
         && !(all_mask & castling_mask[WHITE_QUEEN_SIDE])
-        && !board->is_attacked(D1))
+        && !board->is_attacked(D1)) {
+            assert(board->piece_at[E1] == KING);
             moves.push_back(Move(E1, C1, CASTLING_MOVE));
+        }
         // white king side castling
         if(board->castling_rights[WHITE_KING_SIDE]
         && !(all_mask & castling_mask[WHITE_KING_SIDE])
-        && !board->is_attacked(F1)) 
+        && !board->is_attacked(F1)) {
+            assert(board->piece_at[E1] == KING);
             moves.push_back(Move(E1, G1, CASTLING_MOVE));
+        }
     } else if(side == BLACK) {
         // black queen side castling
         if(board->castling_rights[BLACK_QUEEN_SIDE]
         && !(all_mask & castling_mask[BLACK_QUEEN_SIDE])
-        && !board->is_attacked(D8))
+        && !board->is_attacked(D8)) {
+            assert(board->piece_at[E8] == KING);
             moves.push_back(Move(E8, C8, CASTLING_MOVE));
+        }
         // black king side castling
         if(board->castling_rights[BLACK_KING_SIDE]
         && !(all_mask & castling_mask[BLACK_KING_SIDE])
-        && !board->is_attacked(F8))
+        && !board->is_attacked(F8)) {
+            assert(board->piece_at[E8] == KING);
             moves.push_back(Move(E8, G8, CASTLING_MOVE));
+        }
     }
 
     /* king */

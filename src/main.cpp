@@ -13,12 +13,11 @@
 TranspositionTable tt;
 
 int main() {
+	tt.allocate(128);
 	bench();
 	// uci();
 	return 0;
-
 	// init_book();
-	tt.allocate(32);
 		
 	Engine engine = Engine("rn3k1r/p3bppp/3p3n/1p6/B5b1/B1q1RNP1/P1P2PK1/1R1Q4 b - - 0 1");
 	// Engine engine = Engine("rnb1k1nr/pppqbppp/3pp3/1B6/3PP3/2N2N2/PPP2PPP/R1BQK2R b KQkq - 0 1");

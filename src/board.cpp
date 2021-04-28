@@ -162,6 +162,8 @@ Board::Board() {
 
 	key = calculate_key(false);
 	keys.push_back(key);
+    king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
+	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
 }
 
 Board::Board(const std::string& str) { // bool read_from_file = false) {
@@ -170,6 +172,8 @@ Board::Board(const std::string& str) { // bool read_from_file = false) {
 	set_from_fen(str);
 	key = calculate_key(false);
 	keys.push_back(key);
+    king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
+	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
 }
 
 void Board::set_from_fen(const std::string& fen) {
@@ -271,6 +275,10 @@ void Board::set_from_fen(const std::string& fen) {
 		castling_rights[BLACK_KING_SIDE] = false;
 		index++;
 	} else {
+		castling_rights[BLACK_KING_SIDE] = false;
+		castling_rights[BLACK_QUEEN_SIDE] = false;
+		castling_rights[WHITE_KING_SIDE] = false;
+		castling_rights[WHITE_QUEEN_SIDE] = false;
 		while(fen[index] != ' ') {
 			switch(fen[index++]) {
 				case 'K':
@@ -290,6 +298,14 @@ void Board::set_from_fen(const std::string& fen) {
 					clear_board();
 					return;
 			}
+		}
+		if(!(bits[WHITE_KING] & mask_sq(E1))) {
+			castling_rights[WHITE_KING_SIDE] = false;
+			castling_rights[WHITE_QUEEN_SIDE] = false;
+		}
+		if(!(bits[BLACK_KING] & mask_sq(E8))) {
+			castling_rights[BLACK_KING_SIDE] = false;
+			castling_rights[BLACK_QUEEN_SIDE] = false;
 		}
 	}
 	/* space */

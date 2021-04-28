@@ -29,8 +29,8 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Using cutechess to make Dratini vs. Dratini matches
 - [X] Creating dir with docs and parallelized cutechess tournaments
 - [X] Understand profiling and try to use it if it makes sense
-- [ ] Programming bench
-- [ ] Be able to play against Sungorus
-- [ ] Writing a good openings book
+- [X] Programming bench
+- [X] Be able to play against Sungorus
+- [ ] Clone Sungorus eval function for benchmarking
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
