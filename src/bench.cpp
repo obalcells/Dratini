@@ -1,11 +1,13 @@
 #include <string>
 #include <iostream>
+#include "engine.h"
 #include "defs.h"
 #include "board.h"
 #include "search.h"
 #include "tt.h"
 
 void bench() {
+	cerr << "B" << endl;
     tt.allocate(64);
     
     static const char *Benchmarks[] = {
@@ -13,14 +15,21 @@ void bench() {
         ""
     };
 
-    Engine engine;
+    std::cout << MAGENTA_COLOR << "First time with engine" << RESET_COLOR << endl; 
+    engine.reset();
+    cerr << RED_COLOR << "Done constructing the empty board brrr" << RESET_COLOR << endl;
     engine.max_depth = 8;
     long long total_nodes = 0;
     float total_time = 0.0;
+	assert(false);
 
     for(int i = 0; strcmp(Benchmarks[i], ""); i++) {
         std::string line(Benchmarks[i]);
+        cerr << RED_COLOR << "Before board construction" << RESET_COLOR << endl;
+        assert(false);
         engine.board = Board(line);
+        cerr << "The Board was constructed" << endl;
+        // assert(false);
         think(engine);
 
         printf("Bench #%2d score: %5d, bestmove: %s, ponder: %s, nodes: %7d, nps: %7dK, elapsed: %8f\n",

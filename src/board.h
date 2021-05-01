@@ -67,6 +67,12 @@ struct Board {
     uint64_t bits[12];
     uint16_t move_count;
     std::vector<bool> castling_rights;
+    uint64_t occ_mask;
+    std::vector<uint64_t> keys;
+
+    // for sungorus' eval
+    int b_mat[2];
+    int b_pst[2];
 
     // bitboard stuff
     void clear_board();
@@ -74,6 +80,8 @@ struct Board {
     void set_from_data();
     void set_square(const int, const int);
     void set_square(const int, const int, bool);
+    void clear_square(int, int, bool);
+    void clear_square(int, int);
     void set_enpassant(const int);
     // void clear_square(const int, const int);
     // void clear_square(const int, const int, bool);
@@ -90,6 +98,7 @@ struct Board {
     int get_piece(const int) const;
     int get_color(const int) const;
 
+    void update_material_values();
     uint64_t calculate_key(bool is_assert = true) const;
 
     uint8_t fifty_move_ply;
@@ -101,9 +110,6 @@ private:
     bool castling_valid(const Move) const;
     bool move_diagonal(const Move) const;
     bool check_pawn_move(const Move) const;
-
-    uint64_t occ_mask;
-    std::vector<uint64_t> keys;
 
     friend bool operator==(const Board& a, const Board& b);
     friend bool operator!=(const Board& a, const Board& b);

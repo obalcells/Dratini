@@ -7,7 +7,8 @@
 #include "defs.h"
 #include "board.h"
 #include "book.h"
-#include "eval_tscp.h"
+// #include "eval_tscp.h"
+#include "sungorus_eval.h"
 #include "tt.h"
 #include "stats.h"
 #include "move_picker.h"
@@ -47,6 +48,7 @@ void think(Engine& engine) {
 	}
 
     for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= engine.max_depth; main_thread.depth += 1) {
+        assert(false);
         aspiration_window(main_thread);
         // if(!(*main_thread.stop_search)) {
         //     cout << RED_COLOR << "Searched until depth " << main_thread.depth << endl << RESET_COLOR;
@@ -119,7 +121,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     // bool debug_mode =  is_root;
-    bool debug_mode = false; // true; // false; // true; // false;
+    bool debug_mode = true; // true; // false; // true; // false;
 
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
@@ -134,7 +136,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     if(thread.board.is_draw()) {
         return thread.nodes & 2;
     } else if(thread.ply >= max_depth) {
-        return eval_tscp(thread.board);
+        return evaluate(thread.board);
     }
     
     if(debug_mode) {
@@ -179,7 +181,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return tt_score; 
     }
 
-    int eval_score = eval_tscp(thread.board);
+    int eval_score = evaluate(thread.board);
 
     // beta pruning
     if(!is_pv
@@ -422,15 +424,14 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     }
 
     if(thread.ply >= MAX_PLY) {
-        return eval_tscp(thread.board);
+        return evaluate(thread.board);
     }
 
     Move tt_move = NULL_MOVE;
     int score, tt_score, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
-    if(true
-    && tt.retrieve_data(
+    if(tt.retrieve_data(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, 0, thread.ply
     )) {
@@ -439,7 +440,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
 
     PV child_pv;
     Move best_move;
-    int best_score = tt_bound != -1 ? tt_score : eval_tscp(thread.board);
+    int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
 
     // eval pruning
     alpha = std::max(alpha, best_score);

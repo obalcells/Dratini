@@ -45,7 +45,7 @@ static std::vector<std::string> split(const std::string &str) {
     return tokens;
 }
 
-Engine engine;
+// Engine engine;
 
 void* process_go(void* _go_struct) {
     // GoStruct* go_struct = (GoStruct*)_go_struct;

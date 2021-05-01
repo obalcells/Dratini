@@ -6,7 +6,6 @@
 
 #include "../src/defs.h"
 #include "../src/position.h"
-#include "../src/eval_tscp.h"
 #include "../src/tt.h"
 TranspositionTable tt;
 

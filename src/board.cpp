@@ -1,15 +1,10 @@
 #include <vector>
 #include <iostream>
 #include <iostream>
-
+#include "defs.h"
 #include "magicmoves.h"
 #include "board.h"
-#include "defs.h"
 #include "gen.h"
-
-// for debugging purposes
-#define clear_square(sq, non_side_piece, _side) assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq))); bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
-#define clear_square(sq, piece) assert((bits[piece] & mask_sq(sq)) != 0); assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece)); assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK)); assert(occ_mask & mask_sq(sq)); bits[piece] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0); assert((bits[piece] & mask_sq(sq)) == 0);
 
 static std::string str_seed = "Dratini is fast!";
 static std::seed_seq seed(str_seed.begin(), str_seed.end());
@@ -148,6 +143,11 @@ static void init_data() {
 }
 
 Board::Board() {
+	occ_mask = 0;
+	b_pst[WHITE] = 0;
+	b_pst[BLACK] = 0;
+	b_mat[WHITE] = 0;
+	b_mat[BLACK] = 0;
 	castling_rights.assign(4, true);
 	init_data();
 
@@ -158,22 +158,43 @@ Board::Board() {
 	// set_from_fen("8/1q6/8/R7/2k5/K7/8/8 w - - 0 1");
 	// set_from_fen("8/1q6/8/8/2k5/K7/8/8 w - - 0 1");
 	// set_from_fen("5n2/8/5k2/8/K7/2p5/8/Q7 w - - 0 1");
+	cerr << BLUE_COLOR << "Before setting fen" << RESET_COLOR << endl;
 	set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	cerr << GREEN_COLOR << "After setting fen" << RESET_COLOR << endl;
 
+	cerr << BLUE_COLOR << "Before calculating key" << RESET_COLOR << endl;
 	key = calculate_key(false);
+	cerr << GREEN_COLOR << "After calculating key" << RESET_COLOR << endl;
+	cerr << BLUE_COLOR << "Before pushing key " << key << RESET_COLOR << endl;
 	keys.push_back(key);
+	cout << GREEN_COLOR << "After pushing key" << RESET_COLOR << endl;
+	cerr << GREEN_COLOR << "After pushing key" << RESET_COLOR << endl;
+	cerr << BLUE_COLOR << "Before getting king attackers" << RESET_COLOR << endl;
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
-	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
+	cerr << BLUE_COLOR << "Before checking material values" << RESET_COLOR << endl;
+    update_material_values(); // sungorus
+	cerr << GREEN_COLOR << "After checking material values" << RESET_COLOR << endl;
+    // assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
+	// assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
+	cerr << GREEN_COLOR << "Succesfull construction of board" << RESET_COLOR << endl;
 }
 
 Board::Board(const std::string& str) { // bool read_from_file = false) {
+	cerr << "AAA" << endl;
+	occ_mask = 0;
+	b_pst[WHITE] = b_pst[BLACK] = b_mat[WHITE] = b_mat[BLACK] = 0;
 	castling_rights.assign(4, true);
 	init_data();
 	set_from_fen(str);
 	key = calculate_key(false);
 	keys.push_back(key);
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
+	cerr << BLUE_COLOR << "Before checking material values" << RESET_COLOR << endl;
+    update_material_values(); // sungorus
+	cerr << GREEN_COLOR << "After checking material values" << RESET_COLOR << endl;
+    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
 	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
+	cerr << GREEN_COLOR << "Successfull construction" << RESET_COLOR << endl;
 }
 
 void Board::set_from_fen(const std::string& fen) {
@@ -408,8 +429,12 @@ void Board::set_square(int sq, int non_side_piece, bool _side) {
     bits[non_side_piece + (_side == BLACK ? 6 : 0)] |= mask_sq(sq);
 	color_at[sq] = _side;
 	piece_at[sq] = non_side_piece;
+	// cerr << "Set square (with side) 1" << endl;
+    b_pst[_side] += pst[non_side_piece][sq];
+	// cerr << "Set square (with side) 1" << endl;
 	occ_mask |= mask_sq(sq);
 
+    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(WHITE)));
 	// assert(occ_mask & mask_sq(sq));
 }
 
@@ -421,46 +446,44 @@ void Board::set_square(int sq, int piece) {
 	// 	assert((bits[_piece] & mask_sq(sq)) == 0);
 	// }
 
+    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
+
     bits[piece] |= mask_sq(sq);
 	color_at[sq] = (piece >= BLACK_PAWN ? BLACK : WHITE);
 	piece_at[sq] = (piece >= BLACK_PAWN ? piece - 6 : piece);
+	// cerr << "Set square 1" << endl;
+    b_pst[sq] += pst[piece_at[sq]][sq];
+	// cerr << "Set square 2" << endl;
 	occ_mask |= mask_sq(sq);
 
+    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
 	// assert((piece >= BLACK_PAWN ? piece - 6 : piece) == piece_at[sq]);
 	// assert(bits[piece] & mask_sq(sq));
 	// assert(occ_mask & mask_sq(sq));
 	// assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece));
 } 
 
-// the piece ranges from 0 to 5
-// void Board::clear_square(int sq, int non_side_piece, bool _side) {
-    // assert(bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq));
-	// assert(color_at[sq] != EMPTY && piece_at[sq] == non_side_piece);
-	// assert(color_at[sq] == _side);
-	// assert(occ_mask & mask_sq(sq));
-// 
-//     bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq);
-// 	color_at[sq] = piece_at[sq] = EMPTY;
-// 	occ_mask ^= mask_sq(sq);
+// #define clear_square(sq, non_side_piece, _side) assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq))); bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
+// #define clear_square(sq, piece) assert((bits[piece] & mask_sq(sq)) != 0); assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece)); assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK)); assert(occ_mask & mask_sq(sq)); bits[piece] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0); assert((bits[piece] & mask_sq(sq)) == 0);
 
-// 	assert((occ_mask & mask_sq(sq)) == 0);
-//     assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
-// }
+// the piece ranges from 0 to 5 
+void Board::clear_square(int sq, int non_side_piece, bool _side) {
+	assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq)));
+	bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq);
+	color_at[sq] = piece_at[sq] = EMPTY;
+	occ_mask ^= mask_sq(sq);
+	assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
+}
 
-// // the piece ranges from 0 to 11
-// void Board::clear_square(int sq, int piece) {
-//     assert(bits[piece] & mask_sq(sq));
-// 	assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece));
-// 	assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK));
-// 	assert(occ_mask & mask_sq(sq));
-
-//     bits[piece] ^= mask_sq(sq);
-// 	color_at[sq] = piece_at[sq] = EMPTY;
-// 	occ_mask ^= mask_sq(sq);
-
-// 	assert((occ_mask & mask_sq(sq)) == 0);
-// 	assert((bits[piece] & mask_sq(sq)) == 0);
-// }
+// the piece ranges from 0 to 11
+void Board::clear_square(int sq, int piece) {
+	assert((bits[piece] & mask_sq(sq)) != 0 && color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece));
+	assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK) && occ_mask & mask_sq(sq));
+	bits[piece] ^= mask_sq(sq);
+	color_at[sq] = piece_at[sq] = EMPTY;
+	occ_mask ^= mask_sq(sq);
+	assert((occ_mask & mask_sq(sq)) == 0 && (bits[piece] & mask_sq(sq)) == 0);
+}
 
 bool Board::is_empty(int sq) {
 	return color_at[sq] == EMPTY;
@@ -1051,4 +1074,22 @@ void Board::set_from_data() {
 	castling_rights[1] = false;
 	castling_rights[2] = true;
 	castling_rights[3] = true;
+}
+
+void Board::update_material_values() {
+    for(int s = 0; s < 2; s++) {
+        b_mat[s] = b_pst[s] = 0;
+        uint64_t pieces = get_side_mask(s);
+        while(pieces) {
+			// cerr << 1 << endl;
+            int sq = pop_first_bit(pieces);
+			// assert(piece_at[sq] != EMPTY);
+			// assert(color_at[sq] == s);
+			// cerr << 2 << endl;
+            b_mat[s] += piece_value[piece_at[sq]];
+			// cerr << 3 << endl;
+            b_pst[s] += pst[piece_at[sq]][sq];
+			// cerr << 4 << endl;
+        }
+    }
 }

@@ -99,16 +99,19 @@ enum Castling {
     BLACK_KING_SIDE
 };
 
+// warning: watch out with the king value
 const int piece_value[12] = {
-	100, 350, 350, 500, 1000, 0,
-	100, 350, 350, 500, 1000, 0 
+  100, 325, 325, 500, 1000, 30000,
+  100, 325, 325, 500, 1000, 30000 
 };
 
-const int CHECKMATE = 100000;
+extern int pst[6][64];
+
+const int CHECKMATE = 32000;
 const int MIN_DEPTH_FOR_WINDOW = 5;
 const int INITIAL_WINDOW_SIZE = 30;
 const int MIN_NULL_MOVE_PRUNING_DEPTH = 2;
-const int MAX_PLY = 32;
+const int MAX_PLY = 64;
 const int MIN_BETA_PRUNING_DEPTH = 8;
 const int BETA_MARGIN = 85;
 const int MAX_HISTORY_BONUS = 300;

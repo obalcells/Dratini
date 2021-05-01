@@ -32,5 +32,6 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Programming bench
 - [X] Be able to play against Sungorus
 - [ ] Clone Sungorus eval function for benchmarking
+- [ ] Make the code look less horrible and also make it more efficient
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
