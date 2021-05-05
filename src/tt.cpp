@@ -24,7 +24,7 @@ void TranspositionTable::clear() {
     for(entry = tt; entry < tt + tt_size; entry++) {
         entry->key = 0;
         entry->depth = 0;
-        entry->flags = 0;
+        entry->date = 0;
         entry->move = NULL_MOVE;
         entry->score = 0;
     }
@@ -35,7 +35,8 @@ bool TranspositionTable::retrieve_data(uint64_t& key, Move& move, int& score, in
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
-            bound = entry->flags & EXACT_BOUND;
+            entry->date = tt_date;
+            bound = entry->bound;
             move = entry->move;
             if(entry->depth >= depth) {
                 score = entry->score;
@@ -49,6 +50,7 @@ bool TranspositionTable::retrieve_data(uint64_t& key, Move& move, int& score, in
                 || (bound == LOWER_BOUND && score >= beta))
                     return true;
             }
+            break;
         }
         entry++;
     }
@@ -61,7 +63,7 @@ bool TranspositionTable::retrieve_move(uint64_t& key, Move& move) {
     entry = tt + (key & tt_mask);
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
-            entry->flags = (entry->flags & EXACT_BOUND) | (tt_date << 2);
+            entry->date = tt_date;
             move = entry->move;
             return true;
         }
@@ -82,7 +84,9 @@ void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int
             break;
         }
         // we determine which entry is more valuable
+        age = entry->depth + tt_date - entry->date + 256;
         age = entry->depth + tt_date - get_date(entry->flags) + 256;
+
         if(tt_date < get_date(entry->flags))
             age += 256;
         if(age > oldest) {
@@ -94,7 +98,8 @@ void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int
     if(oldest != -1) {
         replace->key = key;
         replace->depth = depth;
-        replace->flags = bound | (tt_date << 2);
+        replace->date = tt_date;
+        replace->bound = bound;
         replace->move = move;
         replace->score = score;
     }

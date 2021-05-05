@@ -53,10 +53,18 @@ static const int passed_bonus[2][8] = {
   {0, 25, 30, 35, 40, 45, 50, 0},
   {0, 50, 45, 40, 35, 30, 25, 0}
 };
+static const int pst[6][64] = {
+  { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
+  { 0, 8, 16, 20, 20, 16, 8, 0, 8, 16, 24, 28, 28, 24, 16, 8, 16, 24, 32, 36, 36, 32, 24, 16, 20, 28, 36, 40, 40, 36, 28, 20, 20, 28, 36, 40, 40, 36, 28, 20, 16, 24, 32, 36, 36, 32, 24, 16, 8, 16, 24, 28, 28, 24, 16, 8, 0, 8, 16, 20, 20, 16, 8, 0 },
+  { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
+  { 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0 },
+  { 0, 2, 4, 5, 5, 4, 2, 0, 2, 4, 6, 7, 7, 6, 4, 2, 4, 6, 8, 9, 9, 8, 6, 4, 5, 7, 9, 10, 10, 9, 7, 5, 5, 7, 9, 10, 10, 9, 7, 5, 4, 6, 8, 9, 9, 8, 6, 4, 2, 4, 6, 7, 7, 6, 4, 2, 0, 2, 4, 5, 5, 4, 2, 0 },
+  { 0, 12, 24, 30, 30, 24, 12, 0, 12, 24, 36, 42, 42, 36, 24, 12, 24, 36, 48, 54, 54, 48, 36, 24, 30, 42, 54, 60, 60, 54, 42, 30, 30, 42, 54, 60, 60, 54, 42, 30, 24, 36, 48, 54, 54, 48, 36, 24, 12, 24, 36, 42, 42, 36, 24, 12, 0, 12, 24, 30, 30, 24, 12, 0 }
+};
 
 void initialize_data() {
   int i, j, k, l, x, y;
-    for (i = 0; i < 4; i++)
+  for (i = 0; i < 4; i++)
     for (j = 0; j < 64; j++)
       for (k = 0; k < 64; k++) {
         attacks[i][j][k] = 0;
@@ -112,21 +120,11 @@ void initialize_data() {
     if (i < 7)
       adjacent_mask[i] |= FILE_A_BB << (i + 1);
   }
-  for (i = 0; i < 64; i++) {
-    j = line[File(i)] + line[Rank(i)];
-    pst[P][i] = j * 2;
-    pst[N][i] = j * 4;
-    pst[B][i] = j * 2;
-    pst[R][i] = line[File(i)];
-    pst[Q][i] = j;
-    pst[K][i] = j * 6;
-  }
   data_initialized = true;
 }
 
 int mobility(const Board& board, int side)
 {
-  
   uint64_t pieces;
   int from, mob;
 
@@ -180,30 +178,35 @@ int calculate_mat(const Board& board) {
   score = 0;
   pieces = board.get_side_mask(WHITE);
   while(pieces) {
-     score += piece_value[board.piece_at[pop_first_bit(pieces)]];
+    int sq = pop_first_bit(pieces);
+    score += piece_value[board.piece_at[sq]];
+    score += pst[board.piece_at[sq]][sq];
   }
   pieces = board.get_side_mask(BLACK);
   while(pieces) {
-     score -= piece_value[board.piece_at[pop_first_bit(pieces)]];
+    int sq = pop_first_bit(pieces);
+    score -= piece_value[board.piece_at[sq]];
+    score -= pst[board.piece_at[sq]][sq];
   }
   return score;
 }
 
 int evaluate(const Board& board) {
   if(!data_initialized) {
-    cerr << "Initializing sungorus data" << endl;
     initialize_data();
   }
-  cerr << "Running evaluate" << endl;
-
   int score;
 
-  // if((board.mat[WHITE] - board.mat[BLACK]) != calculate_mat(board)) {
-  //   cout << RED_COLOR << "Material calculation error" << RESET_COLOR << endl;
-  //   assert((board.mat[WHITE] - board.mat[BLACK]) == calculate_mat(board));
-  // }
-  // score = board.mat[WHITE] - board.mat[BLACK];
-  score = calculate_mat(board);
+  if((board.b_mat[WHITE] - board.b_mat[BLACK] + board.b_pst[WHITE] - board.b_pst[BLACK]) != calculate_mat(board)) {
+    cout << RED_COLOR
+    << "Mat calculation error" << " "
+    << (board.b_mat[WHITE] - board.b_mat[BLACK] + board.b_pst[WHITE] - board.b_pst[BLACK]) << " "
+    << calculate_mat(board)
+    << RESET_COLOR << endl;
+  }
+  assert((board.b_mat[WHITE] - board.b_mat[BLACK] + board.b_pst[WHITE] - board.b_pst[BLACK]) == calculate_mat(board));
+  score = board.b_mat[WHITE] - board.b_mat[BLACK];
+  score += board.b_pst[WHITE] - board.b_pst[BLACK];
   if (score > -200 && score < 200)
     score += mobility(board, WHITE) - mobility(board, BLACK);
   // score += board.pst[WHITE] - board.pst[BLACK];

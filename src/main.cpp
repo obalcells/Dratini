@@ -12,21 +12,14 @@
 #include "bench.h"
  
 TranspositionTable tt;
-int pst[6][64];
 Engine engine;
 
 int main() {
-	cerr << "AAA" << endl;
-    initialize_data(); // sungorus
-	cerr << "A" << endl;
-	bench();
-	// uci();
+	// bench();
+	uci();
 	return 0;
-	// init_book();
 		
 	engine.reset();
-	// Engine engine = Engine("rn3k1r/p3bppp/3p3n/1p6/B5b1/B1q1RNP1/P1P2PK1/1R1Q4 b - - 0 1");
-	// Engine engine = Engine("rnb1k1nr/pppqbppp/3pp3/1B6/3PP3/2N2N2/PPP2PPP/R1BQK2R b KQkq - 0 1");
 	Board& board = engine.board;
 	bool first_input = true;
 

@@ -47,12 +47,21 @@ void think(Engine& engine) {
 		}
 	}
 
+    // PV pv;
+    // for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= engine.max_depth; main_thread.depth += 1) {
+    //     main_thread.root_value = search(main_thread, pv, -INF, INF, main_thread.depth);
+    //     main_thread.best_move = pv[0];
+    //     if(engine.stop_search) {
+    //         break;
+    //     }
+    // }
+
     for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= engine.max_depth; main_thread.depth += 1) {
-        assert(false);
         aspiration_window(main_thread);
-        // if(!(*main_thread.stop_search)) {
-        //     cout << RED_COLOR << "Searched until depth " << main_thread.depth << endl << RESET_COLOR;
-        // }
+        if(!(*main_thread.stop_search)) {
+            // cout << "Max search time was " << max_search_time << endl;
+            // cout << "Finished searching at depth = " << main_thread.depth << endl;
+        }
     }
 
     assert(main_thread.best_move != NULL_MOVE);
@@ -113,15 +122,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_root = thread.ply == 0;    
     bool is_pv = (alpha != beta - 1);
 
-    if(false) { // debuggging purposes
-        cout << BLUE_COLOR << "Key for the following position is " << thread.board.key
-             << ", position was found at ply " << thread.ply << endl;
-        thread.board.print_board();
-        cout << RESET_COLOR;
-    }
-
-    // bool debug_mode =  is_root;
-    bool debug_mode = true; // true; // false; // true; // false;
+    bool debug_mode = false; // true; // false; // true; // false;
 
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
@@ -139,10 +140,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return evaluate(thread.board);
     }
     
-    if(debug_mode) {
-        cout << "Checkpoint 1" << endl;
-    }
-
     if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time) {
         *thread.stop_search = true;
     }
@@ -159,10 +156,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return q_search(thread, pv, alpha, beta);
     }
 
-    if(debug_mode) {
-        cout << "Checkpoint 2" << endl;
-    }
-
     pv.clear();
     thread.killers[thread.ply + 1][0] = NULL_MOVE;
     thread.killers[thread.ply + 1][1] = NULL_MOVE;
@@ -172,7 +165,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     int score, best_score = -CHECKMATE, tt_score, tt_bound = -1, searched_moves = 0;
 
     // it will return true if it causes a cutoff or is an exact value
-    if(tt.retrieve_data(
+    if(false && tt.retrieve_data(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, depth, thread.ply
     )) {
@@ -189,10 +182,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     && depth >= MIN_BETA_PRUNING_DEPTH
     && eval_score - BETA_MARGIN * depth > beta) {
         return eval_score;
-    }
-
-    if(debug_mode) {
-        cout << "Checkpoint 3" << endl;
     }
 
     // null move pruning
@@ -247,18 +236,11 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             continue;
         }
 
-        if(!thread.board.move_valid(move)) {
-            cout << "Board is: " << endl; 
-            thread.board.print_board();
-            cout << "Invalid move generated is " << move_to_str(move) << endl; 
-            cout << "Flag of the move is " << int(get_flag(move)) << endl;
-        }
         assert(thread.board.move_valid(move));
         assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
         assert(thread.board.color_at[get_from(move)] == thread.board.side);
 
         UndoData undo_data = thread.board.make_move(move);
-        // thread.board.error_check();
         thread.move_stack.push_back(move);
         thread.ply++;
 
@@ -305,12 +287,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         thread.ply--;
 
         if(score > best_score) {
-            if(debug_mode) {
-                cout << "We found a better score!" << endl;
-                cout << "Prev best move was " << move_to_str(best_move) << ", now it's " << move_to_str(move) << endl;
-                cout << "Prev best score was " << best_score << ", now it's " << score << endl; 
-            }
-
             best_score = score;
             best_move = move;
 
@@ -356,13 +332,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     if(best_score == -CHECKMATE) {
-        if(false && in_check) {
-            cout << GREEN_COLOR << "We found a checkmate " << RESET_COLOR << endl;
-            cout << "Depth is " << depth << ", ply is " << thread.ply << ", initial depth is " << thread.depth << endl;
-            cout << "Position is " << endl;
-            thread.board.print_board();
-            assert(false);
-        }
         return in_check ? -CHECKMATE + thread.ply : 0; // checkmate or stalemate
     }
 
@@ -374,7 +343,9 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         update_capture_history(thread, best_move, captures_tried, depth); 
     }
 
-    if(best_score >= beta) {
+    if(true) {
+        // do nothing
+    } else if(best_score >= beta) {
         tt.save(
             thread.board.key, best_move, best_score,
             LOWER_BOUND, depth, thread.ply
@@ -392,7 +363,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     if(debug_mode) {
-        // assert(alpha >= CHECKMATE - 10);
         assert(pv.empty() || pv[0] == best_move);
         cout << "At Ply = " << thread.ply << ", depth = " << depth << endl;
         cout << "Alpha =  " << alpha << ", beta = " << beta << endl;
@@ -431,7 +401,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     int score, tt_score, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
-    if(tt.retrieve_data(
+    if(false && tt.retrieve_data(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, 0, thread.ply
     )) {

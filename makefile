@@ -1,6 +1,6 @@
 # compiler flags
-C_FLAGS = -g -w --std=c++17 -pthread -Wfatal-errors -pipe -O0 -fno-rtti -finline-functions -fprefetch-loop-arrays 
-# C_FLAGS = -g -w --std=c++17 -DNDEBUG -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
+# C_FLAGS = -g -w --std=c++17 -pthread -Wfatal-errors -pipe -O0 -fno-rtti -finline-functions -fprefetch-loop-arrays 
+C_FLAGS = -g -w --std=c++17 -DNDEBUG -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
 # For profiling: C_FLAGS = -g -w --std=c++17 -pthread -Wfatal-errors -pipe -O0 -fno-rtti -finline-functions -fprefetch-loop-arrays -Wall -pedantic
 TESTING_C_FLAGS = -g -w -pthread --std=c++17
 SELF_PLAY_FLAGS = $(TESTING_C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4

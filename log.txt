@@ -1,6 +1,1 @@
 uci
-isready
-out: readyok
-position startpos
-go infinite
-out: bestmove g1f3 ponder d7d6

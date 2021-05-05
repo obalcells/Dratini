@@ -8,8 +8,7 @@ struct Engine {
     int max_depth;
     int nodes, score;
     float search_time;
-    bool stop_search, is_searching;
-    // bool is_pondering;
+    bool stop_search, is_searching, is_pondering;
     Move best_move, ponder_move;
     int max_search_time;
 
@@ -20,22 +19,16 @@ struct Engine {
         stop_search = is_searching = false;
         best_move = ponder_move = NULL_MOVE; 
         max_search_time = 8000;
-
-        cerr << RED_COLOR << "Constructing board with empty fen" << RESET_COLOR << endl;
         board = Board();
-        cerr << RED_COLOR << "Done constructing empty board arggg" << RESET_COLOR << endl;
-        // tt.allocate(128);
-        cerr << RED_COLOR << "Done constructing empty board arggg" << RESET_COLOR << endl;
+        tt.allocate(128);
     }
 
     void set_position() {
         board = Board();
-        // tt.clear();
     }
 
     void set_position(const std::string& fen) {
         board = Board(fen);
-        // tt.clear();
     }
 
     void reset() {

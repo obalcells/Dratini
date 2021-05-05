@@ -45,8 +45,6 @@ static std::vector<std::string> split(const std::string &str) {
     return tokens;
 }
 
-// Engine engine;
-
 void* process_go(void* _go_struct) {
     // GoStruct* go_struct = (GoStruct*)_go_struct;
     // assert(go_struct->param_name == MOVETIME);
@@ -60,6 +58,7 @@ void* process_go(void* _go_struct) {
     // }
     // go_struct->engine->is_searching = false;
     engine.is_searching = true;
+    engine.stop_search = false;
     think(engine);
     if(engine.is_searching) {
         assert(engine.best_move != NULL_MOVE);
@@ -81,10 +80,10 @@ void uci() {
     cerr << read_uci << endl;
 	assert(read_uci == "uci");
 
-    cout << "id name Dratinidez" << endl;
+    cout << "id name Dratini sin tt" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
-    // Engine engine = Engine();
+
     engine = Engine();
     pthread_t pthread_go;
     std::string line, command;
@@ -100,7 +99,6 @@ void uci() {
 
         cerr << line << endl;
 
-        // cin >> line;
         if(line.size() == 0) {
             std::cout << "error" << endl;
             return;
@@ -117,7 +115,6 @@ void uci() {
                 // engine.debug_mode = !engine.debug_mode;
             }
         } else if(command == "isready") {
-            // assert(engine.is_ready);
             cout << "readyok" << endl;
             cerr << "out: readyok" << endl;
         } else if(command == "setoption") {
@@ -127,7 +124,7 @@ void uci() {
             assert(false);
         } else if(command == "ucinewgame") {
             engine.set_position();
-            // tt.clear();
+            tt.clear();
         } else if(command == "position") {
             engine.is_searching = false; // stop the search and don't return bestmove
             if(args[1] == "startpos") {

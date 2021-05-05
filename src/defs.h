@@ -8,8 +8,9 @@
 #include <tmmintrin.h>
 
 #define ll long long
-#define endl '\n'
+// #define endl '\n'
 
+using std::endl;
 using std::cout;
 using std::cin;
 using std::cerr;
@@ -105,8 +106,7 @@ const int piece_value[12] = {
   100, 325, 325, 500, 1000, 30000 
 };
 
-extern int pst[6][64];
-
+const int INF = 32767;
 const int CHECKMATE = 32000;
 const int MIN_DEPTH_FOR_WINDOW = 5;
 const int INITIAL_WINDOW_SIZE = 30;
@@ -115,7 +115,6 @@ const int MAX_PLY = 64;
 const int MIN_BETA_PRUNING_DEPTH = 8;
 const int BETA_MARGIN = 85;
 const int MAX_HISTORY_BONUS = 300;
-
 const int HISTORY_MULTIPLIER = 32;
 const int HISTORY_DIVISOR = 32;
 
