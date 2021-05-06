@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <string.h>
+#include <cassert>
 #include "defs.h"
 #include "position.h"
 

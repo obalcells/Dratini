@@ -80,7 +80,7 @@ void uci() {
     cerr << read_uci << endl;
 	assert(read_uci == "uci");
 
-    cout << "id name Dratini sin tt" << endl;
+    cout << "id name Mod Window" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
 

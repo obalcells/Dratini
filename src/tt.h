@@ -4,9 +4,6 @@
 #include <cinttypes>
 #include "defs.h"
 
-#define get_bound(flags)  (flags & bound_mask)
-#define get_date(flags)   (flags >> 2)
-
 enum Bound {
   NONE,
   UPPER_BOUND,
@@ -14,14 +11,11 @@ enum Bound {
   EXACT_BOUND
 };
 
-// Here's how the flags variable works:
-// date    6 bits
-// bound   2 bits   
-
 struct Entry {
     uint64_t key;
     uint8_t depth;  
-    uint8_t flags; 
+    uint8_t date;
+    uint8_t bound;
     int16_t move;
     int16_t score;
 };
@@ -32,13 +26,13 @@ public:
     void clear();
     int size() const { return tt_size; }
     void age() { tt_date = (tt_date + 1) & 255; }
-    float how_full() const;
+    int how_full() const;
     // pass reference of position object in the future
-    bool retrieve_data(uint64_t& key, Move& move, int& score, int& bound, int alpha, int beta, int depth, int ply);
-    bool retrieve_move(uint64_t& key, Move& move);
+    bool retrieve(uint64_t& key, Move& move, int& score, int& bound, int alpha, int beta, int depth, int ply);
+    // bool retrieve_move(int64_t& key, Move& move);
     void save(uint64_t key, Move move, int score, int bound, int depth, int ply);
 private:
-    static_assert(sizeof(Entry) == 16, "Entry must have size 16");
+    // static_assert(sizeof(Entry) == 16, "Entry must have size 16");
     int tt_size, tt_mask, tt_date;
     Entry* tt; 
 };

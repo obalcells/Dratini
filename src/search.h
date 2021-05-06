@@ -19,8 +19,8 @@ struct Thread {
    Board board;
    std::vector<Move> move_stack;
    Move killers[MAX_PLY][2] = { NULL_MOVE };
-   int quiet_history[2][64][64] = { 0 };
-   int capture_history[6][64][6] = { 0 };
+   int quiet_history[2][64][64] = {{{ 0 }}};
+   int capture_history[6][64][6] = {{{ 0 }}};
    bool* stop_search;
 
     Thread(Board _board, bool* _stop_search) {

@@ -1,1 +1,4 @@
-uci
+uci\
+isready
+out: readyok
+go

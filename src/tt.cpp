@@ -5,15 +5,12 @@
 #include "tt.h"
 #include "defs.h"
 
-static const int bound_mask = 3;
-static const int date_mask  = ((1 << 8) - 1) ^ 3;  
-
 void TranspositionTable::allocate(int mb_size) {
     // we want the size of the table to be a power of two
     for(tt_size = 2; tt_size <= mb_size; tt_size *= 2);
     // it works too with -1 but we would need some extra checks in the loops
-    tt_mask = tt_size - 4;
     tt_size = ((tt_size / 2) << 20) / sizeof(Entry);
+    tt_mask = tt_size - 4;
     free(tt);
     tt = (Entry *) malloc(tt_size * sizeof(Entry));
     clear();
@@ -25,14 +22,16 @@ void TranspositionTable::clear() {
         entry->key = 0;
         entry->depth = 0;
         entry->date = 0;
+        entry->bound = 0;
         entry->move = NULL_MOVE;
         entry->score = 0;
     }
 }
 
-bool TranspositionTable::retrieve_data(uint64_t& key, Move& move, int& score, int& bound, int alpha, int beta, int depth, int ply) {
+bool TranspositionTable::retrieve(uint64_t& key, Move& move, int& score, int& bound, int alpha, int beta, int depth, int ply) {
     Entry* entry;
     entry = tt + (key & tt_mask);
+
     for(int i = 0; i < 4; i++) {
         if(entry->key == key) {
             entry->date = tt_date;
@@ -45,9 +44,9 @@ bool TranspositionTable::retrieve_data(uint64_t& key, Move& move, int& score, in
                 } else if(score >= CHECKMATE) {
                     score -= ply;
                 }
-                if((bound == EXACT_BOUND)
-                || (bound == UPPER_BOUND && score <= alpha)
-                || (bound == LOWER_BOUND && score >= beta))
+                if((entry->bound == EXACT_BOUND)
+                || (entry->bound == UPPER_BOUND && score <= alpha)
+                || (entry->bound == LOWER_BOUND && score >= beta))
                     return true;
             }
             break;
@@ -58,43 +57,45 @@ bool TranspositionTable::retrieve_data(uint64_t& key, Move& move, int& score, in
 }
 
 // returns true if the position was found in the table
-bool TranspositionTable::retrieve_move(uint64_t& key, Move& move) {
-    Entry* entry;
-    entry = tt + (key & tt_mask);
-    for(int i = 0; i < 4; i++) {
-        if(entry->key == key) {
-            entry->date = tt_date;
-            move = entry->move;
-            return true;
-        }
-        entry++;
-    }
-    return false;
-} 
+// bool TranspositionTable::retrieve_move(uint64_t& key, Move& move) {
+//     Entry* entry;
+//     entry = tt + (key & tt_mask);
+//     for(int i = 0; i < 4; i++) {
+//         if(entry->key == key) {
+//             entry->date = tt_date;
+//             move = entry->move;
+//             return true;
+//         }
+//         entry++;
+//     }
+//     return false;
+// } 
 
 void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int depth, int ply) {
     Entry *entry, *replace = NULL;
     entry = tt + (key & tt_mask);
     int oldest = -1, age;
+
     for(int i = 0; i < 4; i++) {
-        if(entry->key == key) {
-            if(!entry->move || bound == EXACT_BOUND) {
-                replace = entry;
-            }
+        if(entry->move == NULL_MOVE) {
+            // cout << "Putting the thing in an empty slot" << endl;
+            oldest = -2;
+            replace = entry;
+            break;
+        } else if(bound == EXACT_BOUND) {
+            oldest = -3;
+            replace = entry;
             break;
         }
         // we determine which entry is more valuable
-        age = entry->depth + tt_date - entry->date + 256;
-        age = entry->depth + tt_date - get_date(entry->flags) + 256;
-
-        if(tt_date < get_date(entry->flags))
-            age += 256;
+        age = ((tt_date - entry->date) & 255) * 256 + 255 - entry->depth;
         if(age > oldest) {
             replace = entry;
             oldest = age;
         } 
         entry++;
     }
+
     if(oldest != -1) {
         replace->key = key;
         replace->depth = depth;
@@ -105,13 +106,17 @@ void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int
     }
 }
 
-float TranspositionTable::how_full() const {
+int TranspositionTable::how_full() const {
     Entry* entry;
     int n_full = 0, n_checks = 1;
-    for(entry = tt; entry < tt + 6000 && entry < tt + tt_size; entry++) {
+    for(entry = tt; entry < tt + tt_size; entry++) {
+    // for(entry = tt; entry < tt + 2000000 && entry < tt + tt_size; entry++) {
         n_checks++;
         if(entry->move != NULL_MOVE)
             n_full++;
     }
-    return float(n_full) / float(n_checks); // percentage of occupied
+    return n_full;
+    // cout << "We did " << n_checks << " checks" << endl;
+    // cout << "N of full is " << n_full << endl;
+    // return (n_full * 100) / n_checks; // percentage of occupied
 }

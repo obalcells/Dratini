@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <cassert>
 #include "engine.h"
 #include "defs.h"
 #include "board.h"
@@ -8,6 +9,7 @@
 
 void bench() {
     tt.allocate(64);
+    printf("How full is the tt? %d%\n", tt.how_full());
     
     static const char *Benchmarks[] = {
         #include "bench.csv"
@@ -26,8 +28,10 @@ void bench() {
 
         printf("Bench #%2d score: %5d, bestmove: %s, ponder: %s, nodes: %7d, nps: %7dK, elapsed: %8f\n",
                 i + 1, engine.score, move_to_str(engine.best_move).c_str(), move_to_str(engine.ponder_move).c_str(), engine.nodes, int(float(engine.nodes) / engine.search_time), engine.search_time); 
+        printf("How full is the tt? %d%\n", tt.how_full());
 
         tt.clear();
+        assert(tt.how_full() == 0);
         total_nodes += engine.nodes;
         total_time += engine.search_time;
     }

@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <iostream>
+#include <cassert>
 #include "defs.h"
 #include "magicmoves.h"
 #include "board.h"

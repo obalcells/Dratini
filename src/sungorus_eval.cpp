@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cassert>
 #include "defs.h"
 #include "board.h"
 

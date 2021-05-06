@@ -73,19 +73,19 @@ void think(Engine& engine) {
 }
 
 void aspiration_window(Thread& thread) {
-    int alpha = -CHECKMATE;
-    int beta = CHECKMATE;
+    int alpha = -CHECKMATE, beta = CHECKMATE;
     int delta = INITIAL_WINDOW_SIZE;
+    int depth = thread.depth;
     PV pv;
 
-    if(thread.root_value != -1 && thread.depth >= MIN_DEPTH_FOR_WINDOW) {
+    if(thread.depth >= MIN_DEPTH_FOR_WINDOW) {
         alpha = std::max(-CHECKMATE, thread.root_value - delta); 
         beta = std::min(CHECKMATE, thread.root_value + delta);
     }
 
     while(!(*thread.stop_search)) {
         // cout << "Searching with window = " << "(" << alpha << ", " << beta << "), depth = " << thread.depth << endl; 
-        int score = search(thread, pv, alpha, beta, thread.depth);
+        int score = search(thread, pv, alpha, beta, depth);
 
         assert(thread.ply == 0);
 
@@ -95,16 +95,18 @@ void aspiration_window(Thread& thread) {
             thread.best_move = pv[0];
             thread.ponder_move = pv.size() > 1 ? pv[1] : NULL_MOVE;
             return;
-        } else if(score >= CHECKMATE - MAX_PLY) {
-            beta = CHECKMATE;
-        } else if(score <= -CHECKMATE + MAX_PLY) {
-            alpha = -CHECKMATE;
+        // } else if(score >= CHECKMATE - MAX_PLY) {
+        //     beta = CHECKMATE;
+        // } else if(score <= -CHECKMATE + MAX_PLY) {
+        //     alpha = -CHECKMATE;
         } else if(score >= beta) {
            beta = std::min(CHECKMATE, beta + delta); 
+           depth = depth - (abs(score) <= CHECKMATE / 2);
            // thread.best_move = pv[0]; // bad idea?
         } else if(score <= alpha) {
             beta = (alpha + beta) / 2;
-            alpha = alpha - delta;
+            alpha = std::max(-CHECKMATE, alpha - delta);
+            depth = thread.depth;
         }
         delta = delta + delta / 2;
     }
@@ -162,19 +164,37 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     PV child_pv;
     Move tt_move = NULL_MOVE, best_move = NULL_MOVE, move = NULL_MOVE;
     std::vector<Move> captures_tried, quiets_tried;
-    int score, best_score = -CHECKMATE, tt_score, tt_bound = -1, searched_moves = 0;
+    int score, best_score = -CHECKMATE, tt_score = INF, tt_bound = -1, searched_moves = 0;
+
+    bool tt_cutoff = false;
+    Move tt_cutoff_move = NULL_MOVE;
 
     // it will return true if it causes a cutoff or is an exact value
-    if(false && tt.retrieve_data(
+    if(tt.retrieve(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, depth, thread.ply
     )) {
         pv.push_back(tt_move);
+        return tt_score;
         // should we reset the age of the entry?
-        return tt_score; 
+        // return tt_score;
+        // tt_cutoff_move = tt_move;
+        // tt_cutoff = tt_score >= beta;
+        // tt_score = -CHECKMATE;
+        // tt_move = NULL_MOVE;
+        // debug_mode = true;
     }
 
-    int eval_score = evaluate(thread.board);
+    if(debug_mode) {
+        cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
+        cout << "Alpha and beta are " << alpha << " " << beta << endl;
+        cout << "Ply is " << thread.ply << " and depth left is " << depth << ", initial depth is " << thread.depth << endl;
+        debug_node(thread);
+        cout << "Key is " << thread.board.key << endl;
+        thread.board.print_board(); 
+    }
+
+    int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
 
     // beta pruning
     if(!is_pv
@@ -219,9 +239,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     MovePicker move_picker = MovePicker(thread, tt_move);
 
     while(true) {
-        // assert(thread.board.key == thread.board.calculate_key());
         move = move_picker.next_move();
-        // assert(thread.board.key == thread.board.calculate_key());
 
         if(move == NULL_MOVE || *thread.stop_search) {
             break;
@@ -257,7 +275,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
             score = -search(thread, child_pv, -alpha - 1, -alpha, extended_depth - 1 - reduction);
 
-			if (score <= alpha) {
+			if(score <= alpha) {
                 thread.board.take_back(undo_data);
                 thread.move_stack.pop_back();
                 thread.ply--;
@@ -331,6 +349,22 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
     }
 
+    if(tt_cutoff) {
+        // assert(best_move == tt_cutoff_move);
+        if(best_score < beta - 15) {
+            cout << RED_COLOR << "Oh no! tt cutoff was wrong" << RESET_COLOR << endl;
+            cout << "Bound of tt is " << (tt_bound == EXACT_BOUND ? "EXACT" : (tt_bound == LOWER_BOUND ? "LOWER BOUND" : "UPPER BOUND")) << endl;
+            cout << "Score of tt is " << tt_score << endl;
+            cout << "Best score is " << best_score << endl;
+            cout << "Beta score is " << beta << endl;
+            cout << "Position is " << endl;
+            thread.board.print_board();
+            cout << "TT thought best move was " << move_to_str(tt_cutoff_move) << endl;
+            cout << "Actual best move is " << move_to_str(best_move) << endl;
+        }
+        assert(best_score >= beta - 15);
+    }
+
     if(best_score == -CHECKMATE) {
         return in_check ? -CHECKMATE + thread.ply : 0; // checkmate or stalemate
     }
@@ -343,19 +377,23 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         update_capture_history(thread, best_move, captures_tried, depth); 
     }
 
-    if(true) {
-        // do nothing
-    } else if(best_score >= beta) {
+    // if(true) {
+    //     // do nothing
+    // } else
+    if(best_score >= beta) {
+        // cout << "Saving something" << endl;
         tt.save(
             thread.board.key, best_move, best_score,
             LOWER_BOUND, depth, thread.ply
         );
     } else if(best_score <= alpha) {
+        // cout << "Saving something" << endl;
         tt.save(
             thread.board.key, best_move, alpha,
             UPPER_BOUND, depth, thread.ply
         );
     } else {
+        // cout << "Saving something" << endl;
         tt.save(
             thread.board.key, best_move, best_score,
             EXACT_BOUND, depth, thread.ply
@@ -377,8 +415,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 }
 
 int q_search(Thread& thread, PV& pv, int alpha, int beta) {
-    pv.clear();
-    thread.nodes++;
 
     if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time) {
         *thread.stop_search = true;
@@ -396,12 +432,14 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     if(thread.ply >= MAX_PLY) {
         return evaluate(thread.board);
     }
-
+    
+    pv.clear();
+    thread.nodes++;
     Move tt_move = NULL_MOVE;
     int score, tt_score, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
-    if(false && tt.retrieve_data(
+    if(tt.retrieve(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, 0, thread.ply
     )) {
@@ -409,7 +447,6 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     }
 
     PV child_pv;
-    Move best_move;
     int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
 
     // eval pruning
@@ -423,10 +460,6 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     while(true) {
         Move move = move_picker.next_move(); 
 
-        if(*thread.stop_search || move == NULL_MOVE) {
-            break;
-        }
-
         assert(thread.board.move_valid(move));
 
         UndoData undo_data = thread.board.make_move(move);
@@ -439,7 +472,6 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
 
         if(score > best_score) {
             best_score = score;
-            best_move = move;
 
             if(best_score > alpha) {
                 alpha = best_score;

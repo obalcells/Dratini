@@ -1,4 +1,5 @@
 #include <vector>
+#include <cassert>
 #include "board.h"
 #include "magicmoves.h"
 #include "gen.h"
