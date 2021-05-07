@@ -14,10 +14,9 @@
 #include "move_picker.h"
 #include "search.h"
 
-float elapsed_time();
+int elapsed_time();
 bool move_gives_check(Board&, const Move);
 
-// const float MAX_SEARCH_TIME = 10000; 
 static int max_search_time = 5000; 
 static int max_depth = MAX_PLY;
 static const int futility_max_depth = 10;
@@ -84,7 +83,6 @@ void aspiration_window(Thread& thread) {
     }
 
     while(!(*thread.stop_search)) {
-        // cout << "Searching with window = " << "(" << alpha << ", " << beta << "), depth = " << thread.depth << endl; 
         int score = search(thread, pv, alpha, beta, depth);
 
         assert(thread.ply == 0);
@@ -95,10 +93,10 @@ void aspiration_window(Thread& thread) {
             thread.best_move = pv[0];
             thread.ponder_move = pv.size() > 1 ? pv[1] : NULL_MOVE;
             return;
-        // } else if(score >= CHECKMATE - MAX_PLY) {
-        //     beta = CHECKMATE;
-        // } else if(score <= -CHECKMATE + MAX_PLY) {
-        //     alpha = -CHECKMATE;
+        } else if(score >= CHECKMATE - MAX_PLY) {
+            beta = CHECKMATE;
+        } else if(score <= -CHECKMATE + MAX_PLY) {
+            alpha = -CHECKMATE;
         } else if(score >= beta) {
            beta = std::min(CHECKMATE, beta + delta); 
            depth = depth - (abs(score) <= CHECKMATE / 2);
@@ -124,7 +122,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_root = thread.ply == 0;    
     bool is_pv = (alpha != beta - 1);
 
-    bool debug_mode = false; // true; // false; // true; // false;
+    bool debug_mode = false;
 
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
@@ -155,7 +153,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool in_check = thread.board.in_check();
 
     if(depth <= 0 && !in_check) {
-        return q_search(thread, pv, alpha, beta);
+        return  q_search(thread, pv, alpha, beta);
     }
 
     pv.clear();
@@ -183,15 +181,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         // tt_score = -CHECKMATE;
         // tt_move = NULL_MOVE;
         // debug_mode = true;
-    }
-
-    if(debug_mode) {
-        cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
-        cout << "Alpha and beta are " << alpha << " " << beta << endl;
-        cout << "Ply is " << thread.ply << " and depth left is " << depth << ", initial depth is " << thread.depth << endl;
-        debug_node(thread);
-        cout << "Key is " << thread.board.key << endl;
-        thread.board.print_board(); 
     }
 
     int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
@@ -315,24 +304,17 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                     pv.push_back(child_pv[i]);
                 }
 
-                if(false && is_root) {
-                    cout << move_to_str(pv[0]);
+                if(is_root) {
+                    cout << "info"
+                         << " depth " << thread.depth
+                         << " time " << elapsed_time()
+                         << " nodes " << thread.nodes
+                         << " cp score " << thread.root_value
+                         << " pv";  
                     for(int i = 0; i < (int)pv.size(); i++) {
                         cout << " " << move_to_str(pv[i]);
                     }
                     cout << endl;
-                }
-
-                if(debug_mode) {
-                    cout << "At ply = " << thread.ply << " ";
-                    cout << "printing pv: "; 
-                    for(int i = 0; i < (int)pv.size(); i++) {
-                        cout << move_to_str(pv[i]) << " ";
-                    }
-                    cout << endl;
-                    cout << "Prev alpha was " << alpha << endl;
-                    cout << "Now alpha is " << score << endl;
-                    cout << "Beta is " << beta << endl;
                 }
 
                 alpha = score;
@@ -460,6 +442,10 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     while(true) {
         Move move = move_picker.next_move(); 
 
+        if(move == NULL_MOVE) {
+            break;
+        }
+
         assert(thread.board.move_valid(move));
 
         UndoData undo_data = thread.board.make_move(move);
@@ -555,7 +541,7 @@ bool move_gives_check(Board& board, const Move move) {
     return check_after_move;
 }
 
-float elapsed_time() {
+int elapsed_time() {
     auto time_now = std::chrono::system_clock::now();
     std::chrono::duration<float, std::milli> duration = time_now - initial_time;
     return int(duration.count()); // returns the elapsed time since search started in ms

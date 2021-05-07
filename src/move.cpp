@@ -228,7 +228,6 @@ bool Board::make_move_from_str(const std::string& str_move) {
     int to_sq = (str_move[3] - '1') * 8 + (str_move[2] - 'a');
     int flags = 0;
     int piece = get_piece(from_sq);
-    bool side = side;
 
     if(piece == EMPTY) {
         return false;
@@ -236,6 +235,9 @@ bool Board::make_move_from_str(const std::string& str_move) {
 
     if((piece == BLACK_PAWN || piece == WHITE_PAWN) && (row(to_sq) == 0 || row(to_sq) == 7)) {
         if((side == WHITE && row(to_sq) == 0) || (side == BLACK && row(to_sq) == 7)) {
+			cout << "Side is " << int(side) << endl;
+			cout << "Piece color is " << int(color_at[from_sq]) << endl;
+			cout << "to_sq row is " << int(row(to_sq)) << endl;
             return false;
         }
 		if(str_move[4] == ' ' || str_move[4] == '=') {

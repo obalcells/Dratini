@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <string.h>
 #include <cassert>
 #include "engine.h"
 #include "defs.h"

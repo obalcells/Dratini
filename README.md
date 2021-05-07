@@ -32,7 +32,7 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Programming bench
 - [X] Be able to play against Sungorus
 - [X] Clone Sungorus eval function for benchmarking
-- [X] Be able to benchmark in server
+- [] Be able to benchmark in server
 - [ ] Test move picker
 - [ ] Speed up board class
 

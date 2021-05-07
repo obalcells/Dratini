@@ -132,14 +132,25 @@ void uci() {
             } else {
                 engine.set_position(args[1]); // args[1] is the fen
             }
-            if(args[2] == "moves") {
+            if(args.size() > 2 && args[2] == "moves") {
                 for(int i = 3; i < (int)args.size(); i++) {
+                    bool prev_side = engine.board.side;
                     if(!engine.board.make_move_from_str(args[i])) {
-                        cout << "There was an error making move " << args[i] << endl;
+                        cout << "There was an error making move *" << args[i] << "*" << endl;
+                        cout << "Current position is:" << endl;
+                        engine.board.print_board();
                         return;
                     }
                 }
             }
+            if(engine.board.is_draw()) {
+                cout << "Draw" << endl;
+            } else if(engine.board.checkmate()) {
+                cout << "Checkmate" << endl;
+                cout << (engine.board.side == WHITE ? "Black" : "White") << " wins" << endl;
+            }
+            // cout << "Position is now:" << endl;
+            // engine.board.print_board();
         } else if(command == "go") {
             int param_name = MOVETIME, param_value = 0;
             GoStruct* go_struct = (GoStruct*)malloc(sizeof(GoStruct));

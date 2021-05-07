@@ -7,7 +7,7 @@ struct Engine {
     Board board;
     int max_depth;
     int nodes, score;
-    float search_time;
+    int search_time;
     bool stop_search, is_searching, is_pondering;
     Move best_move, ponder_move;
     int max_search_time;
@@ -18,7 +18,7 @@ struct Engine {
         search_time = 0.0;
         stop_search = is_searching = false;
         best_move = ponder_move = NULL_MOVE; 
-        max_search_time = 4000;
+        max_search_time = 8000;
         board = Board();
         tt.allocate(64);
     }
