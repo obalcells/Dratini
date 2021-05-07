@@ -8,11 +8,10 @@ SELF_PLAY_FLAGS = $(TESTING_C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4
 L_FLAGS = -s -lm
 TESTING_L_FLAGS = -lm
 
-# define output name and settings file
 # EXE = /Users/balce/Desktop/Dratini/dratini
-EXE = /Users/balce/Desktop/Dratini/dratini
-TEST_EXE = /Users/balce/Desktop/Dratini/test.sh
-SELF_PLAY_EXE = /Users/balce/Desktop/Dratini/self_play.sh
+EXE =$(shell pwd)/dratini
+TEST_EXE=$(shell pwd)/test.sh
+SELF_PLAY_EXE=$(shell pwd) /self_play.sh
 
 # group of files to be compiled
 SRC_FILES := $(wildcard src/*.cpp)
