@@ -75,16 +75,12 @@ void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int
     Entry *entry, *replace = NULL;
     entry = tt + (key & tt_mask);
     int oldest = -1, age;
+    total_tried_save++;
 
     for(int i = 0; i < 4; i++) {
-        if(entry->move == NULL_MOVE) {
-            // cout << "Putting the thing in an empty slot" << endl;
-            oldest = -2;
+        if(entry->move == NULL_MOVE || bound == EXACT_BOUND) {
             replace = entry;
-            break;
-        } else if(bound == EXACT_BOUND) {
-            oldest = -3;
-            replace = entry;
+            totally_replaced++;
             break;
         }
         // we determine which entry is more valuable
@@ -96,7 +92,8 @@ void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int
         entry++;
     }
 
-    if(oldest != -1) {
+    if(replace != NULL) {
+        total_saved++;
         replace->key = key;
         replace->depth = depth;
         replace->date = tt_date;
@@ -109,14 +106,19 @@ void TranspositionTable::save(uint64_t key, Move move, int score, int bound, int
 int TranspositionTable::how_full() const {
     Entry* entry;
     int n_full = 0, n_checks = 1;
+    // for(entry = tt; entry < tt + 20000 && entry < tt + tt_size; entry++) {
     for(entry = tt; entry < tt + tt_size; entry++) {
-    // for(entry = tt; entry < tt + 2000000 && entry < tt + tt_size; entry++) {
         n_checks++;
         if(entry->move != NULL_MOVE)
             n_full++;
     }
-    return n_full;
-    // cout << "We did " << n_checks << " checks" << endl;
-    // cout << "N of full is " << n_full << endl;
-    // return (n_full * 100) / n_checks; // percentage of occupied
+    // return n_full;
+    // cout << "TT size is " << tt_size << endl;
+    // cout << "TT mask is " << tt_mask << endl;
+    // cout << "There are " << n_full << " in TT" << endl;
+    // cout << "Total tried to save is " << total_tried_save << endl;
+    // cout << "Total saved is " << total_saved << endl;
+    // cout << "n_full is " << n_full << endl;
+    cout << "Of " << n_checks << " just " << n_full << " are occupied" << endl;
+    return (n_full * 100) / n_checks;
 }

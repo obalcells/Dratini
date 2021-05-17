@@ -18,9 +18,8 @@ struct Engine {
         search_time = 0.0;
         stop_search = is_searching = false;
         best_move = ponder_move = NULL_MOVE; 
-        max_search_time = 8000;
+        max_search_time = 30000;
         board = Board();
-        tt.allocate(64);
     }
 
     void set_position() {

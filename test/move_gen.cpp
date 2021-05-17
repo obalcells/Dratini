@@ -4,7 +4,6 @@
 #include "catch.h"
 
 #include "../src/defs.h"
-#include "../src/position.h"
 #include "../src/board.h"
 #include "../src/gen.h"
 #include "../src/move_picker.h"

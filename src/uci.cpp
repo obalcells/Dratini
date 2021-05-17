@@ -80,7 +80,7 @@ void uci() {
     cerr << read_uci << endl;
 	assert(read_uci == "uci");
 
-    cout << "id name Mod Window" << endl;
+    cout << "id name Sungo move picker and macros" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
 
@@ -88,9 +88,9 @@ void uci() {
     pthread_t pthread_go;
     std::string line, command;
     std::vector<std::string> args;
+    tt.allocate(16);
 
     while(true) {
-        // cout << "Waiting to read something..." << endl;
         getline(cin, line);
 
         if(line.size() <= 1) {
@@ -103,6 +103,7 @@ void uci() {
             std::cout << "error" << endl;
             return;
         }
+
         args = split(line);
         command = args[0];
 
@@ -119,9 +120,6 @@ void uci() {
             cerr << "out: readyok" << endl;
         } else if(command == "setoption") {
             parse_option(args);
-        } else if(command == "register") {
-            cout << "you don't have to register" << endl;
-            assert(false);
         } else if(command == "ucinewgame") {
             engine.set_position();
             tt.clear();
@@ -141,6 +139,7 @@ void uci() {
                         engine.board.print_board();
                         return;
                     }
+                    assert(!engine.board.is_draw());
                 }
             }
             if(engine.board.is_draw()) {
@@ -152,12 +151,24 @@ void uci() {
             // cout << "Position is now:" << endl;
             // engine.board.print_board();
         } else if(command == "go") {
-            int param_name = MOVETIME, param_value = 0;
-            GoStruct* go_struct = (GoStruct*)malloc(sizeof(GoStruct));
+            // int param_name = MOVETIME, param_value = 0;
+            // GoStruct* go_struct = (GoStruct*)malloc(sizeof(GoStruct));
             // go_struct->engine = &engine;
             // go_struct->param_name = MOVETIME;
             // go_struct->param_value = 0;
-            pthread_create(&pthread_go, NULL, &process_go, go_struct);
+            // pthread_create(&pthread_go, NULL, &process_go, go_struct);
+            engine.is_searching = true;
+            engine.stop_search = false;
+            think(engine);
+            if(engine.is_searching) {
+                assert(engine.best_move != NULL_MOVE);
+                cout << "bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
+                printf("TT percentage: %d percent, totally tried save %d, totally replaced %d, total saved %d\n",
+                tt.how_full(), tt.total_tried_save, tt.totally_replaced, tt.total_saved);
+
+                cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
+                engine.is_searching = false;
+            }
         } else if(command == "stop") {
             engine.stop_search = true;
         } else if(command == "ponderhit") {

@@ -11,11 +11,26 @@ extern std::vector<uint64_t> knight_attacks;
 extern std::vector<uint64_t> king_attacks;
 extern std::vector<uint64_t> castling_mask;
 
+#define clear_square(sq, piece) bits[piece] ^= mask_sq(sq); \
+	b_pst[piece >= BLACK_PAWN ? BLACK : WHITE] -= pst[piece_at[sq]][sq]; \
+	b_mat[piece >= BLACK_PAWN ? BLACK : WHITE] -= piece_value[piece_at[sq]]; \
+	color_at[sq] = piece_at[sq] = EMPTY; \
+	occ_mask ^= mask_sq(sq);
+
+#define set_square(sq, piece) bits[piece] |= mask_sq(sq); \
+	color_at[sq] = (piece >= BLACK_PAWN ? BLACK : WHITE); \
+	piece_at[sq] = (piece >= BLACK_PAWN ? piece - 6 : piece); \
+    b_pst[color_at[sq]] += pst[piece_at[sq]][sq]; \
+	b_mat[color_at[sq]] += piece_value[piece_at[sq]]; \
+	occ_mask |= mask_sq(sq);
+
 struct UndoData {
     Move move;
     uint8_t enpassant;
     std::vector<bool> castling_rights;
     uint8_t moved_piece, captured_piece, fifty_move_ply;
+
+    UndoData() {}
 
     UndoData(
         const Move _move, const uint8_t _enpassant, const std::vector<bool>& _castling_rights,
@@ -78,25 +93,22 @@ struct Board {
     void clear_board();
     void set_from_fen(const std::string&);
     void set_from_data();
-    void set_square(const int, const int);
-    void set_square(const int, const int, bool);
-    void clear_square(int, int, bool);
-    void clear_square(int, int);
+    // void set_square(const int, const int);
+    // void set_square(const int, const int, bool);
     void set_enpassant(const int);
     // void clear_square(const int, const int);
     // void clear_square(const int, const int, bool);
-    bool is_empty(const int);
-    uint64_t get_piece_mask(int) const;
-    uint64_t get_all_mask() const;
-    uint64_t get_side_mask(bool) const;
-    uint64_t get_pawn_mask(bool) const;
-    uint64_t get_knight_mask(bool) const;
-    uint64_t get_bishop_mask(bool) const;
-    uint64_t get_rook_mask(bool) const;
-    uint64_t get_queen_mask(bool) const;
-    uint64_t get_king_mask(bool) const;
-    int get_piece(const int) const;
-    int get_color(const int) const;
+    // uint64_t get_piece_mask(int) const;
+    // uint64_t get_all_mask() const;
+    // uint64_t get_side_mask(bool) const;
+    // uint64_t get_pawn_mask(bool) const;
+    // uint64_t get_knight_mask(bool) const;
+    // uint64_t get_bishop_mask(bool) const;
+    // uint64_t get_rook_mask(bool) const;
+    // uint64_t get_queen_mask(bool) const;
+    // uint64_t get_king_mask(bool) const;
+    // int get_piece(const int) const;
+    // int get_color(const int) const;
 
     void update_material_values();
     uint64_t calculate_key(bool is_assert = true) const;

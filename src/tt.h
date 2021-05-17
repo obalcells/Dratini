@@ -27,11 +27,10 @@ public:
     int size() const { return tt_size; }
     void age() { tt_date = (tt_date + 1) & 255; }
     int how_full() const;
-    // pass reference of position object in the future
     bool retrieve(uint64_t& key, Move& move, int& score, int& bound, int alpha, int beta, int depth, int ply);
     // bool retrieve_move(int64_t& key, Move& move);
     void save(uint64_t key, Move move, int score, int bound, int depth, int ply);
-private:
+    int total_saved, total_tried_save, totally_replaced;
     // static_assert(sizeof(Entry) == 16, "Entry must have size 16");
     int tt_size, tt_mask, tt_date;
     Entry* tt; 

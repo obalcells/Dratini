@@ -2,10 +2,8 @@
 #include <algorithm>
 #include <string>
 #include "catch.h"
-#include "../src/data.h"
 #include "../src/board.h"
 #include "../src/search.h"
-#include "../src/stats.h"
 #include "../src/tt.h"
 
 /*

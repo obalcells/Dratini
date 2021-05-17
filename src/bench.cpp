@@ -9,8 +9,9 @@
 #include "tt.h"
 
 void bench() {
-    tt.allocate(64);
-    printf("How full is the tt? %d%\n", tt.how_full());
+    cout << "mask_sq finally improved" << endl;
+
+    tt.allocate(16);
     
     static const char *Benchmarks[] = {
         #include "bench.csv"
@@ -18,7 +19,7 @@ void bench() {
     };
 
     engine.reset();
-    engine.max_depth = 8;
+    engine.max_depth = 12;
     long long total_nodes = 0;
     float total_time = 0.0;
 
@@ -27,12 +28,12 @@ void bench() {
         engine.board = Board(line);
         think(engine);
 
-        printf("Bench #%2d score: %5d, bestmove: %s, ponder: %s, nodes: %7d, nps: %7dK, elapsed: %8f\n",
+        printf("Bench #%2d score: %5d, bestmove: %s, ponder: %s, nodes: %7d, nps: %7dK, elapsed: %8dms\n",
                 i + 1, engine.score, move_to_str(engine.best_move).c_str(), move_to_str(engine.ponder_move).c_str(), engine.nodes, int(float(engine.nodes) / engine.search_time), engine.search_time); 
-        printf("How full is the tt? %d%\n", tt.how_full());
+        printf("TT percentage: %d percent, totally tried save %d, totally replaced %d, total saved %d\n",
+               tt.how_full(), tt.total_tried_save, tt.totally_replaced, tt.total_saved);
 
         tt.clear();
-        assert(tt.how_full() == 0);
         total_nodes += engine.nodes;
         total_time += engine.search_time;
     }

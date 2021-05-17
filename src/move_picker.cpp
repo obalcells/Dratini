@@ -10,6 +10,21 @@
 #include "tt.h"
 #include "bitboard.h"
 
+#define get_side_mask(_side) (_side == WHITE ? \
+	(board->bits[WHITE_PAWN] | board->bits[WHITE_KNIGHT] | board->bits[WHITE_BISHOP] | board->bits[WHITE_ROOK] | board->bits[WHITE_QUEEN] | board->bits[WHITE_KING]) : \
+	(board->bits[BLACK_PAWN] | board->bits[BLACK_KNIGHT] | board->bits[BLACK_BISHOP] | board->bits[BLACK_ROOK] | board->bits[BLACK_QUEEN] | board->bits[BLACK_KING]))
+#define get_piece_mask(piece) board->bits[piece]
+#define get_all_mask() board->occ_mask
+#define get_pawn_mask(_side) (_side == WHITE ? board->bits[WHITE_PAWN] : board->bits[BLACK_PAWN])
+#define get_knight_mask(_side) (_side == WHITE ? board->bits[WHITE_KNIGHT] : board->bits[BLACK_KNIGHT])
+#define get_bishop_mask(_side) (_side == WHITE ? board->bits[WHITE_BISHOP] : board->bits[BLACK_BISHOP])
+#define get_rook_mask(_side) (_side == WHITE ? board->bits[WHITE_ROOK] : board->bits[BLACK_ROOK])
+#define get_queen_mask(_side) (_side == WHITE ? board->bits[WHITE_QUEEN] : board->bits[BLACK_QUEEN])
+#define get_king_mask(_side) (_side == WHITE ? board->bits[WHITE_KING] : board->bits[BLACK_KING])
+#define get_piece(sq) (board->piece_at[sq] + (board->color_at[sq] == BLACK ? 6 : 0))
+#define get_color(sq) (board->color_at[sq])
+#define in_check() bool(board->king_attackers)
+
 static inline bool move_is_straight(const Move move) {
 	return row(get_from(move)) == row(get_to(move)) || col(get_from(move)) == col(get_to(move));
 }
@@ -50,20 +65,20 @@ uint64_t MovePicker::get_attackers(const int to_sq, const bool attacker_side) co
     uint64_t attackers = 0;
 
     if(attacker_side == BLACK) {
-		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && board->get_piece(to_sq + 7) == BLACK_PAWN)
+		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && board->piece_at[to_sq + 7] == PAWN && board->color_at[to_sq + 7] == BLACK)
         	return to_sq + 7;
-        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && board->get_piece(to_sq + 9) == BLACK_PAWN)
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && board->piece_at[to_sq + 9] == PAWN && board->color_at[to_sq + 9] == BLACK)
         	return to_sq + 9; 
     } else {
-        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && board->get_piece(to_sq - 9) == WHITE_PAWN)
+        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && board->piece_at[to_sq - 9] == PAWN && board->color_at[to_sq - 9] == WHITE) 
         	return to_sq - 9; 
-        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && board->get_piece(to_sq - 7) == WHITE_PAWN) 
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && board->piece_at[to_sq - 7] == PAWN && board->color_at[to_sq - 7] == WHITE)
         	return to_sq - 7;
     }
 
-    attackers |= Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(attacker_side) | board->get_queen_mask(attacker_side));
-    attackers |= Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(attacker_side) | board->get_queen_mask(attacker_side));
-    attackers |= knight_attacks[to_sq] & board->get_knight_mask(attacker_side);
+    attackers |= Rmagic(to_sq, get_all_mask()) & (get_rook_mask(attacker_side) | get_queen_mask(attacker_side));
+    attackers |= Bmagic(to_sq, get_all_mask()) & (get_bishop_mask(attacker_side) | get_queen_mask(attacker_side));
+    attackers |= knight_attacks[to_sq] & get_knight_mask(attacker_side);
 
     return attackers;
 }
@@ -72,30 +87,29 @@ uint64_t MovePicker::get_attackers(const int to_sq, const bool attacker_side) co
 // least valuable attacker - we assume that attacker side is 'side'
 int MovePicker::lva(int to_sq) const {
     if(board->side == BLACK) {
-		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && board->get_piece(to_sq + 7) == BLACK_PAWN)
+		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && get_piece(to_sq + 7) == BLACK_PAWN)
         	return to_sq + 7;
-        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && board->get_piece(to_sq + 9) == BLACK_PAWN)
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && get_piece(to_sq + 9) == BLACK_PAWN)
         	return to_sq + 9; 
     } else {
-        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && board->get_piece(to_sq - 9) == WHITE_PAWN)
+        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && get_piece(to_sq - 9) == WHITE_PAWN)
         	return to_sq - 9; 
-        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && board->get_piece(to_sq - 7) == WHITE_PAWN) 
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && get_piece(to_sq - 7) == WHITE_PAWN) 
         	return to_sq - 7;
     }
-	if(knight_attacks[to_sq] & board->get_knight_mask(board->side))
-		return lsb(knight_attacks[to_sq] & board->get_knight_mask(board->side));
-    if(Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(board->side) | board->get_queen_mask(board->side)))
-    	return lsb(Rmagic(to_sq, board->get_all_mask()) & (board->get_rook_mask(board->side) | board->get_queen_mask(board->side)));
-    if(Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(board->side) | board->get_queen_mask(board->side)))
-    	return lsb(Bmagic(to_sq, board->get_all_mask()) & (board->get_bishop_mask(board->side) | board->get_queen_mask(board->side)));
+	if(knight_attacks[to_sq] & get_knight_mask(board->side))
+		return lsb(knight_attacks[to_sq] & get_knight_mask(board->side));
+    if(Rmagic(to_sq, get_all_mask()) & (get_rook_mask(board->side) | get_queen_mask(board->side)))
+    	return lsb(Rmagic(to_sq, get_all_mask()) & (get_rook_mask(board->side) | get_queen_mask(board->side)));
+    if(Bmagic(to_sq, get_all_mask()) & (get_bishop_mask(board->side) | get_queen_mask(board->side)))
+    	return lsb(Bmagic(to_sq, get_all_mask()) & (get_bishop_mask(board->side) | get_queen_mask(board->side)));
     return -1;
 }
 
 int MovePicker::next_lva(const uint64_t& attacker_mask, const bool attacker_side) const {
-	const int start_piece = (attacker_side == WHITE ? 0 : 6); 
-	for(int piece = start_piece; piece < start_piece + 6; piece++) {
-		if(attacker_mask & board->get_piece_mask(piece)) {
-			return lsb(attacker_mask & board->get_piece_mask(piece));
+	for(int piece = (attacker_side == WHITE ? WHITE_PAWN : BLACK_PAWN); piece < (attacker_side == WHITE ? BLACK_PAWN : 12); piece++) {
+		if(attacker_mask & get_piece_mask(piece)) {
+			return lsb(attacker_mask & get_piece_mask(piece));
 		}
 	} 
 	return -1;
@@ -104,16 +118,16 @@ int MovePicker::next_lva(const uint64_t& attacker_mask, const bool attacker_side
 int MovePicker::fast_see(const Move move) const {
 	const int to_sq = get_to(move);
 	int from_sq = get_from(move), depth = 0, side = board->side;	
-	int piece_at_to = board->get_piece(to_sq);
+	int piece_at_to = get_piece(to_sq);
 	uint64_t attacker_mask = get_attackers(to_sq, board->side) | get_attackers(to_sq, board->xside);	
-	const uint64_t occ_mask = board->get_all_mask();
+	const uint64_t occ_mask = get_all_mask();
 	std::vector<int> score(16, 0);
 	score[0] = 0; // we want to force the capture at root
 
 	while(from_sq != -1) {
 		score[depth + 1] = piece_value[piece_at_to] - score[depth];
 		depth++;
-		piece_at_to = board->get_piece(from_sq);
+		piece_at_to = get_piece(from_sq);
 		attacker_mask ^= mask_sq(from_sq);
 		side = !side;
 
@@ -129,14 +143,14 @@ int MovePicker::fast_see(const Move move) const {
 			}
 
 			attacker_mask |= Bmagic(from_sq, occ_mask) & _diagonal_mask
-			& (board->get_queen_mask(side) | board->get_bishop_mask(side) | board->get_queen_mask(!side) | board->get_bishop_mask(!side)); 
+			& (get_queen_mask(side) | get_bishop_mask(side) | get_queen_mask(!side) | get_bishop_mask(!side)); 
 		} else if(move_is_straight(move)) {
 			if(row(from_sq) == row(to_sq)) {
-				attacker_mask |= Rmagic(from_sq, board->get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
-				& (board->get_queen_mask(side) | board->get_rook_mask(side) | board->get_queen_mask(!side) | board->get_rook_mask(!side));
+				attacker_mask |= Rmagic(from_sq, get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
+				& (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
 			} else {
-				attacker_mask |= Rmagic(from_sq, board->get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
-				& (board->get_queen_mask(side) | board->get_rook_mask(side) | board->get_queen_mask(!side) | board->get_rook_mask(!side));
+				attacker_mask |= Rmagic(from_sq, get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
+				& (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
 			}
 		}
 
@@ -159,12 +173,12 @@ int MovePicker::fast_see(const Move move) const {
 		depth--;
 	}
 
-	return std::max(0, score[1]);
+	return score[1];
 }
 
 int MovePicker::slow_see(const Move move, const bool root) {
-	const int piece_from = board->get_piece(get_from(move));
-	const int piece_captured = board->get_piece(get_to(move));
+	const int piece_from = get_piece(get_from(move));
+	const int piece_captured = get_piece(get_to(move));
 	const int from_sq = get_from(move);
 	const int to_sq = get_to(move);
 
@@ -202,7 +216,6 @@ int MovePicker::slow_see(const Move move, const bool root) {
 	return score;
 }
 
-// this things's fault
 void MovePicker::delete_move(int index) {
 	assert(!move_stack.empty());
 	assert(scores.size() == move_stack.size());
@@ -220,6 +233,7 @@ int MovePicker::get_best_index(bool no_min) const {
 	int best_index = (no_min ? 0 : -1), best_score = -1;
 
 	assert(scores.size() == move_stack.size());
+
 	for(int index = 0; index < (int)scores.size(); index++) {
 		if(scores[index] > best_score) {
 			best_index = index;	
@@ -236,6 +250,7 @@ void MovePicker::sort_captures() {
             thread->capture_history[board->piece_at[get_from(move_stack[i])]][get_to(move_stack[i])][board->piece_at[get_to(move_stack[i])]]
 			+ 50000 + 50000 * (get_flag(move_stack[i]) == QUEEN_PROMOTION)
 		);
+		assert(scores[scores.size() - 1] > 0);
 	}
 	assert(move_stack.size() == scores.size());
 } 
@@ -263,7 +278,7 @@ Move MovePicker::next_move() {
 
 		case GENERATE_CAPTURES: {
 			// if we are in check we skip ahead to the evasions
-			if(board->in_check()) {
+			if(board->king_attackers) {
 				assert(move_stack.empty());
 				generate_evasions(move_stack, board);
 				sort_quiet();
@@ -289,16 +304,17 @@ Move MovePicker::next_move() {
 					best_index = get_best_index();
 				} else {
 					const Move move = move_stack[best_index];
+					assert(thread->board.fast_move_valid(move));
 					delete_move(best_index);
 					return move;
 				}
 			}
+			assert(scores.empty() || scores[0] == -1);
 			phase = FIRST_KILLER;
 		}
 
 		case FIRST_KILLER: {
 			phase = SECOND_KILLER;
-
             if(!captures_only) {
 				if(thread->killers[thread->ply][0] != NULL_MOVE
 				&& thread->killers[thread->ply][0] != tt_move
@@ -310,7 +326,6 @@ Move MovePicker::next_move() {
 
 		case SECOND_KILLER: {
 			phase = BAD_CAPTURES;
-
 			if(!captures_only) {
 				if(thread->killers[thread->ply][1] != NULL_MOVE
 				&& thread->killers[thread->ply][1] != tt_move
@@ -324,9 +339,9 @@ Move MovePicker::next_move() {
 		case BAD_CAPTURES: {
 			while(!move_stack.empty()) {
 				const Move move = move_stack[0];
+				assert(thread->board.fast_move_valid(move));
 				delete_move(0);
-				if(move != tt_move
-				&& board->fast_move_valid(move)) {
+				if(move != tt_move) {
 					return move;
 				}
 			}	
@@ -340,7 +355,7 @@ Move MovePicker::next_move() {
 
 		case GENERATE_QUIET: {
 			assert(move_stack.empty());
-			generate_quiet(move_stack, board);			
+			generate_quiet(move_stack, board);
 			sort_quiet();
 			phase = QUIET;
 		}
@@ -350,18 +365,11 @@ Move MovePicker::next_move() {
 			while(best_index != -1) {
 				const Move move = move_stack[best_index];
 				delete_move(best_index);
-				if(move != tt_move
-				&& board->fast_move_valid(move)) {
+				assert(bool(thread->board.king_attackers) || get_flag(move) != CAPTURE_MOVE);
+				if(move != tt_move) {
 					return move;
 				}
 				best_index = get_best_index(true);
-			}	
-			if(!move_stack.empty()) {
-				cerr << "This should be a very small number:" << endl;
-				cerr << scores[0] << endl; 
-				best_index = get_best_index();
-				cerr << "The following number should be -1:" << endl;
-				cerr << best_index << endl;
 			}
 			assert(move_stack.empty());
 		}

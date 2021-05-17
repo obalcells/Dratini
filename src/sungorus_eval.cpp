@@ -9,7 +9,7 @@ enum {FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H};
 enum {RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8};
 
 #define Opp(x)          ((x) ^ 1)
-#define PcBb(p, x, y)   (p.get_piece_mask(y + (x == BLACK ? 6 : 0))) 
+#define PcBb(p, x, y)   (p.bits[y + (x == BLACK ? 6 : 0)])
 #define OccBb(p)        (p.occ_mask)  
 #define File(x)         ((x) & 7)
 #define Rank(x)         ((x) >> 3)
@@ -41,6 +41,10 @@ enum {RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8};
 #define RAttacks(o, x)  (L1Attacks(o, x) | L2Attacks(o, x))
 #define BAttacks(o, x)  (L3Attacks(o, x) | L4Attacks(o, x))
 #define QAttacks(o, x)  (RAttacks(o, x) | BAttacks(o, x))
+
+#define get_side_mask(_side) (_side == WHITE ? \
+	(board.bits[WHITE_PAWN] | board.bits[WHITE_KNIGHT] | board.bits[WHITE_BISHOP] | board.bits[WHITE_ROOK] | board.bits[WHITE_QUEEN] | board.bits[WHITE_KING]) : \
+	(board.bits[BLACK_PAWN] | board.bits[BLACK_KNIGHT] | board.bits[BLACK_BISHOP] | board.bits[BLACK_ROOK] | board.bits[BLACK_QUEEN] | board.bits[BLACK_KING]))
 
 static const int MAX_EVAL = 29999;
 static bool data_initialized = false;
@@ -169,7 +173,7 @@ int evaluate_king(const Board& board, int side)
 {
   if (!PcBb(board, Opp(side), Q) || board.b_mat[Opp(side)] <= 1600)
     return 0;
-  return -2 * pst[K][lsb(board.get_king_mask(side))];
+  return -2 * pst[K][lsb(board.bits[KING + (side == BLACK ? 6 : 0)])];
 }
 
 int calculate_mat(const Board& board) {
@@ -177,13 +181,13 @@ int calculate_mat(const Board& board) {
   int score;
 
   score = 0;
-  pieces = board.get_side_mask(WHITE);
+  pieces = get_side_mask(WHITE);
   while(pieces) {
     int sq = pop_first_bit(pieces);
     score += piece_value[board.piece_at[sq]];
     score += pst[board.piece_at[sq]][sq];
   }
-  pieces = board.get_side_mask(BLACK);
+  pieces = get_side_mask(BLACK);
   while(pieces) {
     int sq = pop_first_bit(pieces);
     score -= piece_value[board.piece_at[sq]];

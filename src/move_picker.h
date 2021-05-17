@@ -18,7 +18,7 @@ enum phases {
 };
 
 struct MoveWithScore {
-	 Move move;
+	Move move;
 	int score;
 
 	MoveWithScore(Move _move, int _score) : move(_move), score(_score) {}

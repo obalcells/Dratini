@@ -3,7 +3,6 @@
 #include <iostream>
 #include "board.h"
 #include "defs.h"
-#include "position.h"
 #include "engine.h"
 
 void think(Engine&);

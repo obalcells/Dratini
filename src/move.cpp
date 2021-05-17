@@ -4,8 +4,29 @@
 #include "magicmoves.h"
 #include "gen.h"
 
-// #define clear_square(sq, non_side_piece, _side) assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq))); bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
-// #define clear_square(sq, piece) assert((bits[piece] & mask_sq(sq)) != 0); assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece)); assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK)); assert(occ_mask & mask_sq(sq)); bits[piece] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0); assert((bits[piece] & mask_sq(sq)) == 0);
+static const int pst[6][64] = {
+  { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
+  { 0, 8, 16, 20, 20, 16, 8, 0, 8, 16, 24, 28, 28, 24, 16, 8, 16, 24, 32, 36, 36, 32, 24, 16, 20, 28, 36, 40, 40, 36, 28, 20, 20, 28, 36, 40, 40, 36, 28, 20, 16, 24, 32, 36, 36, 32, 24, 16, 8, 16, 24, 28, 28, 24, 16, 8, 0, 8, 16, 20, 20, 16, 8, 0 },
+  { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
+  { 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0, 0, 2, 4, 5, 5, 4, 2, 0 },
+  { 0, 2, 4, 5, 5, 4, 2, 0, 2, 4, 6, 7, 7, 6, 4, 2, 4, 6, 8, 9, 9, 8, 6, 4, 5, 7, 9, 10, 10, 9, 7, 5, 5, 7, 9, 10, 10, 9, 7, 5, 4, 6, 8, 9, 9, 8, 6, 4, 2, 4, 6, 7, 7, 6, 4, 2, 0, 2, 4, 5, 5, 4, 2, 0 },
+  { 0, 12, 24, 30, 30, 24, 12, 0, 12, 24, 36, 42, 42, 36, 24, 12, 24, 36, 48, 54, 54, 48, 36, 24, 30, 42, 54, 60, 60, 54, 42, 30, 30, 42, 54, 60, 60, 54, 42, 30, 24, 36, 48, 54, 54, 48, 36, 24, 12, 24, 36, 42, 42, 36, 24, 12, 0, 12, 24, 30, 30, 24, 12, 0 }
+};
+	
+#define get_side_mask(_side) (_side == WHITE ? \
+	(bits[WHITE_PAWN] | bits[WHITE_KNIGHT] | bits[WHITE_BISHOP] | bits[WHITE_ROOK] | bits[WHITE_QUEEN] | bits[WHITE_KING]) : \
+	(bits[BLACK_PAWN] | bits[BLACK_KNIGHT] | bits[BLACK_BISHOP] | bits[BLACK_ROOK] | bits[BLACK_QUEEN] | bits[BLACK_KING]))
+#define get_piece_mask(piece) bits[piece]
+#define get_all_mask() occ_mask
+#define get_pawn_mask(_side) (_side == WHITE ? bits[WHITE_PAWN] : bits[BLACK_PAWN])
+#define get_knight_mask(_side) (_side == WHITE ? bits[WHITE_KNIGHT] : bits[BLACK_KNIGHT])
+#define get_bishop_mask(_side) (_side == WHITE ? bits[WHITE_BISHOP] : bits[BLACK_BISHOP])
+#define get_rook_mask(_side) (_side == WHITE ? bits[WHITE_ROOK] : bits[BLACK_ROOK])
+#define get_queen_mask(_side) (_side == WHITE ? bits[WHITE_QUEEN] : bits[BLACK_QUEEN])
+#define get_king_mask(_side) (_side == WHITE ? bits[WHITE_KING] : bits[BLACK_KING])
+#define get_piece(sq) (piece_at[sq] + (color_at[sq] == BLACK ? 6 : 0))
+#define get_color(sq) (color_at[sq])
+#define in_check() bool(king_attackers)
 
 void Board::take_back(const UndoData& undo_data) {
     side = xside;
@@ -119,8 +140,6 @@ void Board::take_back(const UndoData& undo_data) {
 }
 
 UndoData Board::make_move(const Move move) {
-	// assert(key == calculate_key());
-
 	int from_sq = get_from(move);
 	int to_sq = get_to(move);
 	int flag = get_flag(move);
@@ -150,8 +169,8 @@ UndoData Board::make_move(const Move move) {
         undo_data.captured_piece = get_piece(rook_from);
 		clear_square(from_sq, KING + (side == WHITE ? 0 : 6));
 		clear_square(rook_from, ROOK + (side == WHITE ? 0 : 6));
-		set_square(to_sq, KING, side);
-		set_square(rook_to, ROOK, side);
+		set_square(to_sq, KING + (side == WHITE ? 0 : 6));
+		set_square(rook_to, ROOK + (side == WHITE ? 0 : 6));
 	} else if(flag == ENPASSANT_MOVE) {
 		int adjacent = row(from_sq) * 8 + col(to_sq);
         undo_data.captured_piece = get_piece(adjacent);
@@ -182,7 +201,7 @@ UndoData Board::make_move(const Move move) {
             undo_data.captured_piece = get_piece(to_sq);
 			clear_square(to_sq, undo_data.captured_piece);
         }
-		set_square(to_sq, promotion_piece, side); // we have to pass the side too
+		set_square(to_sq, promotion_piece + (side == WHITE ? 0 : 6));
 	}
 
 	if(piece == WHITE_PAWN || piece == BLACK_PAWN || flag == CAPTURE_MOVE) {
@@ -201,12 +220,12 @@ UndoData Board::make_move(const Move move) {
 	if(side == BLACK) {
 		move_count++;
 	}
+
 	side = !side;
 	xside = !xside;
 
     update_key(undo_data);
     keys.push_back(key);
-    // assert(calculate_key() == key);
 
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
 
@@ -510,7 +529,6 @@ bool Board::move_valid(const Move move) {
         }
 		set_square(from_sq, piece);
 	}
-
 
 	if(in_check_after_move) {
 		return false;

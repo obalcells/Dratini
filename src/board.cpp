@@ -30,6 +30,21 @@ std::vector<uint64_t> knight_attacks;
 std::vector<uint64_t> king_attacks;
 std::vector<uint64_t> castling_mask;
 
+#define get_side_mask(_side) (_side == WHITE ? \
+	(bits[WHITE_PAWN] | bits[WHITE_KNIGHT] | bits[WHITE_BISHOP] | bits[WHITE_ROOK] | bits[WHITE_QUEEN] | bits[WHITE_KING]) : \
+	(bits[BLACK_PAWN] | bits[BLACK_KNIGHT] | bits[BLACK_BISHOP] | bits[BLACK_ROOK] | bits[BLACK_QUEEN] | bits[BLACK_KING]))
+#define get_piece_mask(piece) bits[piece]
+#define get_all_mask() occ_mask
+#define get_pawn_mask(_side) (_side == WHITE ? bits[WHITE_PAWN] : bits[BLACK_PAWN])
+#define get_knight_mask(_side) (_side == WHITE ? bits[WHITE_KNIGHT] : bits[BLACK_KNIGHT])
+#define get_bishop_mask(_side) (_side == WHITE ? bits[WHITE_BISHOP] : bits[BLACK_BISHOP])
+#define get_rook_mask(_side) (_side == WHITE ? bits[WHITE_ROOK] : bits[BLACK_ROOK])
+#define get_queen_mask(_side) (_side == WHITE ? bits[WHITE_QUEEN] : bits[BLACK_QUEEN])
+#define get_king_mask(_side) (_side == WHITE ? bits[WHITE_KING] : bits[BLACK_KING])
+#define get_piece(sq) (piece_at[sq] + (color_at[sq] == BLACK ? 6 : 0))
+#define get_color(sq) (color_at[sq])
+#define in_check() bool(king_attackers)
+
 static uint64_t get_random_64() {
 	return dist(rng);
 }
@@ -407,113 +422,121 @@ void Board::set_enpassant(int col) {
 	enpassant = uint8_t(col);
 }
 
+// #define set_square(sq, non_side_piece, _side); bits[non_side_piece + (_side == BLACK ? 6 : 0)] |= mask_sq(sq); \
+// 	color_at[sq] = _side; \
+// 	piece_at[sq] = non_side_piece; \
+// 	assert(sq >= 0 && sq < 64 && non_side_piece >= WHITE_PAWN && non_side_piece < BLACK_PAWN); \
+//     b_pst[_side] += pst[non_side_piece][sq]; \
+// 	b_mat[_side] += piece_value[non_side_piece]; \
+// 	occ_mask |= mask_sq(sq);
+
+// #define set_square(sq, piece) bits[piece] |= mask_sq(sq); \
+// 	color_at[sq] = (piece >= BLACK_PAWN ? BLACK : WHITE); \
+// 	piece_at[sq] = (piece >= BLACK_PAWN ? piece - 6 : piece); \
+//     b_pst[color_at[sq]] += pst[piece_at[sq]][sq]; \
+// 	b_mat[color_at[sq]] += piece_value[piece_at[sq]]; \
+// 	occ_mask |= mask_sq(sq); 
+
 // the piece in this case ranges from 0 to 5, so we need the _side parameter
-void Board::set_square(int sq, int non_side_piece, bool _side) {
-    bits[non_side_piece + (_side == BLACK ? 6 : 0)] |= mask_sq(sq);
-	color_at[sq] = _side;
-	piece_at[sq] = non_side_piece;
-	assert(sq >= 0 && sq < 64 && non_side_piece >= WHITE_PAWN && non_side_piece < BLACK_PAWN);
-    b_pst[_side] += pst[non_side_piece][sq];
-	b_mat[_side] += piece_value[non_side_piece];
-	occ_mask |= mask_sq(sq);
-    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
-	assert(occ_mask & mask_sq(sq));
-}
+// void Board::set_square(int sq, int non_side_piece, bool _side) {
+//     bits[non_side_piece + (_side == BLACK ? 6 : 0)] |= mask_sq(sq);
+// 	color_at[sq] = _side;
+// 	piece_at[sq] = non_side_piece;
+// 	assert(sq >= 0 && sq < 64 && non_side_piece >= WHITE_PAWN && non_side_piece < BLACK_PAWN);
+//     b_pst[_side] += pst[non_side_piece][sq];
+// 	b_mat[_side] += piece_value[non_side_piece];
+// 	occ_mask |= mask_sq(sq);
+//     assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
+// 	assert(occ_mask & mask_sq(sq));
+// }
 
 // the piece in this case ranges from 0 to 11 
-void Board::set_square(int sq, int piece) {
-	assert(piece >= WHITE_PAWN && piece <= BLACK_KING);
-	assert(piece_at[sq] == EMPTY && color_at[sq] == EMPTY);
-    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
-    bits[piece] |= mask_sq(sq);
-	color_at[sq] = (piece >= BLACK_PAWN ? BLACK : WHITE);
-	piece_at[sq] = (piece >= BLACK_PAWN ? piece - 6 : piece);
-	assert(sq >= 0 && sq < 64 && piece_at[sq] >= WHITE_PAWN && piece_at[sq] < BLACK_PAWN);
-    b_pst[color_at[sq]] += pst[piece_at[sq]][sq];
-	b_mat[color_at[sq]] += piece_value[piece_at[sq]];
-	occ_mask |= mask_sq(sq);
-    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
-} 
-
-// #define clear_square(sq, non_side_piece, _side) assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq))); bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
-// #define clear_square(sq, piece) assert((bits[piece] & mask_sq(sq)) != 0); assert(color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece)); assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK)); assert(occ_mask & mask_sq(sq)); bits[piece] ^= mask_sq(sq); color_at[sq] = piece_at[sq] = EMPTY; occ_mask ^= mask_sq(sq); assert((occ_mask & mask_sq(sq)) == 0); assert((bits[piece] & mask_sq(sq)) == 0);
+// void Board::set_square(int sq, int piece) {
+// 	assert(piece >= WHITE_PAWN && piece <= BLACK_KING);
+// 	assert(piece_at[sq] == EMPTY && color_at[sq] == EMPTY);
+//     assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
+//     bits[piece] |= mask_sq(sq);
+// 	color_at[sq] = (piece >= BLACK_PAWN ? BLACK : WHITE);
+// 	piece_at[sq] = (piece >= BLACK_PAWN ? piece - 6 : piece);
+// 	assert(sq >= 0 && sq < 64 && piece_at[sq] >= WHITE_PAWN && piece_at[sq] < BLACK_PAWN);
+//     b_pst[color_at[sq]] += pst[piece_at[sq]][sq];
+// 	b_mat[color_at[sq]] += piece_value[piece_at[sq]];
+// 	occ_mask |= mask_sq(sq);
+//     assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
+// } 
 
 // the piece ranges from 0 to 5 
-void Board::clear_square(int sq, int non_side_piece, bool _side) {
-	assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq)));
-	bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq);
-	b_pst[_side] -= pst[piece_at[sq]][sq];
-	b_mat[_side] -= piece_value[piece_at[sq]];
-	color_at[sq] = piece_at[sq] = EMPTY;
-	occ_mask ^= mask_sq(sq);
-	assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
-}
+// void Board::clear_square(int sq, int non_side_piece, bool _side) {
+// 	assert((bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) && color_at[sq] != EMPTY && piece_at[sq] == non_side_piece && color_at[sq] == _side && (occ_mask & mask_sq(sq)));
+// 	bits[non_side_piece + (_side == BLACK ? 6 : 0)] ^= mask_sq(sq);
+// 	b_pst[_side] -= pst[piece_at[sq]][sq];
+// 	b_mat[_side] -= piece_value[piece_at[sq]];
+// 	color_at[sq] = piece_at[sq] = EMPTY;
+// 	occ_mask ^= mask_sq(sq);
+// 	assert((occ_mask & mask_sq(sq)) == 0 && (bits[non_side_piece + (_side == BLACK ? 6 : 0)] & mask_sq(sq)) == 0);
+// }
 
 // the piece ranges from 0 to 11
-void Board::clear_square(int sq, int piece) {
-	assert((bits[piece] & mask_sq(sq)) != 0 && color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece));
-	assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK) && occ_mask & mask_sq(sq));
-	bits[piece] ^= mask_sq(sq);
-	b_pst[piece >= BLACK_PAWN ? BLACK : WHITE] -= pst[piece_at[sq]][sq];
-	b_mat[piece >= BLACK_PAWN ? BLACK : WHITE] -= piece_value[piece_at[sq]];
-	color_at[sq] = piece_at[sq] = EMPTY;
-	occ_mask ^= mask_sq(sq);
-	assert((occ_mask & mask_sq(sq)) == 0 && (bits[piece] & mask_sq(sq)) == 0);
-}
+// void Board::clear_square(int sq, int piece) {
+// 	assert((bits[piece] & mask_sq(sq)) != 0 && color_at[sq] != EMPTY && piece_at[sq] == (piece >= BLACK_PAWN ? piece - 6 : piece));
+// 	assert((piece <= WHITE_KING && color_at[sq] == WHITE) || (piece >= BLACK_PAWN && color_at[sq] == BLACK) && occ_mask & mask_sq(sq));
+// 	bits[piece] ^= mask_sq(sq);
+// 	b_pst[piece >= BLACK_PAWN ? BLACK : WHITE] -= pst[piece_at[sq]][sq];
+// 	b_mat[piece >= BLACK_PAWN ? BLACK : WHITE] -= piece_value[piece_at[sq]];
+// 	color_at[sq] = piece_at[sq] = EMPTY;
+// 	occ_mask ^= mask_sq(sq);
+// 	assert((occ_mask & mask_sq(sq)) == 0 && (bits[piece] & mask_sq(sq)) == 0);
+// }
 
-bool Board::is_empty(int sq) {
-	return color_at[sq] == EMPTY;
-}
+// uint64_t Board::get_all_mask() const {
+// 	return occ_mask;
+// }
 
-uint64_t Board::get_all_mask() const {
-	return occ_mask;
-}
+// uint64_t Board::get_piece_mask(int piece) const {
+// 	return bits[piece];
+// }
 
-uint64_t Board::get_piece_mask(int piece) const {
-	return bits[piece];
-}
+// returns the mask of all white/black pieces
+// uint64_t Board::get_side_mask(bool _side) const {
+// 	uint64_t mask = 0;
+// 	if(_side == WHITE) {
+// 		for(int piece = WHITE_PAWN; piece <= WHITE_KING; piece++) {
+// 			mask |= bits[piece];
+// 		}
+// 	} else {
+// 		for(int piece = BLACK_PAWN; piece <= BLACK_KING; piece++) {
+// 			mask |= bits[piece];
+// 		}
+// 	}
+// 	return mask;
+// }
 
-/* returns the mask of all white/black pieces */
-uint64_t Board::get_side_mask(bool _side) const {
-	uint64_t mask = 0;
-	if(_side == WHITE) {
-		for(int piece = WHITE_PAWN; piece <= WHITE_KING; piece++) {
-			mask |= bits[piece];
-		}
-	} else {
-		for(int piece = BLACK_PAWN; piece <= BLACK_KING; piece++) {
-			mask |= bits[piece];
-		}
-	}
-	return mask;
-}
+// uint64_t Board::get_pawn_mask(bool _side) const {
+// 	return _side == WHITE ? bits[WHITE_PAWN] : bits[BLACK_PAWN];
+// }
 
-uint64_t Board::get_pawn_mask(bool _side) const {
-	return _side == WHITE ? bits[WHITE_PAWN] : bits[BLACK_PAWN];
-}
+// uint64_t Board::get_knight_mask(bool _side) const {
+// 	return _side == WHITE ? bits[WHITE_KNIGHT] : bits[BLACK_KNIGHT];
+// }
 
-uint64_t Board::get_knight_mask(bool _side) const {
-	return _side == WHITE ? bits[WHITE_KNIGHT] : bits[BLACK_KNIGHT];
-}
+// uint64_t Board::get_bishop_mask(bool _side) const {
+// 	return _side == WHITE ? bits[WHITE_BISHOP] : bits[BLACK_BISHOP];
+// }
 
-uint64_t Board::get_bishop_mask(bool _side) const {
-	return _side == WHITE ? bits[WHITE_BISHOP] : bits[BLACK_BISHOP];
-}
+// uint64_t Board::get_rook_mask(bool _side) const {
+// 	return _side == WHITE ? bits[WHITE_ROOK] : bits[BLACK_ROOK];
+// }
 
-uint64_t Board::get_rook_mask(bool _side) const {
-	return _side == WHITE ? bits[WHITE_ROOK] : bits[BLACK_ROOK];
-}
+// uint64_t Board::get_queen_mask(bool _side) const {
+// 	return _side == WHITE ? bits[WHITE_QUEEN] : bits[BLACK_QUEEN];
+// }
 
-uint64_t Board::get_queen_mask(bool _side) const {
-	return _side == WHITE ? bits[WHITE_QUEEN] : bits[BLACK_QUEEN];
-}
+// uint64_t Board::get_king_mask(bool _side) const {
+// 	return _side == WHITE ? bits[WHITE_KING] : bits[BLACK_KING];
+// }
 
-uint64_t Board::get_king_mask(bool _side) const {
-	return _side == WHITE ? bits[WHITE_KING] : bits[BLACK_KING];
-}
-
-int Board::get_piece(int sq) const {
-	return piece_at[sq] + (color_at[sq] == BLACK ? 6 : 0);
+// int Board::get_piece(int sq) const {
+// 	return piece_at[sq] + (color_at[sq] == BLACK ? 6 : 0);
 	// slow check, just to make sure that bitmasks aren't overlapping
 	// for(int piece = WHITE_PAWN; piece <= BLACK_KING; piece++) {
 	// 	for(int _piece = WHITE_PAWN; _piece <= BLACK_KING; _piece++) if(piece != _piece) {
@@ -536,11 +559,11 @@ int Board::get_piece(int sq) const {
 	// 	}
 	// }
     // return EMPTY;
-}
+// }
 
 // returns whether a piece at square is WHITE, BLACK or EMPTY
-int Board::get_color(int sq) const {
-	return color_at[sq];
+// int Board::get_color(int sq) const {
+// 	return color_at[sq];
     // uint64_t mask = mask_sq(sq);
     // for(int piece = WHITE_PAWN; piece <= BLACK_KING; piece++) {
     //     if(mask & bits[piece]) {
@@ -550,7 +573,7 @@ int Board::get_color(int sq) const {
 	// }
 	// assert(color_at[sq] == EMPTY);
     // return EMPTY;
-}
+// }
 
 void Board::update_castling_rights(const Move move) {
     const int piece = get_piece(get_to(move));
@@ -726,11 +749,10 @@ bool Board::is_draw() const {
 
     // draw by repetition
 	int n_repetitions = 0;
-
-	for(int i = keys.size() - 2; i >= 0; i--) {
+	for(int i = keys.size() - 1; i >= 0; i -= 4) {
 		if(keys[i] == keys[keys.size() - 1]) {
 			if(++n_repetitions == 3) {
-				return false;
+				return true;
 			}
 		}
 	}
@@ -738,10 +760,10 @@ bool Board::is_draw() const {
     return false;
 }
 
-bool Board::in_check() const {
-	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
-	return is_attacked(lsb(get_king_mask(side)));
-}
+// bool Board::in_check() const {
+// 	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
+// 	return bool(king_attackers);
+// }
 
 bool Board::castling_valid(const Move move) const {
     int from_sq = get_from(move);
@@ -963,10 +985,8 @@ bool Board::same(const Board& other) const {
 	}
 
 	for(int i = 0; i < 64; i++) {
-		if(other.get_piece(i) != get_piece(i)
-		|| color_at[i] != other.color_at[i]
-		|| piece_at[i] != piece_at[i]
-		) {
+		if(other.piece_at[i] != piece_at[i]
+		|| other.color_at[i] != color_at[i]) {
 			return false;
 		}
 	}

@@ -6,7 +6,6 @@
 #include "move_picker.h"
 #include "sungorus_eval.h"
 #include "uci.h"
-#include "position.h"
 #include "tt.h"
 #include "engine.h"
 #include "bench.h"
@@ -15,8 +14,8 @@ TranspositionTable tt;
 Engine engine;
 
 int main() {
-	// bench();
-	uci();
+	bench();
+	// uci();
 	return 0;
 		
 	engine.reset();
