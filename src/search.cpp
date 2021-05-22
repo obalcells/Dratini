@@ -321,7 +321,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                     pv.push_back(child_pv[i]);
                 }
 
-                if(is_root) {
+                if(false && is_root) {
                     printf("info depth %d time %d nodes %d cp score %d pv",
                            thread.depth, elapsed_time(), thread.nodes, thread.root_value);
                     for(int i = 0; i < (int)pv.size(); i++) {

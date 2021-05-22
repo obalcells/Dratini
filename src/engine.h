@@ -18,7 +18,7 @@ struct Engine {
         search_time = 0.0;
         stop_search = is_searching = false;
         best_move = ponder_move = NULL_MOVE; 
-        max_search_time = 30000;
+        max_search_time = 5000;
         board = Board();
     }
 

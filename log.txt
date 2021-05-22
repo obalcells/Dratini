@@ -1,5 +1,12 @@
 uci
 isready
 out: readyok
-position startpos moves b1c3 b8c6 c3b1 c6b8 b1c3 b8c6 c3b1 c6b8 b1c3 b8c6
-Assertion failed: (false), function is_draw, file src/board.cpp, line 761.
+go
+Initializing thread
+Thread initialized
+out: bestmove b1c3 ponder d7d5
+position startpos moves b1c3
+go
+Initializing thread
+Thread initialized
+out: bestmove g8f6 ponder d2d4

@@ -4,6 +4,7 @@
 #include <cassert>
 #include "board.h"
 #include "search.h"
+#include "new_search.h"
 #include "defs.h"
 #include "tt.h"
 #include "engine.h"
@@ -59,7 +60,7 @@ void* process_go(void* _go_struct) {
     // go_struct->engine->is_searching = false;
     engine.is_searching = true;
     engine.stop_search = false;
-    think(engine);
+    new_think(engine);
     if(engine.is_searching) {
         assert(engine.best_move != NULL_MOVE);
         cout << "bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
@@ -80,7 +81,7 @@ void uci() {
     cerr << read_uci << endl;
 	assert(read_uci == "uci");
 
-    cout << "id name Sungo move picker and macros" << endl;
+    cout << "id name old search" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
 
@@ -128,7 +129,15 @@ void uci() {
             if(args[1] == "startpos") {
                 engine.set_position(); // default position
             } else {
-                engine.set_position(args[1]); // args[1] is the fen
+                std::string fen_string = "";
+                int idx;
+                for(idx = 0; line[idx] != ' '; idx++);
+                idx++;
+                for(; idx < line.size(); idx++) {
+                    fen_string += line[idx];
+                }
+                cout << "Fen string read is " << fen_string << endl;
+                engine.set_position(fen_string); // args[1] is the fen
             }
             if(args.size() > 2 && args[2] == "moves") {
                 for(int i = 3; i < (int)args.size(); i++) {
@@ -159,13 +168,13 @@ void uci() {
             // pthread_create(&pthread_go, NULL, &process_go, go_struct);
             engine.is_searching = true;
             engine.stop_search = false;
-            think(engine);
+            // think(engine);
+            new_think(engine);
             if(engine.is_searching) {
                 assert(engine.best_move != NULL_MOVE);
                 cout << "bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
-                printf("TT percentage: %d percent, totally tried save %d, totally replaced %d, total saved %d\n",
-                tt.how_full(), tt.total_tried_save, tt.totally_replaced, tt.total_saved);
-
+                // printf("TT percentage: %d percent, totally tried save %d, totally replaced %d, total saved %d\n",
+                // tt.how_full(), tt.total_tried_save, tt.totally_replaced, tt.total_saved);
                 cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
                 engine.is_searching = false;
             }

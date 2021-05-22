@@ -14,8 +14,8 @@ TranspositionTable tt;
 Engine engine;
 
 int main() {
-	bench();
-	// uci();
+	// bench();
+	uci();
 	return 0;
 		
 	engine.reset();
