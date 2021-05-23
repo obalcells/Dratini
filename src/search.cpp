@@ -321,7 +321,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                     pv.push_back(child_pv[i]);
                 }
 
-                if(false && is_root) {
+                if(is_root) {
                     printf("info depth %d time %d nodes %d cp score %d pv",
                            thread.depth, elapsed_time(), thread.nodes, thread.root_value);
                     for(int i = 0; i < (int)pv.size(); i++) {
@@ -356,7 +356,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
     if(tt_cutoff) {
         // assert(best_move == tt_cutoff_move);
-        if(best_score < beta - 15) {
+        if(false && best_score < beta - 15) {
             cout << RED_COLOR << "Oh no! tt cutoff was wrong" << RESET_COLOR << endl;
             cout << "Bound of tt is " << (tt_bound == EXACT_BOUND ? "EXACT" : (tt_bound == LOWER_BOUND ? "LOWER BOUND" : "UPPER BOUND")) << endl;
             cout << "Score of tt is " << tt_score << endl;

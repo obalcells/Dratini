@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <cassert>
 #include <sys/time.h>
 #include "defs.h"
 #include "engine.h"

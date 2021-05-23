@@ -2,11 +2,3 @@ uci
 isready
 out: readyok
 go
-Initializing thread
-Thread initialized
-out: bestmove b1c3 ponder d7d5
-position startpos moves b1c3
-go
-Initializing thread
-Thread initialized
-out: bestmove g8f6 ponder d2d4

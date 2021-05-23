@@ -10,9 +10,7 @@ int new_search(NewThread& thread, int ply, int alpha, int beta, int depth, std::
 int quiesce(NewThread& thread, int ply, int alpha, int beta, std::vector<Move> pv);
 
 void new_think(Engine& engine) {
-    cerr << "Initializing thread" << endl;
     NewThread thread = NewThread(engine.board);
-    cerr << "Thread initialized" << endl;
     thread.clear_hist();
     tt.tt_date = (tt.tt_date + 1) & 255;
     thread.abort_search = false;

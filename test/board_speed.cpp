@@ -4,15 +4,20 @@
 #include <vector>
 #include "../src/gen.h"
 #include "../src/board.h"
+#include "sungorus_board.h"
 
 void test_board_speed() {
-    Board board = Board();
     std::string rng_seed_str = "Dratini";
     std::seed_seq _seed (rng_seed_str.begin(), rng_seed_str.end());
     auto rng = std::default_random_engine { _seed };
 	std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
     std::chrono::time_point<std::chrono::high_resolution_clock> initial_time, end_time;
+
+    Board old_dratini_board = Board();
     double old_board_total_duration = 0.0;
+
+    SungorusBoard sungorus_board = SungorusBoard();
+    double sungorus_board_total_duration = 0.0;
 
     for(int game_idx = 0; game_idx < (int)1e3; game_idx++) {
         for(int move_idx = 0; move_idx < 200; move_idx++) {

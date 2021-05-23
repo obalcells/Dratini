@@ -64,7 +64,7 @@ void* process_go(void* _go_struct) {
     if(engine.is_searching) {
         assert(engine.best_move != NULL_MOVE);
         cout << "bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
-        cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
+        // cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
         engine.is_searching = false;
     }
 }
@@ -74,14 +74,18 @@ void parse_option(const std::vector<std::string>& args) {
 }
 
 void uci() {
-    freopen("log.txt", "w", stderr);
+    // freopen("log.txt", "w", stderr);
 
 	std::string read_uci;
 	cin >> read_uci;
-    cerr << read_uci << endl;
+    // cerr << read_uci << endl;
+    if(read_uci != "uci")
+        cout << "We didn't read uci" << endl;
 	assert(read_uci == "uci");
 
-    cout << "id name old search" << endl;
+    std::string read_name;
+
+    cout << "id name ethereal search" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
 
@@ -98,7 +102,7 @@ void uci() {
             continue;
         }
 
-        cerr << line << endl;
+        // cerr << line << endl;
 
         if(line.size() == 0) {
             std::cout << "error" << endl;
@@ -118,7 +122,7 @@ void uci() {
             }
         } else if(command == "isready") {
             cout << "readyok" << endl;
-            cerr << "out: readyok" << endl;
+            // cerr << "out: readyok" << endl;
         } else if(command == "setoption") {
             parse_option(args);
         } else if(command == "ucinewgame") {
@@ -168,14 +172,14 @@ void uci() {
             // pthread_create(&pthread_go, NULL, &process_go, go_struct);
             engine.is_searching = true;
             engine.stop_search = false;
-            // think(engine);
-            new_think(engine);
+            think(engine);
+            // new_think(engine);
             if(engine.is_searching) {
                 assert(engine.best_move != NULL_MOVE);
                 cout << "bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
                 // printf("TT percentage: %d percent, totally tried save %d, totally replaced %d, total saved %d\n",
                 // tt.how_full(), tt.total_tried_save, tt.totally_replaced, tt.total_saved);
-                cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
+                // cerr << "out: bestmove " << move_to_str(engine.best_move) << " ponder " << move_to_str(engine.ponder_move) << endl;
                 engine.is_searching = false;
             }
         } else if(command == "stop") {

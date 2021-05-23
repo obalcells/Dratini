@@ -1,4 +1,5 @@
 #include <vector>
+#include <cassert>
 #include "defs.h"
 #include "gen.h"
 #include "new_move_picker.h"
