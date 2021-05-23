@@ -29,22 +29,21 @@ void generate_quiet(std::vector<Move>&, const Board*);
 #define in_check() bool(board->king_attackers)
 
 void generate_moves(std::vector<Move>& moves, const Board* board, bool quiesce) {
-    // std::vector<Move> tmp_moves;
+    std::vector<Move> tmp_moves;
     if(board->king_attackers) {
-        generate_evasions(moves, board);
+        generate_evasions(tmp_moves, board);
     } else {
-        generate_captures(moves, board);
+        generate_captures(tmp_moves, board);
         if(!quiesce) {
-            generate_quiet(moves, board);
+            generate_quiet(tmp_moves, board);
         }
     }
-    /* we will delete this later */
-    // for(int i = 0; i < (int)tmp_moves.size(); i++) {
-    //     // if(board.fast_move_valid(tmp_moves[i]))
-    //     if(board->fast_move_valid(tmp_moves[i])) {
-    //         moves.push_back(tmp_moves[i]);
-    //     }
-    // }
+
+    for(int i = 0; i < (int)tmp_moves.size(); i++) {
+        if(board->fast_move_valid(tmp_moves[i])) {
+            moves.push_back(tmp_moves[i]);
+        }
+    }
 }
 
 // returns a bitboard containing all the pieces which are attacking sq 
@@ -137,10 +136,8 @@ uint64_t get_between(int from_sq, int to_sq, const Board* board) {
 
 // we assume that king is in check
 void generate_evasions(std::vector<Move>& moves, const Board* board) {
-    const int king_pos = lsb(get_king_mask(board->side));
-    int from_sq, to_sq; 
-    uint64_t king_attackers = get_attackers(king_pos, board->xside, board);    
-    assert(king_attackers == board->king_attackers);
+    int from_sq, to_sq, king_pos = lsb(get_king_mask(board->side));
+    assert(get_attackers(king_pos, board->xside, board) == board->king_attackers);
 
     if(popcnt(board->king_attackers) == 1) {
         // a piece (different than the checked king) will try to eat the attacker
@@ -250,7 +247,7 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             moves.push_back(Move(to_sq - 9, to_sq, KNIGHT_PROMOTION));
         }
 
-        /* promotion front (sq -> sq + 8) */
+        // promotion front (sq -> sq + 8)
         mask = ((pawn_mask & ROW_6) << 8) & ~all_mask;
         while(mask) {
             to_sq = pop_first_bit(mask);
@@ -258,14 +255,14 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             moves.push_back(Move(to_sq - 8, to_sq, KNIGHT_PROMOTION));
         }
 
-        /* pawn capture to the left (sq -> sq + 7) */
+        // pawn capture to the left (sq -> sq + 7)
         mask = ((pawn_mask & ~ROW_6 & ~COL_0) << 7) & xside_mask;
         while(mask) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 7, to_sq, CAPTURE_MOVE));
         }
 
-        /* pawn capture to the right (sq -> sq + 9) */
+        // pawn capture to the right (sq -> sq + 9)
         mask = ((pawn_mask & ~ROW_6 & ~COL_7) << 9) & xside_mask;
         while(mask) {
             to_sq = pop_first_bit(mask);

@@ -46,10 +46,10 @@ void Board::take_back(const UndoData& undo_data) {
 
     enpassant = undo_data.enpassant;
 
-    assert(undo_data.castling_rights.size() == 4);
-    for(int i = 0; i < 4; i++) {
-        castling_rights[i] = undo_data.castling_rights[i];
-    }
+    // assert(undo_data.castling_rights.size() == 4);
+    // for(int i = 0; i < 4; i++) {
+    //     castling_rights[i] = undo_data.castling_rights[i];
+    // }
 
     switch(get_flag(undo_data.move)) {
         case NULL_MOVE:
@@ -145,7 +145,8 @@ UndoData Board::make_move(const Move move) {
 	int flag = get_flag(move);
 	int piece = get_piece(from_sq);
 
-    UndoData undo_data = UndoData(move, enpassant, castling_rights, piece, EMPTY, fifty_move_ply);
+    // UndoData undo_data = UndoData(move, enpassant, castling_rights, piece, EMPTY, fifty_move_ply);
+    UndoData undo_data = UndoData(move, enpassant, castling_flag, piece, EMPTY, fifty_move_ply);
 
 	if(is_null(move)) {
 		piece = -1;

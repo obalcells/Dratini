@@ -285,6 +285,10 @@ struct NewSearchMovePicker {
     }
 
     int mvvlva(const Move move) {
+        if(board->piece_at[get_to(move)] != EMPTY)
+            return board->piece_at[get_to(move)] * 5 - board->piece_at[get_from(move)] + 5;
+        else if(board->piece_at[get_from(move)] == PAWN)
+            return (get_flag(move) - KNIGHT_PROMOTION + KNIGHT) * 8;
         return 0;
     }
 };

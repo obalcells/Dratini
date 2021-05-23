@@ -12,10 +12,11 @@ static std::seed_seq seed(str_seed.begin(), str_seed.end());
 static std::mt19937_64 rng(seed);
 static std::uniform_int_distribution<uint64_t> dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
 static bool required_data_initialized = false; // this must be set to false at the beginning
-static std::vector<std::vector<uint64_t> > zobrist_pieces;
-static std::vector<uint64_t> zobrist_castling;
-static std::vector<uint64_t> zobrist_enpassant;
-static std::vector<uint64_t> zobrist_side;
+std::vector<std::vector<uint64_t> > zobrist_pieces;
+std::vector<uint64_t> zobrist_castling;
+std::vector<uint64_t> zobrist_enpassant;
+std::vector<uint64_t> zobrist_side;
+std::vector<int> castling_bitmasks;
 static const int pst[6][64] = {
   { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
   { 0, 8, 16, 20, 20, 16, 8, 0, 8, 16, 24, 28, 28, 24, 16, 8, 16, 24, 32, 36, 36, 32, 24, 16, 20, 28, 36, 40, 40, 36, 28, 20, 20, 28, 36, 40, 40, 36, 28, 20, 16, 24, 32, 36, 36, 32, 24, 16, 8, 16, 24, 28, 28, 24, 16, 8, 0, 8, 16, 20, 20, 16, 8, 0 },
@@ -65,13 +66,13 @@ static void init_data() {
     }
     
     zobrist_castling.resize(4);
-    for(int castling_flag = 0; castling_flag < 4; castling_flag++)
-        zobrist_castling[castling_flag] = get_random_64();
+    for(int i = 0; i < 4; i++)
+        zobrist_castling[i] = get_random_64();
 
     zobrist_enpassant.resize(9);
     for(int col = 0; col < 8; col++)
         zobrist_enpassant[col] = get_random_64();
-    /* when there is no enpassant column */
+    // when there is no enpassant column
     zobrist_enpassant[NO_ENPASSANT] = 0;
 
     zobrist_side.resize(2);
@@ -157,6 +158,14 @@ static void init_data() {
             king_attacks[sq] |= mask_sq(sq - 8 - 1);
     }
 
+	castling_bitmasks.assign(64, 15);
+	castling_bitmasks[A1] = 14;
+	castling_bitmasks[E1] = 12;
+	castling_bitmasks[H1] = 13;
+	castling_bitmasks[A8] = 11;
+	castling_bitmasks[E8] = 3;
+	castling_bitmasks[H8] = 7;
+
 	castling_mask.resize(4);
 	castling_mask[WHITE_QUEEN_SIDE] = mask_sq(B1) | mask_sq(C1) | mask_sq(D1);
 	castling_mask[WHITE_KING_SIDE] = mask_sq(F1) | mask_sq(G1);
@@ -170,35 +179,26 @@ Board::Board() {
 	occ_mask = 0;
 	b_pst[WHITE] = b_pst[BLACK] = b_mat[WHITE] = b_mat[BLACK] = 0; 
 	castling_rights.assign(4, true);
+	castling_flag = 15;
 	init_data();
-	// set_from_fen("1k6/8/2Q5/8/3K4/8/8/8 w - - 0 1"); // useless king move, delaying the checkmate
-	// set_from_fen("5k2/2r5/8/8/4B3/2Q5/2K5/8 b - - 0 1"); // don't do the stupid thing with the rook 
-	// set_from_fen("5k2/4r3/8/8/4B3/2Q5/8/1K6 b - - 0 1"); // don't eat with the rook
-	// set_from_fen("5k2/8/8/8/4r3/2Q5/8/1K6 w - - 0 1"); // do the queen trick
-	// set_from_fen("8/1q6/8/R7/2k5/K7/8/8 w - - 0 1");
-	// set_from_fen("8/1q6/8/8/2k5/K7/8/8 w - - 0 1");
-	// set_from_fen("5n2/8/5k2/8/K7/2p5/8/Q7 w - - 0 1");
 	set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	key = calculate_key(false);
 	keys.push_back(key);
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
     update_material_values(); // sungorus
-    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
-	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
 }
 
 Board::Board(const std::string& str) { // bool read_from_file = false) {
 	occ_mask = 0;
 	b_pst[WHITE] = b_pst[BLACK] = b_mat[WHITE] = b_mat[BLACK] = 0;
 	castling_rights.assign(4, true);
+	castling_flag = 15;
 	init_data();
 	set_from_fen(str);
 	key = calculate_key(false);
 	keys.push_back(key);
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
-    update_material_values(); // sungorus
-    assert(occ_mask == (get_side_mask(WHITE) | get_side_mask(BLACK)));
-	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
+    update_material_values(); // to be able to use sungorus' eval function
 }
 
 void Board::set_from_fen(const std::string& fen) {
@@ -602,11 +602,11 @@ uint64_t Board::calculate_key(bool is_assert) const {
 
 	new_key ^= zobrist_enpassant[enpassant];
 
-    for(int castling_type = 0; castling_type < 4; castling_type++) {
-		if(castling_rights[castling_type]) {
-			new_key ^= zobrist_castling[castling_type];
-		}
-	}
+    // for(int castling_type = 0; castling_type < 4; castling_type++) {
+	// 	if(castling_rights[castling_type]) {
+	// 		new_key ^= zobrist_castling[castling_type];
+	// 	}
+	// }
 
 	int piece;
 	for(int sq = 0; sq < 64; sq++) {
@@ -635,11 +635,11 @@ void Board::update_key(const UndoData& undo_data) {
         return;
 	}
 
-    for(int i = 0; i < 4; i++) {
-        if(undo_data.castling_rights[i] != castling_rights[i]) {
-            key ^= zobrist_castling[i];
-		}
-	}
+    // for(int i = 0; i < 4; i++) {
+    //     if(undo_data.castling_rights[i] != castling_rights[i]) {
+    //         key ^= zobrist_castling[i];
+	// 	}
+	// }
         
     const int from_sq = get_from(move);
     const int to_sq = get_to(move);
@@ -774,8 +774,8 @@ bool Board::castling_valid(const Move move) const {
 	
 	if(side == WHITE
 	&& (from_sq == E1 && to_sq == C1)
-	&& castling_rights[WHITE_QUEEN_SIDE]
-	&& ((all_mask & castling_mask[WHITE_QUEEN_SIDE]) == 0)) {
+	&& (castling_flag & 1)
+	&& !(all_mask & (mask_sq(B1) | mask_sq(C1) | mask_sq(D1))) {
 		castling_type = WHITE_QUEEN_SIDE;
 	} else if(side == WHITE
 	&& (from_sq == E1 && to_sq == G1)
@@ -966,6 +966,16 @@ void Board::error_check() const {
 		}
 		assert(bits[piece_classic] & mask_sq(sq));
 	}
+	assert(piece_at[lsb(get_king_mask(side))] == KING);
+    uint64_t calc_king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
+	assert(calc_king_attackers == king_attackers);
+}
+
+void Board::update_classic_settings() {
+	castling_rights[WHITE_QUEEN_SIDE] = castling_flag & 1;
+	castling_rights[WHITE_KING_SIDE] = castling_flag & 2;
+	castling_rights[BLACK_QUEEN_SIDE] = castling_flag & 4;
+	castling_rights[BLACK_KING_SIDE] = castling_flag & 8;
 }
 
 bool Board::same(const Board& other) const {
@@ -975,8 +985,9 @@ bool Board::same(const Board& other) const {
 		return false;
 	if(other.castling_rights[BLACK_QUEEN_SIDE] != castling_rights[BLACK_QUEEN_SIDE])
 		return false;
-	if(other.castling_rights[BLACK_KING_SIDE] != castling_rights[BLACK_KING_SIDE])
+	if(other.castling_rights[BLACK_KING_SIDE] != castling_rights[BLACK_KING_SIDE]) {
 		return false;
+	}
 
 	for(int piece = WHITE_PAWN; piece <= BLACK_KING; piece++) {
 		if(bits[piece] != other.bits[piece]) {
@@ -990,6 +1001,11 @@ bool Board::same(const Board& other) const {
 			return false;
 		}
 	}
+
+	// cout << "Everything except (maybe) key is the same" << endl;
+	
+	if(key != other.key)
+		return false;
 
 	return true;
 }

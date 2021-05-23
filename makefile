@@ -1,14 +1,6 @@
 # compiler flags
-C_FLAGS = -g -w --std=c++11 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
-# For profiling: C_FLAGS = -g -w --std=c++17 -pthread -Wfatal-errors -pipe -O0 -fno-rtti -finline-functions -fprefetch-loop-arrays -Wall -pedantic
-TESTING_C_FLAGS = -g -w -pthread --std=c++11
-SELF_PLAY_FLAGS = $(TESTING_C_FLAGS) -DSELF_PLAY -DMAX_DEPTH=4
+C_FLAGS = -g -w -s -lm --std=c++11 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
 
-# link options
-L_FLAGS = -s -lm
-TESTING_L_FLAGS = -lm
-
-# EXE = /Users/balce/Desktop/Dratini/dratini
 EXE =$(shell pwd)/dratini
 TEST_EXE=$(shell pwd)/test.sh
 SELF_PLAY_EXE=$(shell pwd) /self_play.sh
@@ -18,24 +10,20 @@ SRC_FILES := $(wildcard src/*.cpp)
 TEST_FILES := $(filter-out src/main.cpp, $(SRC_FILES))
 TEST_FILES += $(wildcard test/*.cpp)
 TEST_FILES := $(filter-out test/debug.cpp, $(TEST_FILES))
-DEBUG_FILES := $(filter-out src/main.cpp, $(SRC_FILES)) test/debug.cpp test/board_speed.cpp
+DEBUG_FILES := $(filter-out src/main.cpp, $(SRC_FILES)) test/debug.cpp test/board_speed.cpp test/sungorus_board.cpp
 
-default: build 
+default: debug 
 
 debug:
-	g++ $(TESTING_L_FLAGS) $(TESTING_C_FLAGS) $(DEBUG_FILES) -o debug.sh
+	g++ $(C_FLAGS) $(DEBUG_FILES) -o debug.sh
 
 build:
 	@echo "Building executable"
-	g++ $(L_FLAGS) $(C_FLAGS) $(SRC_FILES) -o $(EXE)
+	g++ $(C_FLAGS) $(SRC_FILES) -o $(EXE)
 
 tests:
-	@echo "Building unit tests"
-	g++ $(TESTING_L_FLAGS) $(TESTING_C_FLAGS) $(TEST_FILES) -o $(TEST_EXE)
-
-self-play:
-	@echo "Building self-play executable"
-	g++ $(L_FLAGS) $(SELF_PLAY_FLAGS) $(SELF_PLAY_FILES) -o $(SELF_PLAY_EXE)
+	@echo "Building tests"
+	g++ $(C_FLAGS) $(TEST_FILES) -o $(TEST_EXE)
 
 clean:
 	rm -f *.sh

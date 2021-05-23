@@ -239,13 +239,13 @@ inline std::string move_to_str(const Move move) {
     ans += char('a' + col(get_to(move)));
     ans += char('1' + row(get_to(move)));
     if(get_flag(move) == QUEEN_PROMOTION) {
-        ans += "=Q"; 
+        ans += 'q'; 
     } else if(get_flag(move) == BISHOP_PROMOTION) {
-        ans += "=B";
+        ans += 'b';
     } else if(get_flag(move) == KNIGHT_PROMOTION) {
-        ans += "=N";
+        ans += 'n';
     } else if(get_flag(move) == ROOK_PROMOTION) {
-        ans += "=R";
+        ans += 'r';
     }
     return ans;
 }

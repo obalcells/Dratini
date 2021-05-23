@@ -11,6 +11,12 @@ extern std::vector<uint64_t> knight_attacks;
 extern std::vector<uint64_t> king_attacks;
 extern std::vector<uint64_t> castling_mask;
 
+extern std::vector<std::vector<uint64_t> > zobrist_pieces;
+extern std::vector<uint64_t> zobrist_castling;
+extern std::vector<uint64_t> zobrist_enpassant;
+extern std::vector<uint64_t> zobrist_side;
+extern std::vector<int> castling_bitmasks;
+
 #define clear_square(sq, piece) bits[piece] ^= mask_sq(sq); \
 	b_pst[piece >= BLACK_PAWN ? BLACK : WHITE] -= pst[piece_at[sq]][sq]; \
 	b_mat[piece >= BLACK_PAWN ? BLACK : WHITE] -= piece_value[piece_at[sq]]; \
@@ -26,19 +32,17 @@ extern std::vector<uint64_t> castling_mask;
 
 struct UndoData {
     Move move;
-    uint8_t enpassant;
-    std::vector<bool> castling_rights;
-    uint8_t moved_piece, captured_piece, fifty_move_ply;
+    uint8_t enpassant, castling_flag, moved_piece, captured_piece, fifty_move_ply;
 
     UndoData() {}
 
     UndoData(
-        const Move _move, const uint8_t _enpassant, const std::vector<bool>& _castling_rights,
+        const Move _move, const uint8_t _enpassant, const uint8_t _castling_flag,
         const uint8_t _moved_piece, const uint8_t _captured_piece, const uint8_t _fifty_move_ply
         ) {
         move = _move;
         enpassant = _enpassant;
-        castling_rights = _castling_rights;
+        castling_flag = _castling_flag;
         moved_piece = _moved_piece;
         captured_piece = _captured_piece;
         fifty_move_ply = _fifty_move_ply;
@@ -65,12 +69,14 @@ struct Board {
     // take back and make move
     bool make_move_from_str(const std::string&);
 	UndoData make_move(const Move);
+    void new_make_move(const Move, UndoData&);
     void take_back(const UndoData&);
 
     // error checking
     void error_check() const;
     bool same(const Board& other) const;
     void check_classic();
+    void update_classic_settings();
 
     // variables that are accessed externally
     uint64_t king_attackers;
@@ -82,6 +88,7 @@ struct Board {
     uint64_t bits[12];
     uint16_t move_count;
     std::vector<bool> castling_rights;
+    int castling_flag; // flag we will use in the future
     uint64_t occ_mask;
     std::vector<uint64_t> keys;
 
