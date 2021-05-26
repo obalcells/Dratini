@@ -26,7 +26,8 @@ static std::vector<std::string> split(const std::string &str) {
 }
 
 int main() {
-    test_board_speed();
+    // test_board_speed();
+    test_move_valid_speed();
     // Board board = Board("8/8/R6Q/3p4/2k5/1r6/8/4K3 w - - 0 1");
     // board.print_board();
 

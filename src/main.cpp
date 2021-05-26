@@ -20,6 +20,7 @@ int main() {
 		
 	engine.reset();
 	Board& board = engine.board;
+	UndoData undo_data;
 	bool first_input = true;
 
 	while(true) {
@@ -50,7 +51,7 @@ int main() {
 
 		if(board.side == BLACK) {
 			think(engine);
-			board.make_move(engine.best_move);
+			board.make_move(engine.best_move, undo_data);
 			continue;
 		}
 

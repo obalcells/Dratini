@@ -65,8 +65,8 @@ static void init_data() {
             zobrist_pieces[piece][sq] = get_random_64();
     }
     
-    zobrist_castling.resize(4);
-    for(int i = 0; i < 4; i++)
+    zobrist_castling.resize(16); // for each possible mask
+    for(int i = 0; i < 16; i++)
         zobrist_castling[i] = get_random_64();
 
     zobrist_enpassant.resize(9);
@@ -79,7 +79,7 @@ static void init_data() {
     for(int _side = WHITE; _side <= BLACK; _side++)
         zobrist_side[_side] = get_random_64();
 
-    /* pawn tables */
+    // pawn tables
     pawn_attacks.resize(2);
     pawn_attacks[WHITE].assign(64, 0);
     pawn_attacks[BLACK].assign(64, 0);
@@ -178,7 +178,6 @@ static void init_data() {
 Board::Board() {
 	occ_mask = 0;
 	b_pst[WHITE] = b_pst[BLACK] = b_mat[WHITE] = b_mat[BLACK] = 0; 
-	castling_rights.assign(4, true);
 	castling_flag = 15;
 	init_data();
 	set_from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -191,7 +190,6 @@ Board::Board() {
 Board::Board(const std::string& str) { // bool read_from_file = false) {
 	occ_mask = 0;
 	b_pst[WHITE] = b_pst[BLACK] = b_mat[WHITE] = b_mat[BLACK] = 0;
-	castling_rights.assign(4, true);
 	castling_flag = 15;
 	init_data();
 	set_from_fen(str);
@@ -267,7 +265,7 @@ void Board::set_from_fen(const std::string& fen) {
 		}
 		index++;
 	}
-	/* side to move */
+	// side to move
 	if(fen[index] == 'w') {
 		side = WHITE;
 		xside = BLACK;
@@ -279,7 +277,7 @@ void Board::set_from_fen(const std::string& fen) {
 		clear_board();
 		return;
 	}
-	/* space */
+	// space
 	if(fen[index] == ' ') {
 		std::cout << "Invalid fen string (4)" << endl;
 		clear_board();
@@ -292,31 +290,25 @@ void Board::set_from_fen(const std::string& fen) {
 		return;
 	}
 	index++;
-	/* castling */
+	// castling
 	if(fen[index] == '-') {
-		castling_rights[WHITE_QUEEN_SIDE] = false;
-		castling_rights[WHITE_KING_SIDE] = false;
-		castling_rights[BLACK_QUEEN_SIDE] = false;
-		castling_rights[BLACK_KING_SIDE] = false;
+		castling_flag = 15;
 		index++;
 	} else {
-		castling_rights[BLACK_KING_SIDE] = false;
-		castling_rights[BLACK_QUEEN_SIDE] = false;
-		castling_rights[WHITE_KING_SIDE] = false;
-		castling_rights[WHITE_QUEEN_SIDE] = false;
+		castling_flag = 0;
 		while(fen[index] != ' ') {
 			switch(fen[index++]) {
 				case 'K':
-					castling_rights[BLACK_KING_SIDE] = true;
+					castling_flag |= 8;
 					break;
 				case 'Q':
-					castling_rights[BLACK_QUEEN_SIDE] = true;
+					castling_flag |= 4;
 					break;
 				case 'k':
-					castling_rights[WHITE_KING_SIDE] = true;
+					castling_flag |= 2;
 					break;
 				case 'q':
-					castling_rights[WHITE_QUEEN_SIDE] = true;
+					castling_flag |= 1;
 					break;
 				default:
 					std::cerr << "Invalid fen string (5)" << endl;
@@ -324,25 +316,29 @@ void Board::set_from_fen(const std::string& fen) {
 					return;
 			}
 		}
-		if(!(bits[WHITE_KING] & mask_sq(E1))) {
-			castling_rights[WHITE_KING_SIDE] = false;
-			castling_rights[WHITE_QUEEN_SIDE] = false;
-		}
-		if(!(bits[BLACK_KING] & mask_sq(E8))) {
-			castling_rights[BLACK_KING_SIDE] = false;
-			castling_rights[BLACK_QUEEN_SIDE] = false;
-		}
+		if(piece_at[E1] != KING || color_at[E1] != WHITE)
+			castling_flag &= castling_bitmasks[E1];
+		if(piece_at[A1] != ROOK || color_at[A1] != WHITE)
+			castling_flag &= castling_bitmasks[A1];
+		if(piece_at[H1] != ROOK || color_at[H1] != WHITE)
+			castling_flag &= castling_bitmasks[H1];
+		if(piece_at[E8] != KING || color_at[E8] != BLACK)
+			castling_flag &= castling_bitmasks[E8];
+		if(piece_at[A8] != ROOK || color_at[A8] != BLACK)
+			castling_flag &= castling_bitmasks[A8];
+		if(piece_at[H8] != ROOK || color_at[H8] != BLACK)
+			castling_flag &= castling_bitmasks[H8];
 	}
-	/* space */
+	// space
 	if(fen[index] != ' ') {
 		std::cout << "Invalid fen string (6)" << endl;
 		clear_board();
 		return;
 	}
 	index++;
-	/* enpassant square */
+	// enpassant square
 	if(fen[index] == '-') {
-		set_enpassant(NO_ENPASSANT);
+		enpassant = NO_ENPASSANT;
 		index++;
 	} else {
 		char char_col = fen[index++];
@@ -353,9 +349,9 @@ void Board::set_from_fen(const std::string& fen) {
 			return;
 		}
 		int _col = char_col - 'a';
-		set_enpassant(_col);
+		enpassant = _col;
 	}
-	/* space */
+	// space
 	if(fen[index] != ' ') {
 		std::cout << "Invalid fen string (8)" << endl;
 		clear_board();
@@ -363,7 +359,7 @@ void Board::set_from_fen(const std::string& fen) {
 	}
 	index++;
 	std::string tmp_str = "";
-	/* fifty move counter */
+	// fifty move counter
 	while(fen[index] != ' ') {
 		if(!(fen[index] >= '0' && fen[index] <= '9')) {
 			std::cout << "Invalid fen string (9)" << endl;
@@ -379,7 +375,7 @@ void Board::set_from_fen(const std::string& fen) {
 		clear_board();
 		return;
 	}
-	/* space */
+	// space
 	if(fen[index] != ' ') {
 		std::cout << "Invalid fen string (11)" << endl;
 		clear_board();
@@ -387,7 +383,7 @@ void Board::set_from_fen(const std::string& fen) {
 	}
 	index++;
 	tmp_str.clear();
-	/* move counter */
+	// move counter
 	while(index < (int)fen.size() && fen[index] != ' ') {
 		if(!(fen[index] >= '0' && fen[index] <= '9')) {
 			std::cout << "Invalid fen string (12)" << endl;
@@ -403,7 +399,6 @@ void Board::set_from_fen(const std::string& fen) {
 		clear_board();
 		return;
 	}
-	// key = calculate_key();
 }
 
 void Board::clear_board() {
@@ -416,10 +411,6 @@ void Board::clear_board() {
 	occ_mask = 0;
 	king_attackers = 0;
 	enpassant = NO_ENPASSANT;
-}
-
-void Board::set_enpassant(int col) {
-	enpassant = uint8_t(col);
 }
 
 // #define set_square(sq, non_side_piece, _side); bits[non_side_piece + (_side == BLACK ? 6 : 0)] |= mask_sq(sq); \
@@ -575,38 +566,12 @@ void Board::set_enpassant(int col) {
     // return EMPTY;
 // }
 
-void Board::update_castling_rights(const Move move) {
-    const int piece = get_piece(get_to(move));
-
-	if(piece == WHITE_KING) {
-		castling_rights[WHITE_QUEEN_SIDE] = false;
-		castling_rights[WHITE_KING_SIDE] = false;
-    } else if(piece == BLACK_KING) {
-		castling_rights[BLACK_QUEEN_SIDE] = false;
-		castling_rights[BLACK_KING_SIDE] = false;
-	}
-
-	if(castling_rights[WHITE_QUEEN_SIDE] && get_piece(A1) != WHITE_ROOK)
-		castling_rights[WHITE_QUEEN_SIDE] = false;
-	else if(castling_rights[WHITE_KING_SIDE] && get_piece(H1) != WHITE_ROOK)
-		castling_rights[WHITE_KING_SIDE] = false;
-
-	if(castling_rights[BLACK_QUEEN_SIDE] && get_piece(A8) != BLACK_ROOK)
-		castling_rights[BLACK_QUEEN_SIDE] = false;
-	else if(castling_rights[BLACK_KING_SIDE] && get_piece(H8) != BLACK_ROOK)
-		castling_rights[BLACK_KING_SIDE] = false;
-}
-
 uint64_t Board::calculate_key(bool is_assert) const {
 	uint64_t new_key = 0;
 
 	new_key ^= zobrist_enpassant[enpassant];
 
-    // for(int castling_type = 0; castling_type < 4; castling_type++) {
-	// 	if(castling_rights[castling_type]) {
-	// 		new_key ^= zobrist_castling[castling_type];
-	// 	}
-	// }
+	new_key ^= zobrist_castling[castling_flag];
 
 	int piece;
 	for(int sq = 0; sq < 64; sq++) {
@@ -622,25 +587,23 @@ uint64_t Board::calculate_key(bool is_assert) const {
 }
 
 void Board::update_key(const UndoData& undo_data) {
-	const Move move = undo_data.move;
-
     if(undo_data.enpassant != enpassant) {
         key ^= zobrist_enpassant[undo_data.enpassant];
         key ^= zobrist_enpassant[enpassant];
     }
 
-    if(is_null(move)) {
+    if(is_null(undo_data.move)) {
 		key ^= zobrist_side[side];
 		key ^= zobrist_side[xside];
         return;
 	}
 
-    // for(int i = 0; i < 4; i++) {
-    //     if(undo_data.castling_rights[i] != castling_rights[i]) {
-    //         key ^= zobrist_castling[i];
-	// 	}
-	// }
+	if(castling_flag != undo_data.castling_flag) {
+		key ^= zobrist_castling[castling_flag];
+		key ^= zobrist_castling[undo_data.castling_flag];
+	}
         
+	const Move move = undo_data.move;
     const int from_sq = get_from(move);
     const int to_sq = get_to(move);
     const int flag = get_flag(move);
@@ -704,8 +667,17 @@ bool Board::is_attacked(const int sq) const {
 		   (knight_attacks[sq] & get_knight_mask(xside))
 		|| (king_attacks[sq] & get_king_mask(xside))
     	|| (pawn_attacks[xside][sq] & get_pawn_mask(xside))
-		|| (Bmagic(sq, get_all_mask()) & (get_bishop_mask(xside) | get_queen_mask(xside))) 
-		|| (Rmagic(sq, get_all_mask()) & (get_rook_mask(xside) | get_queen_mask(xside)));
+		|| (Bmagic(sq, occ_mask) & (get_bishop_mask(xside) | get_queen_mask(xside))) 
+		|| (Rmagic(sq, occ_mask) & (get_rook_mask(xside) | get_queen_mask(xside)));
+}
+
+bool Board::is_attacked(const int sq, bool attacker_side) const {
+	return
+		   (knight_attacks[sq] & get_knight_mask(attacker_side))
+		|| (king_attacks[sq] & get_king_mask(attacker_side))
+    	|| (pawn_attacks[attacker_side][sq] & get_pawn_mask(attacker_side))
+		|| (Bmagic(sq, occ_mask) & (get_bishop_mask(attacker_side) | get_queen_mask(attacker_side))) 
+		|| (Rmagic(sq, occ_mask) & (get_rook_mask(attacker_side) | get_queen_mask(attacker_side)));
 }
 
 bool Board::checkmate() {
@@ -766,31 +738,30 @@ bool Board::is_draw() const {
 // }
 
 bool Board::castling_valid(const Move move) const {
-    int from_sq = get_from(move);
-    int to_sq   = get_to(move);
+	int from_sq, to_sq, castling_type;
 
-	int castling_type;
-	uint64_t all_mask = get_all_mask();
-	
+	from_sq = get_from(move);
+    to_sq   = get_to(move);
+
 	if(side == WHITE
 	&& (from_sq == E1 && to_sq == C1)
 	&& (castling_flag & 1)
-	&& !(all_mask & (mask_sq(B1) | mask_sq(C1) | mask_sq(D1))) {
+	&& !(occ_mask & castling_mask[WHITE_QUEEN_SIDE])) { 
 		castling_type = WHITE_QUEEN_SIDE;
 	} else if(side == WHITE
 	&& (from_sq == E1 && to_sq == G1)
-	&& (castling_rights[WHITE_KING_SIDE])
-	&& ((all_mask & castling_mask[WHITE_KING_SIDE]) == 0)) {
+	&& (castling_flag & 2)
+	&& !(occ_mask & castling_mask[WHITE_KING_SIDE])) {
 		castling_type = WHITE_KING_SIDE;
 	} else if(side == BLACK
 	&& (from_sq == E8 && to_sq == C8)
-	&& castling_rights[BLACK_QUEEN_SIDE]
-	&& ((all_mask & castling_mask[BLACK_QUEEN_SIDE]) == 0)) {
+	&& (castling_flag & 4)
+	&& !(occ_mask & castling_mask[BLACK_QUEEN_SIDE])) {
 		castling_type = BLACK_QUEEN_SIDE;
 	} else if(side == BLACK
 	&& (from_sq == E8 && to_sq == G8)
-	&& castling_rights[BLACK_KING_SIDE]
-	&& ((all_mask & castling_mask[BLACK_KING_SIDE]) == 0)) {
+	&& (castling_flag & 8)	
+	&& !(occ_mask & castling_mask[BLACK_KING_SIDE])) { 
 		castling_type = BLACK_KING_SIDE;
 	} else {
 		return false;
@@ -804,36 +775,22 @@ bool Board::castling_valid(const Move move) const {
 		return !is_attacked(from_sq - 1);
     } else if(castling_type == WHITE_KING_SIDE || castling_type == BLACK_KING_SIDE) {
     	return !is_attacked(from_sq + 1);
-    } else {
-		assert(false); // we should not get here
-		return false;
 	}
+
+	return false;
 }
 
 // it only works for pawns
 bool Board::move_diagonal(const Move move) const {
-	int from_sq = get_from(move);
-	int to_sq   = get_to(move);
-	if(side == WHITE) {
-		if(to_sq != from_sq + 7 && to_sq != from_sq + 9)
-			return false;
-		/* wrong offset */
-		if(col(to_sq) == 0 && to_sq != from_sq + 7)
-			return false;
-		/* wrong offset */
-		if(col(to_sq) == 7 && to_sq != from_sq + 9)
-			return false;
+	if(side == WHITE) { 
+		return get_to(move) > get_from(move) 
+			&& abs(row(get_from(move)) - row(get_to(move))) == 1
+			&& abs(col(get_from(move)) - col(get_to(move))) == 1;
 	} else {
-		if(to_sq != from_sq - 7 && to_sq != from_sq - 9)
-			return false;
-		/* wrong offset */
-		if(col(to_sq) == 0 && to_sq != from_sq - 9)
-			return false;
-		/* wrong offset */
-		if(col(to_sq) == 7 && to_sq != from_sq - 7)
-			return false;
+		return get_to(move) < get_from(move) 
+			&& abs(row(get_from(move)) - row(get_to(move))) == 1
+			&& abs(col(get_from(move)) - col(get_to(move))) == 1;
 	}
-    return true;
 }
 
 
@@ -971,26 +928,19 @@ void Board::error_check() const {
 	assert(calc_king_attackers == king_attackers);
 }
 
-void Board::update_classic_settings() {
-	castling_rights[WHITE_QUEEN_SIDE] = castling_flag & 1;
-	castling_rights[WHITE_KING_SIDE] = castling_flag & 2;
-	castling_rights[BLACK_QUEEN_SIDE] = castling_flag & 4;
-	castling_rights[BLACK_KING_SIDE] = castling_flag & 8;
-}
-
 bool Board::same(const Board& other) const {
-	if(other.castling_rights[WHITE_QUEEN_SIDE] != castling_rights[WHITE_QUEEN_SIDE])
-		return false;
-	if(other.castling_rights[WHITE_KING_SIDE] != castling_rights[WHITE_KING_SIDE])
-		return false;
-	if(other.castling_rights[BLACK_QUEEN_SIDE] != castling_rights[BLACK_QUEEN_SIDE])
-		return false;
-	if(other.castling_rights[BLACK_KING_SIDE] != castling_rights[BLACK_KING_SIDE]) {
+	if(castling_flag != other.castling_flag) {
+		cerr << "Castling flags differ" << endl;
 		return false;
 	}
 
 	for(int piece = WHITE_PAWN; piece <= BLACK_KING; piece++) {
 		if(bits[piece] != other.bits[piece]) {
+			cerr << "Bits of piece " << piece << " differ" << endl;
+			cerr << "Bitboard of caller board is:" << endl;
+			print_bitboard(bits[piece]);
+			cerr << "Bitboard of arg board is:" << endl;
+			other.print_bitboard(other.bits[piece]);
 			return false;
 		}
 	}
@@ -998,13 +948,22 @@ bool Board::same(const Board& other) const {
 	for(int i = 0; i < 64; i++) {
 		if(other.piece_at[i] != piece_at[i]
 		|| other.color_at[i] != color_at[i]) {
+			cerr << "Piece at or color at square " << i << " differ" << endl;
+			cerr << (int)other.piece_at[i] << " " << (int)piece_at[i] << endl;
+			cerr << (int)other.color_at[i] << " " << (int)color_at[i] << endl;
 			return false;
 		}
 	}
 
-	// cout << "Everything except (maybe) key is the same" << endl;
-	
-	if(key != other.key)
+	if(key != other.key) {
+		cout << "The keys are different" << endl;
+		return false;
+	}
+
+	if(b_mat[WHITE] != other.b_mat[WHITE]
+	|| b_mat[BLACK] != other.b_mat[BLACK]
+	|| b_pst[WHITE] != other.b_pst[WHITE]
+	|| b_pst[BLACK] != other.b_pst[BLACK])
 		return false;
 
 	return true;
@@ -1025,10 +984,7 @@ void Board::print_board_data() const {
 	cerr << int(enpassant) << " ";
 	cerr << int(side) << " ";
 	cerr << int(xside);
-	cout << int(castling_rights[0]) << " "; 
-	cout << int(castling_rights[1]) << " "; 
-	cout << int(castling_rights[2]) << " "; 
-	cout << int(castling_rights[3]) << " "; 
+	cout << castling_flag << " ";
 	cout << int(move_count) << " ";
 	cout << int(fifty_move_ply) << " ";
 	cout << key;
@@ -1046,46 +1002,10 @@ std::string Board::get_data() const {
 	data += std::to_string(move_count) + ' ';
 	data += std::to_string(int(fifty_move_ply)) + ' ';
 	data += std::to_string(int(enpassant)) + ' ';
-	data += std::to_string(int(castling_rights[0])) + ' ';
-	data += std::to_string(int(castling_rights[1])) + ' ';
-	data += std::to_string(int(castling_rights[2])) + ' ';
-	data += std::to_string(int(castling_rights[3])) + ' ';
+	data += std::to_string(int(castling_flag)) + ' ';
 	data += std::to_string(int(side)) + ' ';
 	data += std::to_string(int(xside));
 	return data;
-}
-
-void Board::set_from_data() {
-	// freopen(file_name.c_str(), "r", stdin);	
-	// std::string data = "3 1 2 4 12 2 1 3 0 12 0 12 5 0 0 0 12 12 12 12 12 12 12 12 12 0 12 0 0 12 12 12 12 12 12 12 12 12 12 12 12 12 12 12 6 7 12 12 6 6 6 6 12 6 6 6 9 7 8 10 11 12 12 9 1106155485056437330 4 2 8 0 0 1 1 1 0";
-	std::string data = "3 1 2 4 12 2 1 3 0 12 0 12 5 0 0 0 12 12 12 12 12 12 12 12 12 0 12 0 0 12 12 12 12 12 12 12 12 12 12 12 12 12 12 12 6 7 12 12 6 6 6 6 12 6 6 6 9 7 8 10 11 12 12 9 1106155485056437330 4 2 8 0 0 1 1 1 0"; 
-	// std::string data = "436266240 66 274877906976 129 8 4096 49275987988316160 144150372447944704 288230376151711744 9295429630892703744 576460752303423488 1152921504606846976 0 0 12 0 12 0 0 0 0 12 0 12 0 0 0 0 12 12 12 12 12 12 12 12 12 0 12 0 0 12 12 12 12 12 12 12 12 12 0 12 12 12 12 12 1 1 12 12 1 1 1 1 12 1 12 1 1 1 1 1 1 12 12 1 3 1 12 4 12 2 1 3 0 12 0 12 5 0 0 0 12 12 12 12 12 12 12 12 12 0 12 0 0 12 12 12 12 12 12 12 12 12 2 12 12 12 12 12 0 1 12 12 0 0 0 0 12 0 12 0 3 1 2 4 5 12 12 3 8 1 00 0 1 1 3 1 2549602398997328124";
-
-	// reset bitboards
-	for(int i = 0; i <= BLACK_KING; i++) {
-		bits[i] = 0;
-	}
-
-	int i = 0;
-	for(int pos = 0; pos < 64; pos++) {
-		std::string this_number = "";
-		while(i < (int)data.size() && data[i] != ' ') {
-			this_number += data[i++];
-		}
-		i++;
-		int piece = stoi(this_number);
-		bits[piece] |= mask_sq(pos);		
-		cerr << piece << " ";
-	}
-	side = BLACK;
-	xside = WHITE;
-	enpassant = NO_ENPASSANT;
-	fifty_move_ply = 2;
-	move_count = 2;
-	castling_rights[0] = false;
-	castling_rights[1] = false;
-	castling_rights[2] = true;
-	castling_rights[3] = true;
 }
 
 void Board::update_material_values() {

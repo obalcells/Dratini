@@ -30,7 +30,7 @@ static const int pst[6][64] = {
 
 void Board::take_back(const UndoData& undo_data) {
     side = xside;
-    xside = !xside;
+	xside = !xside;
 
 	fifty_move_ply = undo_data.fifty_move_ply;
 
@@ -46,10 +46,7 @@ void Board::take_back(const UndoData& undo_data) {
 
     enpassant = undo_data.enpassant;
 
-    // assert(undo_data.castling_rights.size() == 4);
-    // for(int i = 0; i < 4; i++) {
-    //     castling_rights[i] = undo_data.castling_rights[i];
-    // }
+	castling_flag = undo_data.castling_flag;
 
     switch(get_flag(undo_data.move)) {
         case NULL_MOVE:
@@ -120,6 +117,7 @@ void Board::take_back(const UndoData& undo_data) {
 		}
         case KNIGHT_PROMOTION: {
             clear_square(get_to(undo_data.move), KNIGHT + (side == WHITE ? 0 : 6));
+			assert(piece_at[get_to(undo_data.move)] == EMPTY && color_at[get_to(undo_data.move)]);
             if(undo_data.captured_piece != EMPTY) {
                 set_square(get_to(undo_data.move), undo_data.captured_piece);
             }
@@ -136,17 +134,22 @@ void Board::take_back(const UndoData& undo_data) {
 		}
     }
 
+	// we can store this in UndoData?
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
 }
 
-UndoData Board::make_move(const Move move) {
+void Board::make_move(const Move move, UndoData& undo_data) {
 	int from_sq = get_from(move);
 	int to_sq = get_to(move);
 	int flag = get_flag(move);
 	int piece = get_piece(from_sq);
 
-    // UndoData undo_data = UndoData(move, enpassant, castling_rights, piece, EMPTY, fifty_move_ply);
-    UndoData undo_data = UndoData(move, enpassant, castling_flag, piece, EMPTY, fifty_move_ply);
+	undo_data.move = move;
+	undo_data.enpassant = enpassant;
+	undo_data.castling_flag = castling_flag;
+	undo_data.moved_piece = piece;
+	undo_data.captured_piece = EMPTY;
+	undo_data.fifty_move_ply = fifty_move_ply;
 
 	if(is_null(move)) {
 		piece = -1;
@@ -210,12 +213,12 @@ UndoData Board::make_move(const Move move) {
 	}
 
 	if((piece == WHITE_PAWN || piece == BLACK_PAWN) && abs(from_sq - to_sq) == 16) {
-		set_enpassant(col(from_sq));
+		enpassant = col(from_sq);
 	} else {
-		set_enpassant(8); // no column has enpassant
+		enpassant = NO_ENPASSANT; // no column has enpassant
 	}
 
-	update_castling_rights(move);
+	castling_flag &= castling_bitmasks[from_sq] & castling_bitmasks[to_sq];
 
 	fifty_move_ply++;
 	if(side == BLACK) {
@@ -229,8 +232,6 @@ UndoData Board::make_move(const Move move) {
     keys.push_back(key);
 
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
-
-    return undo_data;
 }
 
 // returns false if move is invalid, otherwise it applies the move and returns true
@@ -289,85 +290,66 @@ bool Board::make_move_from_str(const std::string& str_move) {
         return false;
     }
 
-    make_move(move);
+	UndoData undo_data;
+    make_move(move, undo_data);
 
     return true;
 }
 
 bool Board::check_pawn_move(const Move move) const {
-    int from_sq = get_from(move); 
-    int to_sq   = get_to(move);
-    int flag    = get_flag(move);
+    int from_sq = get_from(move), to_sq = get_to(move), flag = get_flag(move);
 
 	switch(flag) {
 		case ENPASSANT_MOVE: {
 			if(!move_diagonal(move))
 				return false;
 			int adjacent = 8 * row(from_sq) + col(to_sq);
-			// the enpassant flag doesn't match with column of square to */
-			if(enpassant != col(adjacent))
+			// the enpassant flag doesn't match with column of square to
+			// there is only one row we can move to if we are eating enpassant
+			if(enpassant != col(adjacent)
+			|| (side == WHITE && row(to_sq) != 5)
+			|| (side == BLACK && row(to_sq) != 2))
 				return false;
-			// there is only one row we can move to if we are eating enpassant */
-			if(side == WHITE && row(to_sq) != 5)
-				return false;
-			// there is only one row we can move to if we are eating enpassant */
-			if(side == BLACK && row(to_sq) != 2)
-				return false;
-			// if this fails there is a bug regarding the enpassant flag */
+			// if this fails there is a bug regarding the enpassant flag
 			assert(get_piece(adjacent) == WHITE_PAWN || get_piece(adjacent) == BLACK_PAWN);
 			break;
 		}
 		case CAPTURE_MOVE: {
-			// we have to eat diagonally */
-			if(!move_diagonal(move)) {
+			// we have to eat diagonally
+			// there must be an enemy piece at to square
+			if(!move_diagonal(move) || color_at[to_sq] != xside)
 				return false;
-			}
-			// there must be an enemy piece at to square */
-			if(!(mask_sq(to_sq) & get_side_mask(xside))) {
-				return false;
-			}
 			break;
 		}
 		case QUIET_MOVE: {
-			// it can only go one forward or two forward */
-			if((side == WHITE && to_sq == from_sq + 8)
+			// it can only go one forward or two forward
+			if(!((side == WHITE && to_sq == from_sq + 8)
 			|| (side == WHITE && row(from_sq) == 1 && to_sq == from_sq + 16)
 			|| (side == BLACK && to_sq == from_sq - 8)
-			|| (side == BLACK && row(from_sq) == 6 && to_sq == from_sq - 16)) {
-				// good */	
-			} else return false;
-			// we compute the mask already */
-			uint64_t all_side_mask = get_all_mask();
-			// square in front can't be occupied */
-			uint64_t one_forward = mask_sq(from_sq + (side == WHITE ? 8 : (-8)));
-			if(one_forward & get_all_mask()) // it should return 0 */
+			|| (side == BLACK && row(from_sq) == 6 && to_sq == from_sq - 16)))
 				return false;
-			// if it does two-forward, that square can't be occupied */
-			if(to_sq == from_sq + 16 || to_sq == from_sq - 16) {
-				if(mask_sq(to_sq) & all_side_mask) 
-					return false;
-			}
+			// square in front can't be occupied
+			if(mask_sq(from_sq + (side == WHITE ? 8 : (-8))) & occ_mask) // it should return 0 */
+				return false;
+			// if it does two-forward, that square can't be occupied 
+			if((to_sq == from_sq + 16 || to_sq == from_sq - 16) && (mask_sq(to_sq) & occ_mask))
+				return false;
 			break;
 		}
 		default: {
-			// flag must be promotion */
+			// flag must be promotion
 			if(flag != QUEEN_PROMOTION
 			&& flag != ROOK_PROMOTION
 			&& flag != BISHOP_PROMOTION
 			&& flag != KNIGHT_PROMOTION)
 				return false;
-			// to square must be at the last/first row */
-			if(side == WHITE && row(to_sq) != 7)
+			// to square must be at the last/first row
+			if((side == WHITE && row(to_sq) != 7) || (side == BLACK && row(to_sq) != 0))
 				return false;
-			// to square must be at the last/first row */
-			if(side == BLACK && row(to_sq) != 0)
-				return false;
-			// it must be a valid pawn move */
+			// it must be a valid pawn move
 			int new_flag = (get_piece(to_sq) == EMPTY ? QUIET_MOVE : CAPTURE_MOVE);
 			Move move_with_changed_flag = Move(from_sq, to_sq, new_flag); 
-			if(!check_pawn_move(move_with_changed_flag)) {
-				return false;
-			}
+			return check_pawn_move(move_with_changed_flag);
 		}
     }
 
@@ -391,10 +373,14 @@ bool Board::fast_move_valid(const Move move) const {
 	}
 
 	// This code underneath is equivalent to just doing:
+	// make_move(move);
 	// bool in_check_after_move = in_check();
+	// take_back(move);
+	// return !in_check_after_move;
 	// the problem is that we want the function to be const so we can't touch the board
    
 	if(piece_from == WHITE_KING || piece_from == BLACK_KING) {
+		
 		if((knight_attacks[to_sq] & get_knight_mask(xside))
 		|| (king_attacks[to_sq] & get_king_mask(xside))
 		|| (pawn_attacks[xside][to_sq] & get_pawn_mask(xside)))
@@ -458,7 +444,7 @@ bool Board::move_valid(const Move move) {
     }
 
 	if(flag == CASTLING_MOVE) {
-		// this is the only place were we return true before the end of the function */
+		// this is the only place were we return true before the end of the function
 		return castling_valid(move);
 	} else if(piece == WHITE_PAWN || piece == BLACK_PAWN) {
 		if(!check_pawn_move(move)) {

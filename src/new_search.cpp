@@ -52,7 +52,7 @@ int new_search(NewThread& thread, int ply, int alpha, int beta, int depth, std::
     if(depth > 1 && beta <= evaluate(thread.board) && !bool(thread.board.king_attackers)
     && (thread.board.occ_mask & ~(thread.board.bits[WHITE_KING] | thread.board.bits[BLACK_KING] 
         | thread.board.bits[WHITE_PAWN] | thread.board.bits[BLACK_PAWN])) != 0) {
-        undo_data = thread.board.make_move(NULL_MOVE);
+        thread.board.make_move(NULL_MOVE, undo_data);
         score = -new_search(thread, ply + 1, -beta, -beta + 1, depth - 3, new_pv);
         thread.board.take_back(undo_data);
         if(thread.abort_search) return 0;
@@ -67,7 +67,7 @@ int new_search(NewThread& thread, int ply, int alpha, int beta, int depth, std::
         if(!thread.board.fast_move_valid(move))
             continue;
         new_depth = depth - 1 + bool(thread.board.king_attackers);
-        undo_data = thread.board.make_move(move);
+        thread.board.make_move(move, undo_data);
         if (best == -INF)
             score = -new_search(thread, ply + 1, -beta, -alpha, new_depth, new_pv);
         else {
@@ -133,7 +133,7 @@ int quiesce(NewThread& thread, int ply, int alpha, int beta, std::vector<Move> p
     while((move = move_picker.next_move())) {
         if(!thread.board.fast_move_valid(move))
             continue;
-        undo_data = thread.board.make_move(move);
+        thread.board.make_move(move, undo_data);
         score = -quiesce(thread, ply + 1, -beta, -alpha, new_pv);
         thread.board.take_back(undo_data);
         if(thread.abort_search) return 0;

@@ -162,6 +162,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     thread.killers[thread.ply + 1][0] = NULL_MOVE;
     thread.killers[thread.ply + 1][1] = NULL_MOVE;
     PV child_pv;
+    UndoData undo_data;
     Move tt_move = NULL_MOVE, best_move = NULL_MOVE, move = NULL_MOVE;
     std::vector<Move> captures_tried, quiets_tried;
     int score, best_score = -CHECKMATE, tt_score = INF, tt_bound = -1, searched_moves = 0;
@@ -202,7 +203,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     && depth >= MIN_NULL_MOVE_PRUNING_DEPTH
     && thread.move_stack[thread.ply - 1] != NULL_MOVE
     && (tt_bound == -1 || tt_score >= beta || tt_bound != UPPER_BOUND)) {
-        UndoData undo_data = thread.board.make_move(NULL_MOVE);
+        thread.board.make_move(NULL_MOVE, undo_data);
         thread.move_stack.push_back(NULL_MOVE);
         thread.ply++;
 
@@ -247,8 +248,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
         // we have already checked the validity of the captures
         // unless we are in check
-        if(!thread.board.fast_move_valid(move)
-        || (get_flag(move) == CASTLING_MOVE && in_check)) {
+        if(!thread.board.fast_move_valid(move)) {
+        // || (get_flag(move) == CASTLING_MOVE && in_check)) {
             continue;
         }
 
@@ -264,7 +265,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
         assert(thread.board.color_at[get_from(move)] == thread.board.side);
 
-        UndoData undo_data = thread.board.make_move(move);
+        thread.board.make_move(move, undo_data);
         thread.move_stack.push_back(move);
         thread.ply++;
 
@@ -453,6 +454,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     }
 
     PV child_pv;
+    UndoData undo_data;
     int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
     bool in_check = bool(thread.board.king_attackers);
 
@@ -471,12 +473,16 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
             break;
         }
 
-        if(!thread.board.fast_move_valid(move)
-        || (in_check && get_flag(move) == CASTLING_MOVE)) {
+        // ?!?
+        if(!thread.board.fast_move_valid(move)) {
+            // !thread.board.fast_move_valid(move)) {
+        // || (in_check && get_flag(move) == CASTLING_MOVE)) {
             continue;
         }
 
-        UndoData undo_data = thread.board.make_move(move);
+        assert(!in_check || get_flag(move) != CASTLING_MOVE);
+
+        thread.board.make_move(move, undo_data);
         thread.ply++;
 
         int score = -q_search(thread, child_pv, -beta, -alpha);

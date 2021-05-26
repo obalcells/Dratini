@@ -116,13 +116,16 @@ int MovePicker::next_lva(const uint64_t& attacker_mask, const bool attacker_side
 }
 
 int MovePicker::fast_see(const Move move) const {
-	const int to_sq = get_to(move);
-	int from_sq = get_from(move), depth = 0, side = board->side;	
-	int piece_at_to = get_piece(to_sq);
-	uint64_t attacker_mask = get_attackers(to_sq, board->side) | get_attackers(to_sq, board->xside);	
-	const uint64_t occ_mask = get_all_mask();
+	int from_sq, to_sq, piece_at_to, depth, side;
+	uint64_t attacker_mask, occ_mask, _diagonal_mask;
 	std::vector<int> score(16, 0);
-	score[0] = 0; // we want to force the capture at root
+
+	to_sq = get_to(move);
+	from_sq = get_from(move);
+	depth = 0;
+	side = board->side;
+	piece_at_to = get_piece(to_sq);
+	attacker_mask = get_attackers(to_sq, board->side) | get_attackers(to_sq, board->xside);	
 
 	while(from_sq != -1) {
 		score[depth + 1] = piece_value[piece_at_to] - score[depth];
@@ -133,7 +136,6 @@ int MovePicker::fast_see(const Move move) const {
 
 		// check xrays
 		if(move_is_diagonal(move)) {
-			uint64_t _diagonal_mask;
 			if(from_sq > to_sq) { // north
 				if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][NORTHEAST];
 				else _diagonal_mask = diagonal_mask[from_sq][NORTHWEST];
@@ -142,14 +144,14 @@ int MovePicker::fast_see(const Move move) const {
 				else _diagonal_mask = diagonal_mask[from_sq][SOUTHWEST];
 			}
 
-			attacker_mask |= Bmagic(from_sq, occ_mask) & _diagonal_mask
+			attacker_mask |= Bmagic(from_sq, board->occ_mask) & _diagonal_mask
 			& (get_queen_mask(side) | get_bishop_mask(side) | get_queen_mask(!side) | get_bishop_mask(!side)); 
 		} else if(move_is_straight(move)) {
 			if(row(from_sq) == row(to_sq)) {
-				attacker_mask |= Rmagic(from_sq, get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
+				attacker_mask |= Rmagic(from_sq, board->occ_mask) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
 				& (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
 			} else {
-				attacker_mask |= Rmagic(from_sq, get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
+				attacker_mask |= Rmagic(from_sq, board->occ_mask) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
 				& (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
 			}
 		}
@@ -295,16 +297,18 @@ Move MovePicker::next_move() {
 		case GOOD_CAPTURES: {
 			int best_index = get_best_index();		
 			while(best_index != -1) {
-				if(move_stack[best_index] == tt_move
-				|| !board->fast_move_valid(move_stack[best_index])) {
+				if(move_stack[best_index] == tt_move) {
+				// || !board->fast_move_valid(move_stack[best_index])) {
 					delete_move(best_index);	
 					best_index = get_best_index();
-				} else if(!fast_see(move_stack[best_index])) {
+				} else if(get_flag(move_stack[best_index]) != ENPASSANT_MOVE
+				&& board->piece_at[get_from(move_stack[best_index])] < board->piece_at[get_from(move_stack[best_index])] 
+				&& fast_see(move_stack[best_index]) < 0) { 
+				// } else if(fast_see(move_stack[best_index]) <= 0) {
 					scores[best_index] = -1;
 					best_index = get_best_index();
 				} else {
 					const Move move = move_stack[best_index];
-					assert(thread->board.fast_move_valid(move));
 					delete_move(best_index);
 					return move;
 				}

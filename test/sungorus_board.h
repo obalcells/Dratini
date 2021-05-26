@@ -117,12 +117,12 @@ struct UNDO {
 void Init();
 void UndoMove(POS *, int, UNDO *);
 void UndoNull(POS *, UNDO *);
-int Legal(POS *, int);
 U64 AttacksFrom(POS *, int);
 U64 AttacksTo(POS *, int);
 int Attacked(POS *, int, int);
-int Legal(POS *, int);
 void DoMove(POS *, int, UNDO *);
 void DoNull(POS *, UNDO *);
 void SetPosition(POS *, char *);
 U64 Key(POS *);
+bool Legal(POS *, int);
+int Swap(POS *, int, int);
