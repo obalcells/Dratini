@@ -145,12 +145,12 @@ void test_make_move_speed() {
 }
 
 void test_move_valid_speed() {
-	std::string rng_seed_str = "Dratini";
+	std::string rng_seed_str = "Dratini!";
 	std::seed_seq _seed(rng_seed_str.begin(), rng_seed_str.end());
 	auto rng = std::default_random_engine { _seed };
 	std::uniform_int_distribution < uint64_t > dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
 	std::chrono::time_point < std::chrono::high_resolution_clock > initial_time, end_time;
-	std::vector < Move > moves;
+	std::vector<Move> moves;
 	Board board;
 	UndoData _undo_data;
 	std::vector<Move> raw_moves, valid_moves;
@@ -164,11 +164,12 @@ void test_move_valid_speed() {
 	double new_mar_duration = 0.0;
 	double new_mar_and_mm_duration = 0.0;
 	double movevalid_duration = 0.0;
+	double new_movevalid_duration = 0.0;
 	double fast_duration = 0.0;
 	double old_mar_control_duration = 0.0;
 	double sungorus_mar_duration = 0.0;
 
-	int n_games = 5000, game_repetitions = 20;
+	int n_games = 50000, game_repetitions = 1;
 	long long fingerprint = 0, prev_fingerprint, fingerprint_diff;
 	uint64_t prev_king_attackers;
 
@@ -190,6 +191,20 @@ void test_move_valid_speed() {
 			std::vector<int> s_moves;
 			for(int i = 0; i < raw_moves.size(); i++) {
 				s_moves.push_back(StrToMove(&p, const_cast<char*>(move_to_str(raw_moves[i]).c_str())));	
+				if(board.piece_at[get_from(raw_moves[i])] == PAWN && get_from(raw_moves[i]) == C2 && get_to(raw_moves[i]) == D1 && get_flag(raw_moves[i]) == 2) {
+					cerr << "Move as int is " << (int)raw_moves[i] << endl;
+				}
+				if(board.piece_at[get_from(raw_moves[i])] == PAWN
+				&& (row(get_to(raw_moves[i])) == 0 || row(get_to(raw_moves[i]) == 7))
+				&& (get_flag(raw_moves[i]) == QUIET_MOVE)) {
+					cerr << "Board is:" << endl;
+					board.print_board();
+					cerr << "Move is " << move_to_str(raw_moves[i]) << endl;
+					cerr << "Move as int is " << (int)raw_moves[i];
+				}
+				assert(!(board.piece_at[get_from(raw_moves[i])] == PAWN
+				    && (row(get_to(raw_moves[i])) == 0 || row(get_to(raw_moves[i]) == 7))
+					&& get_flag(raw_moves[i]) == CAPTURE_MOVE));
 			}
 			assert(s_moves.size() == raw_moves.size());
 
@@ -213,12 +228,19 @@ void test_move_valid_speed() {
                 initial_time = std::chrono::high_resolution_clock::now();
                 for(int i = 0; i < raw_moves.size(); i++) {
                 	board.make_move(raw_moves[i], _undo_data);
-					fingerprint += !board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side);
+					// fingerprint += !board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side);
+					if(!board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side)) {
+						fingerprint++; // += !board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side);
+						// cerr << GREEN_COLOR << " " << move_to_str(raw_moves[i]) << RESET_COLOR << endl;
+					} else {
+						// cerr << RED_COLOR << " " << move_to_str(raw_moves[i]) << RESET_COLOR << endl;
+					}
                     board.new_take_back(_undo_data);
 					board.king_attackers = prev_king_attackers;
                 }
                 new_mar_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
 				assert(fingerprint_diff == fingerprint - prev_fingerprint);
+				fingerprint_diff = fingerprint - prev_fingerprint;
 				prev_fingerprint = fingerprint;
 
                 // New MAR 
@@ -226,12 +248,18 @@ void test_move_valid_speed() {
                 initial_time = std::chrono::high_resolution_clock::now();
                 for(int i = 0; i < raw_moves.size(); i++) {
                 	board.new_make_move(raw_moves[i], _undo_data);
-					fingerprint += !board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side);
+					if(!board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side)) {
+						fingerprint++; // += !board.is_attacked(lsb(board.bits[KING + (board.xside ? 6 : 0)]), board.side);
+						// cerr << GREEN_COLOR << " " << move_to_str(raw_moves[i]) << RESET_COLOR << " " << fingerprint << endl;
+					} else {
+						// cerr << RED_COLOR << " " << move_to_str(raw_moves[i]) << RESET_COLOR << endl;
+					}
                     board.new_take_back(_undo_data);
 					board.king_attackers = prev_king_attackers;
                 }
                 new_mar_and_mm_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
-				assert(fingerprint_diff == fingerprint - prev_fingerprint);
+				assert(fingerprint_diff ==fingerprint - prev_fingerprint);
+				fingerprint_diff = fingerprint - prev_fingerprint;
 				prev_fingerprint = fingerprint;
 
                 // Move valid 
@@ -245,19 +273,48 @@ void test_move_valid_speed() {
                 }
                 movevalid_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
 				assert(fingerprint_diff == fingerprint - prev_fingerprint);
+				fingerprint_diff = fingerprint - prev_fingerprint;
+				prev_fingerprint = fingerprint;
+
+                // New Move valid 
+                initial_time = std::chrono::high_resolution_clock::now();
+                for(int i = 0; i < raw_moves.size(); i++) {
+					if(board.new_move_valid(raw_moves[i]) && board.fast_move_valid(raw_moves[i])) {  
+						fingerprint++;
+						board.make_move(raw_moves[i], _undo_data);
+						board.take_back(_undo_data);
+					}
+                }
+                new_movevalid_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
+				assert(fingerprint_diff == fingerprint - prev_fingerprint);
+				fingerprint_diff = fingerprint - prev_fingerprint;
 				prev_fingerprint = fingerprint;
 
 				// Fast
                 initial_time = std::chrono::high_resolution_clock::now();
                 for(int i = 0; i < raw_moves.size(); i++) {
                     if(board.fast_move_valid(raw_moves[i])) {
+						// if(!board.move_valid(raw_moves[i])) {
+						// 	cerr << "Move " << move_to_str(raw_moves[i]) << " isn't valid but fmv says it is" << endl;
+						// 	cerr << "Board looks like this:" << endl;
+						// 	board.print_board();
+						// 	assert(false);
+						// }
 						fingerprint++;
                         valid_moves.push_back(raw_moves[i]);
 						board.new_make_move(raw_moves[i], _undo_data);
 						board.new_take_back(_undo_data);
-					}
+					} else {
+						// if(board.move_valid(raw_moves[i])) {
+						// 	cerr << "Move " << move_to_str(raw_moves[i]) << " is valid but fmv says it isnt" << endl;
+						// 	cerr << "Board looks like this:" << endl;
+						// 	board.print_board();
+						// 	assert(false);
+						// }
+					} 
                 }
                 fast_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
+				assert(fingerprint_diff == fingerprint - prev_fingerprint);
 				fingerprint_diff = fingerprint - prev_fingerprint;
 				prev_fingerprint = fingerprint;
 

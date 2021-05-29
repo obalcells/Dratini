@@ -737,62 +737,6 @@ bool Board::is_draw() const {
 // 	return bool(king_attackers);
 // }
 
-bool Board::castling_valid(const Move move) const {
-	int from_sq, to_sq, castling_type;
-
-	from_sq = get_from(move);
-    to_sq   = get_to(move);
-
-	if(side == WHITE
-	&& (from_sq == E1 && to_sq == C1)
-	&& (castling_flag & 1)
-	&& !(occ_mask & castling_mask[WHITE_QUEEN_SIDE])) { 
-		castling_type = WHITE_QUEEN_SIDE;
-	} else if(side == WHITE
-	&& (from_sq == E1 && to_sq == G1)
-	&& (castling_flag & 2)
-	&& !(occ_mask & castling_mask[WHITE_KING_SIDE])) {
-		castling_type = WHITE_KING_SIDE;
-	} else if(side == BLACK
-	&& (from_sq == E8 && to_sq == C8)
-	&& (castling_flag & 4)
-	&& !(occ_mask & castling_mask[BLACK_QUEEN_SIDE])) {
-		castling_type = BLACK_QUEEN_SIDE;
-	} else if(side == BLACK
-	&& (from_sq == E8 && to_sq == G8)
-	&& (castling_flag & 8)	
-	&& !(occ_mask & castling_mask[BLACK_KING_SIDE])) { 
-		castling_type = BLACK_KING_SIDE;
-	} else {
-		return false;
-	}
-
-    if(is_attacked(from_sq) || is_attacked(to_sq)) {
-        return false;
-	}
-
-	if(castling_type == WHITE_QUEEN_SIDE || castling_type == BLACK_QUEEN_SIDE) { 
-		return !is_attacked(from_sq - 1);
-    } else if(castling_type == WHITE_KING_SIDE || castling_type == BLACK_KING_SIDE) {
-    	return !is_attacked(from_sq + 1);
-	}
-
-	return false;
-}
-
-// it only works for pawns
-bool Board::move_diagonal(const Move move) const {
-	if(side == WHITE) { 
-		return get_to(move) > get_from(move) 
-			&& abs(row(get_from(move)) - row(get_to(move))) == 1
-			&& abs(col(get_from(move)) - col(get_to(move))) == 1;
-	} else {
-		return get_to(move) < get_from(move) 
-			&& abs(row(get_from(move)) - row(get_to(move))) == 1
-			&& abs(col(get_from(move)) - col(get_to(move))) == 1;
-	}
-}
-
 
 void Board::print_board() const {
 	std::cout << endl;

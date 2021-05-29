@@ -61,8 +61,7 @@ Move NewMovePicker::next_move() {
                 move = select_best();
                 if(move == tt_move) {
                     continue;
-                }
-                if(bad_capture(move)) {
+                } else if(bad_capture(move)) {
                     bad_captures.push_back(move);
                     continue;
                 }

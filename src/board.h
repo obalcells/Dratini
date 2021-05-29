@@ -32,27 +32,30 @@ extern std::vector<int> castling_bitmasks;
 struct UndoData {
     Move move;
     uint8_t enpassant, castling_flag, moved_piece, captured_piece, fifty_move_ply;
+    uint64_t king_attackers;
 
     UndoData() {}
 
-    UndoData(
-        const Move _move, const uint8_t _enpassant, const uint8_t _castling_flag,
-        const uint8_t _moved_piece, const uint8_t _captured_piece, const uint8_t _fifty_move_ply
-        ) {
-        move = _move;
-        enpassant = _enpassant;
-        castling_flag = _castling_flag;
-        moved_piece = _moved_piece;
-        captured_piece = _captured_piece;
-        fifty_move_ply = _fifty_move_ply;
+    // UndoData(
+    //     const Move _move, const uint8_t _enpassant, const uint8_t _castling_flag,
+    //     const uint8_t _moved_piece, const uint8_t _captured_piece, const uint8_t _fifty_move_ply
+    //     ) {
+    //     move = _move;
+    //     enpassant = _enpassant;
+    //     castling_flag = _castling_flag;
+    //     moved_piece = _moved_piece;
+    //     captured_piece = _captured_piece;
+    //     fifty_move_ply = _fifty_move_ply;
+    // }
+
+    UndoData(const uint64_t _king_attackers) {
+        king_attackers = _king_attackers;
     }
 };
 
 struct Board {
     Board();
     Board(const std::string&);
-
-    // board state functions
 	bool is_attacked(const int) const;
     bool is_attacked(const int, bool) const;
     bool in_check() const;
@@ -60,28 +63,28 @@ struct Board {
     bool checkmate();
     bool stalemate();
 	bool move_valid(const Move);
+    bool new_move_valid(const Move);
     bool fast_move_valid(const Move) const;
+    bool new_fast_move_valid(const Move) const;
     void print_board() const;
     void print_bitboard(uint64_t) const;
     void print_board_data() const;
     std::string get_data() const;
-
-    // take back and make move
     bool make_move_from_str(const std::string&);
 	void make_move(const Move, UndoData&);
     void new_make_move(const Move, UndoData&);
     void take_back(const UndoData&);
     void new_take_back(const UndoData&);
-
     int slow_see(const Move);
     int fast_see(const Move);
-
-    // error checking
     void error_check() const;
     bool same(const Board& other) const;
     void check_classic();
+    void clear_board();
+    void set_from_fen(const std::string&);
+    void update_material_values();
+    uint64_t calculate_key(bool is_assert = true) const;
 
-    // variables that are accessed externally
     uint64_t king_attackers;
     uint64_t key;
     uint8_t color_at[64];
@@ -93,20 +96,15 @@ struct Board {
     uint8_t castling_flag;
     uint64_t occ_mask;
     std::vector<uint64_t> keys;
-    // for sungorus' eval
-    int b_mat[2];
+    uint8_t fifty_move_ply;
+    int b_mat[2]; // for sungorus eval
     int b_pst[2];
 
-    void clear_board();
-    void set_from_fen(const std::string&);
-    void update_material_values();
-    uint64_t calculate_key(bool is_assert = true) const;
-    uint8_t fifty_move_ply;
 
 private:
 	void update_key(const UndoData&);
-    bool castling_valid(const Move) const;
     bool move_diagonal(const Move) const;
+    bool castling_valid(const Move) const;
     bool check_pawn_move(const Move) const;
     friend bool operator==(const Board& a, const Board& b);
     friend bool operator!=(const Board& a, const Board& b);

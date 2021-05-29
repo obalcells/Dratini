@@ -12,6 +12,8 @@ uint64_t get_between(int, int, const Board*);
 void generate_evasions(std::vector<Move>&, const Board*);
 void generate_captures(std::vector<Move>&, const Board*);
 void generate_quiet(std::vector<Move>&, const Board*);
+int* new_generate_captures(int* moves, const Board*);
+int* new_generate_quiet(int* moves, const Board*);
 
 #define get_side_mask(_side) (_side == WHITE ? \
 	(board->bits[WHITE_PAWN] | board->bits[WHITE_KNIGHT] | board->bits[WHITE_BISHOP] | board->bits[WHITE_ROOK] | board->bits[WHITE_QUEEN] | board->bits[WHITE_KING]) : \
@@ -98,12 +100,13 @@ uint64_t get_attackers(int sq, bool attacker_side, const Board* board) {
             attackers |= mask_sq(sq - 7);
     }
 
-    attackers |= (Rmagic(sq, board->occ_mask) & (get_rook_mask(attacker_side) | get_queen_mask(attacker_side)))
+    return      attackers 
+              | (Rmagic(sq, board->occ_mask) & (get_rook_mask(attacker_side) | get_queen_mask(attacker_side)))
               | (Bmagic(sq, board->occ_mask) & (get_bishop_mask(attacker_side) | get_queen_mask(attacker_side)))
               | (Bmagic(sq, get_all_mask()) & (get_bishop_mask(attacker_side) | get_queen_mask(attacker_side)))
               | (knight_attacks[sq] & get_knight_mask(attacker_side)); 
 
-    return attackers;
+    // return attackers;
 }
 
 // returns a bitboard with the squares between from_sq and to_sq
@@ -151,7 +154,12 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
 
         while(tmp_mask) {
             from_sq = pop_first_bit(tmp_mask);
-            moves.push_back(Move(from_sq, attacker_pos, CAPTURE_MOVE));
+            if(board->piece_at[from_sq] == PAWN && (mask_sq(attacker_pos) & (ROW_0 | ROW_7))) {
+                moves.push_back(Move(from_sq, attacker_pos, QUEEN_PROMOTION));
+                moves.push_back(Move(from_sq, attacker_pos, KNIGHT_PROMOTION));
+            } else {
+                moves.push_back(Move(from_sq, attacker_pos, CAPTURE_MOVE));
+            }
         }
 
         // a piece (different than the checked king) will try to block the attack without eating anything
@@ -179,7 +187,12 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
             while(blockers) {
                 from_sq = pop_first_bit(blockers);
                 assert(get_piece(to_sq) == EMPTY);
-                moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+                if(board->piece_at[from_sq] == PAWN && (mask_sq(to_sq) & (ROW_0 | ROW_7))) {
+                    moves.push_back(Move(from_sq, to_sq, QUEEN_PROMOTION));
+                    moves.push_back(Move(from_sq, to_sq, KNIGHT_PROMOTION));
+                } else {
+                    moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+                }
             }
         }
     }
@@ -188,7 +201,7 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
     uint64_t attack_mask = king_attacks[king_pos] & ~get_side_mask(board->side);
     while(attack_mask) {
         to_sq = pop_first_bit(attack_mask);
-        if(get_piece(to_sq) != EMPTY) {
+        if(board->piece_at[to_sq] != EMPTY) {
             moves.push_back(Move(king_pos, to_sq, CAPTURE_MOVE)); 
         } else {
             moves.push_back(Move(king_pos, to_sq, QUIET_MOVE)); 
@@ -196,7 +209,6 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
     }
 }
 
-/* we assume that the king isn't in check */
 void generate_captures(std::vector<Move>& moves, const Board* board) {
     uint64_t mask, attack_mask, pawn_mask = get_pawn_mask(board->side), xside_mask = get_side_mask(board->xside);
     int from_sq, to_sq;
@@ -294,6 +306,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         mask = ((pawn_mask & ~ROW_1 & ~COL_0) >> 9) & xside_mask;
         while(mask) {
             to_sq = pop_first_bit(mask);
+            assert(Move(to_sq + 9, to_sq, CAPTURE_MOVE) != 8394);
+            assert(!(to_sq + 9 == C2 && to_sq == D1));
             moves.push_back(Move(to_sq + 9, to_sq, CAPTURE_MOVE));
         }
 
@@ -301,6 +315,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
         mask = ((pawn_mask & ~ROW_1 & ~COL_7) >> 7) & xside_mask;
         while(mask) {
             to_sq = pop_first_bit(mask);
+            assert(!(to_sq + 7 == C2 && to_sq == D1));
+            assert(Move(to_sq + 7, to_sq, CAPTURE_MOVE) != 8394);
             moves.push_back(Move(to_sq + 7, to_sq, CAPTURE_MOVE));
         }
     }
@@ -465,3 +481,277 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
         }
     }
 }
+
+int* new_generate_captures(int* moves, const Board* board) {
+    uint64_t mask, attack_mask, pawn_mask = get_pawn_mask(board->side), xside_mask = get_side_mask(board->xside);
+    int from_sq, to_sq;
+
+    // first we generate pawn moves 
+    if(board->side == WHITE) {
+        // enpassant capture
+        if(board->enpassant != NO_ENPASSANT) {
+            int enpassant_sq = 40 + int(board->enpassant);
+            assert(get_piece(enpassant_sq - 8) == BLACK_PAWN);
+            // eating to the left (sq -> sq + 7)
+            if(board->enpassant < 7 && get_piece(enpassant_sq - 7) == WHITE_PAWN)
+                moves.push_back(Move(enpassant_sq - 7, enpassant_sq, ENPASSANT_MOVE));
+            // eating to the right (sq -> sq + 9)
+            if(board->enpassant > 0 && get_piece(enpassant_sq - 9) == WHITE_PAWN)
+                moves.push_back(Move(enpassant_sq - 9, enpassant_sq, ENPASSANT_MOVE));
+        }
+
+        // promotion eating diagonally to the left (sq -> sq + 7)
+        mask = ((pawn_mask & ROW_6 & ~COL_0) << 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            // Move constructor:  'from'    'to'     'move type'    
+            moves.push_back(Move(to_sq - 7, to_sq, QUEEN_PROMOTION));
+            moves.push_back(Move(to_sq - 7, to_sq, KNIGHT_PROMOTION));
+        }
+
+        // promotion eating diagonally to the right (sq -> sq + 9)
+        mask = ((pawn_mask & ROW_6 & ~COL_7) << 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 9, to_sq, QUEEN_PROMOTION));
+            moves.push_back(Move(to_sq - 9, to_sq, KNIGHT_PROMOTION));
+        }
+
+        // promotion front (sq -> sq + 8)
+        mask = ((pawn_mask & ROW_6) << 8) & ~board->occ_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 8, to_sq, QUEEN_PROMOTION));
+            moves.push_back(Move(to_sq - 8, to_sq, KNIGHT_PROMOTION));
+        }
+
+        // pawn capture to the left (sq -> sq + 7)
+        mask = ((pawn_mask & ~ROW_6 & ~COL_0) << 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 7, to_sq, CAPTURE_MOVE));
+        }
+
+        // pawn capture to the right (sq -> sq + 9)
+        mask = ((pawn_mask & ~ROW_6 & ~COL_7) << 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 9, to_sq, CAPTURE_MOVE));
+        }
+    } else {
+        // enpassant capture
+        if(board->enpassant != NO_ENPASSANT) {
+            int enpassant_sq = 16 + int(board->enpassant);
+            assert(get_piece(enpassant_sq + 8) == WHITE_PAWN);
+            // to the left (sq -> sq - 9)
+            if(board->enpassant < 7 && get_piece(enpassant_sq + 9) == BLACK_PAWN)
+                moves.push_back(Move(enpassant_sq + 9, enpassant_sq, ENPASSANT_MOVE));
+            // to the right (sq -> sq - 7)
+            if(board->enpassant > 0 && get_piece(enpassant_sq + 7) == BLACK_PAWN)
+                moves.push_back(Move(enpassant_sq + 7, enpassant_sq, ENPASSANT_MOVE));
+        }
+
+        // promotion eating diagonally to the left (sq -> sq - 9)
+        mask = ((pawn_mask & ROW_1 & ~COL_0) >> 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 9, to_sq, QUEEN_PROMOTION));
+            moves.push_back(Move(to_sq + 9, to_sq, KNIGHT_PROMOTION));
+        }
+
+        // promotion eating diagonally to the right (sq -> sq - 7)
+        mask = ((pawn_mask & ROW_1 & ~COL_7) >> 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 7, to_sq, QUEEN_PROMOTION));
+            moves.push_back(Move(to_sq + 7, to_sq, KNIGHT_PROMOTION));
+        }
+
+        // promotion front (sq -> sq - 8)
+        mask = ((pawn_mask & ROW_1) >> 8) & ~board->occ_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 8, to_sq, QUEEN_PROMOTION));
+            moves.push_back(Move(to_sq + 8, to_sq, KNIGHT_PROMOTION));
+        }
+
+        // pawn capture to the left (sq -> sq - 9)
+        mask = ((pawn_mask & ~ROW_1 & ~COL_0) >> 9) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            assert(Move(to_sq + 9, to_sq, CAPTURE_MOVE) != 8394);
+            assert(!(to_sq + 9 == C2 && to_sq == D1));
+            moves.push_back(Move(to_sq + 9, to_sq, CAPTURE_MOVE));
+        }
+
+        // pawn capture to the right (sq -> sq - 7)
+        mask = ((pawn_mask & ~ROW_1 & ~COL_7) >> 7) & xside_mask;
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            assert(!(to_sq + 7 == C2 && to_sq == D1));
+            assert(Move(to_sq + 7, to_sq, CAPTURE_MOVE) != 8394);
+            moves.push_back(Move(to_sq + 7, to_sq, CAPTURE_MOVE));
+        }
+    }
+
+    // king captures
+    mask = get_king_mask(board->side);
+    assert(mask != 0);
+    from_sq = pop_first_bit(mask);
+    attack_mask = king_attacks[from_sq] & xside_mask;
+    while(attack_mask) {
+        assert(attack_mask != 0);
+        to_sq = pop_first_bit(attack_mask);
+        assert(to_sq >= 0 && to_sq < 64);
+        moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+    }
+
+    assert(mask == 0);
+
+    // knight captures
+    mask = get_knight_mask(board->side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = knight_attacks[from_sq] & xside_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+        }
+    }
+
+    // bishop and queen captures
+    mask = get_bishop_mask(board->side) | get_queen_mask(board->side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Bmagic(from_sq, board->occ_mask) & xside_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+        }
+    }
+
+    // rook and queen captures
+    mask = get_rook_mask(board->side) | get_queen_mask(board->side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Rmagic(from_sq, board->occ_mask) & xside_mask;
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, CAPTURE_MOVE));
+        }
+    }
+}
+
+// we assume that the king isn't in check
+int* generate_quiet(int* moves, const Board* board) {
+    uint64_t mask, attack_mask, pawn_mask = get_pawn_mask(board->side);
+    int from_sq, to_sq;
+
+    if(board->side == WHITE) {
+        // front only one square (no promotion) (sq -> sq + 8)
+        mask = ((pawn_mask & (~ROW_6)) << 8) & (~board->occ_mask);
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 8, to_sq, QUIET_MOVE));
+        }
+        
+        // frontal two squares (sq -> sq + 8)
+        mask = ((pawn_mask & ROW_1) << 8) & (~board->occ_mask);
+        mask = ((mask & ROW_2) << 8) & (~board->occ_mask);
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq - 16, to_sq, QUIET_MOVE));
+        }
+    } else {
+        // front only one square (no promotion) (sq -> sq - 8)
+        mask = ((pawn_mask & (~ROW_1)) >> 8) & (~board->occ_mask);
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 8, to_sq, QUIET_MOVE));
+        }
+
+        // frontal two squares (sq -> sq - 16)
+        mask = ((pawn_mask & ROW_6) >> 8) & (~board->occ_mask);
+        mask = ((mask & ROW_5) >> 8) & (~board->occ_mask);
+        while(mask) {
+            to_sq = pop_first_bit(mask);
+            moves.push_back(Move(to_sq + 16, to_sq, QUIET_MOVE));
+        }
+    }
+
+    // generate the castling moves 
+    if(board->side == WHITE) {
+        // white queen side castling
+        if((board->castling_flag & 1)
+        && !(board->occ_mask & castling_mask[WHITE_QUEEN_SIDE])
+        && !board->is_attacked(D1)) {
+            assert(board->piece_at[E1] == KING);
+            moves.push_back(Move(E1, C1, CASTLING_MOVE));
+        }
+        // white king side castling
+        if((board->castling_flag & 2)
+        && !(board->occ_mask & castling_mask[WHITE_KING_SIDE])
+        && !board->is_attacked(F1)) {
+            assert(board->piece_at[E1] == KING);
+            moves.push_back(Move(E1, G1, CASTLING_MOVE));
+        }
+    } else if(board->side == BLACK) {
+        // black queen side castling
+        if((board->castling_flag & 4)
+        && !(board->occ_mask & castling_mask[BLACK_QUEEN_SIDE])
+        && !board->is_attacked(D8)) {
+            assert(board->piece_at[E8] == KING);
+            moves.push_back(Move(E8, C8, CASTLING_MOVE));
+        }
+        // black king side castling
+        if((board->castling_flag & 8)
+        && !(board->occ_mask & castling_mask[BLACK_KING_SIDE])
+        && !board->is_attacked(F8)) {
+            assert(board->piece_at[E8] == KING);
+            moves.push_back(Move(E8, G8, CASTLING_MOVE));
+        }
+    }
+
+    // king
+    mask = get_king_mask(board->side);
+    from_sq = pop_first_bit(mask);  
+    attack_mask = king_attacks[from_sq] & (~board->occ_mask);
+    while(attack_mask) {
+        to_sq = pop_first_bit(attack_mask);
+        moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+    }
+
+    // knight
+    mask = get_knight_mask(board->side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = knight_attacks[from_sq] & (~board->occ_mask);
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+        }
+    }
+
+    // bishop and queen
+    mask = get_bishop_mask(board->side) | get_queen_mask(board->side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Bmagic(from_sq, board->occ_mask) & (~board->occ_mask);
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+        }
+    }
+
+    // rooks and queen
+    mask = get_rook_mask(board->side) | get_queen_mask(board->side);
+    while(mask) {
+        from_sq = pop_first_bit(mask);
+        attack_mask = Rmagic(from_sq, board->occ_mask) & (~board->occ_mask);
+        while(attack_mask) {
+            to_sq = pop_first_bit(attack_mask);
+            moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
+        }
+    }
+}
+

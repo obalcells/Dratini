@@ -37,6 +37,7 @@ void Board::new_take_back(const UndoData& undo) {
 	piece = undo.moved_piece - (xside ? 6 : 0);
 	captured_piece = undo.captured_piece == EMPTY ? EMPTY : undo.captured_piece - (side ? 6 : 0);
 
+	assert((bits[BLACK_PAWN] & ROW_0) == 0);
 	assert(get_flag(undo.move) == CASTLING_MOVE || captured_piece == EMPTY || (captured_piece >= WHITE_PAWN && captured_piece < BLACK_PAWN));
 
     enpassant = undo.enpassant;
@@ -105,8 +106,8 @@ void Board::new_take_back(const UndoData& undo) {
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq) | mask_sq(adjacent);
             break;
 		}		
-		default: {
-        // case QUEEN_PROMOTION: case ROOK_PROMOTION: case KNIGHT_PROMOTION: case BISHOP_PROMOTION: {
+		// default: {
+        case QUEEN_PROMOTION: case ROOK_PROMOTION: case KNIGHT_PROMOTION: case BISHOP_PROMOTION: {
 			const int8_t promotion_piece = get_flag(undo.move) - KNIGHT_PROMOTION + KNIGHT; 
 			piece_at[to_sq] = color_at[to_sq] = EMPTY;
 			if(undo.captured_piece != EMPTY) {
@@ -127,7 +128,7 @@ void Board::new_take_back(const UndoData& undo) {
 			assert(undo.moved_piece == 0 || undo.moved_piece == 6);
 			bits[promotion_piece + (xside ? 6 : 0)] ^= mask_sq(to_sq);
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq);
-			assert((bits[undo.moved_piece] & ROW_0) == 0);
+			assert(!(bits[undo.moved_piece] & (ROW_0 | ROW_7)));
 		}
     }
 
@@ -145,7 +146,9 @@ void Board::new_take_back(const UndoData& undo) {
     side = xside;
 	xside = !xside;
 
+	// we store this in undo data now
 	// king_attackers = undo.king_attackers;
+	king_attackers = undo.king_attackers;
 }
 
 void Board::new_make_move(const Move move, UndoData& undo_data) {
@@ -245,8 +248,8 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq) | mask_sq(adjacent);
 			break;
 		}
-		default: { 
-		// case KNIGHT_PROMOTION: case BISHOP_PROMOTION: case ROOK_PROMOTION: case QUEEN_PROMOTION:
+		// default: { 
+		case KNIGHT_PROMOTION: case BISHOP_PROMOTION: case ROOK_PROMOTION: case QUEEN_PROMOTION: { 
 			const int promotion_piece = KNIGHT + get_flag(move) - KNIGHT_PROMOTION; 
 			if(piece_at[to_sq] != EMPTY) { // promotion with capture
 				undo_data.captured_piece = get_piece(to_sq);
@@ -285,74 +288,194 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
 }
 
-bool Board::fast_move_valid(const Move move) const {
-	const int piece_from = get_piece(get_from(move));
-	const int piece_to = get_piece(get_to(move));
-	const int from_sq = get_from(move);
-	const int to_sq = get_to(move);
-	const int flag = get_flag(move);
+bool Board::new_fast_move_valid(const Move move) const {
+	uint8_t piece_from, piece_to, from_sq, to_sq, flag, side_shift, xside_shift, king_sq;
 
-	if(from_sq < 0 || from_sq > 63
-	|| to_sq < 0 || to_sq > 63
-	|| (flag == QUIET_MOVE && get_piece(to_sq) != EMPTY)
-	|| (flag == CAPTURE_MOVE && get_piece(to_sq) == EMPTY)
-	|| (get_color(from_sq) != side)
-	|| (get_color(to_sq) == side)) {
-		return false;
-	}
+	piece_from = get_piece(get_from(move));
+	piece_to = get_piece(get_to(move));
+	from_sq = get_from(move);
+	to_sq = get_to(move);
+	flag = get_flag(move);
+	side_shift = side ? 6 : 0;
+	xside_shift = xside ? 6 : 0;
 
 	// This code underneath is equivalent to just doing:
 	// make_move(move);
-	// bool in_check_after_move = in_check();
+	// bool in_check_after_move = xside_king_attacked();
 	// take_back(move);
 	// return !in_check_after_move;
 	// the problem is that we want the function to be const so we can't touch the board
    
 	if(piece_from == WHITE_KING || piece_from == BLACK_KING) {
+		return !(knight_attacks[to_sq] & get_knight_mask(xside))
+			&& !(king_attacks[to_sq] & get_king_mask(xside))
+			&& !(pawn_attacks[xside][to_sq] & get_pawn_mask(xside))
+			&& !(Bmagic(to_sq, occ_mask ^ mask_sq(from_sq)) & (bits[BISHOP + xside_shift] | bits[QUEEN + xside_shift]))
+			&& !(Rmagic(to_sq, occ_mask ^ mask_sq(from_sq)) & (bits[ROOK   + xside_shift] | bits[QUEEN + xside_shift]));
+	}
 		
-		if((knight_attacks[to_sq] & get_knight_mask(xside))
-		|| (king_attacks[to_sq] & get_king_mask(xside))
-		|| (pawn_attacks[xside][to_sq] & get_pawn_mask(xside)))
-			return false;
+	// if we are here then the moved piece isn't the king
+	king_sq = lsb(bits[KING + side_shift]);
 
-		const uint64_t occupation = (get_all_mask() ^ mask_sq(from_sq)) | mask_sq(to_sq);
+	if(get_flag(move) == ENPASSANT_MOVE) {
+		const uint8_t adjacent = (row(from_sq) << 3) | col(to_sq); 
 
-		if(Bmagic(to_sq, occupation) & (get_bishop_mask(xside) | get_queen_mask(xside))
-		|| Rmagic(to_sq, occupation) & (get_rook_mask(xside) | get_queen_mask(xside)))
-			return false;
+		// if a pawn is attacking the king and you don't eat it with the enpassant move it's an invalid move
+		return !(knight_attacks[king_sq] & (bits[KNIGHT + xside_shift] & ~mask_sq(to_sq))) 
+			&& !(pawn_attacks[xside][king_sq] & bits[PAWN + xside_shift] & ~mask_sq(adjacent)) 
+			&& !(Bmagic(king_sq, occ_mask ^ mask_sq(from_sq) ^ mask_sq(adjacent) ^ mask_sq(to_sq)) & (bits[BISHOP + xside_shift] | bits[QUEEN + xside_shift]))
+			&& !(Rmagic(king_sq, occ_mask ^ mask_sq(from_sq) ^ mask_sq(adjacent) ^ mask_sq(to_sq)) & (bits[ROOK   + xside_shift] | bits[QUEEN + xside_shift]));
+	}
 
-	} else {
-		int king_sq = lsb(get_king_mask(side));
+	return !(knight_attacks[king_sq] & (bits[KNIGHT + xside_shift] & ~mask_sq(to_sq))) 
+		&& !(pawn_attacks[xside][king_sq] & (bits[PAWN + xside_shift] & ~mask_sq(to_sq))) 
+		&& !(Bmagic(king_sq, occ_mask ^ mask_sq(from_sq) | mask_sq(to_sq)) & (~mask_sq(to_sq) & (bits[BISHOP + xside_shift] | bits[QUEEN + xside_shift])))
+		&& !(Rmagic(king_sq, occ_mask ^ mask_sq(from_sq) | mask_sq(to_sq)) & (~mask_sq(to_sq) & (bits[ROOK   + xside_shift] | bits[QUEEN + xside_shift])));
+}
 
-		if((knight_attacks[king_sq] & (get_knight_mask(xside) & ~mask_sq(to_sq)))
-		|| (king_attacks[king_sq] & (get_king_mask(xside) & ~mask_sq(to_sq))))
-			return false;
 
-		if(get_flag(move) == ENPASSANT_MOVE) {
-			if(pawn_attacks[xside][king_sq] & get_pawn_mask(xside) & ~mask_sq(side == WHITE ? (to_sq - 8) : (to_sq + 8)))
-				return false;
+bool Board::new_move_valid(const Move move) {
+	uint8_t from_sq, to_sq, flag, piece;
+	bool is_promotion;
 
-			const uint64_t occupation = (get_all_mask() ^ mask_sq(from_sq) ^ mask_sq(side == WHITE ? (to_sq - 8) : (to_sq + 8))) | mask_sq(to_sq);
+	from_sq = get_from(move);
+	to_sq = get_to(move);
+	flag = get_flag(move);
+	is_promotion = KNIGHT_PROMOTION <= flag && flag <= QUEEN_PROMOTION;
 
-			if(Bmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_bishop_mask(xside) | get_queen_mask(xside)))
-			|| Rmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_rook_mask(xside) | get_queen_mask(xside))))
-				return false;
+	if(from_sq < 0 || from_sq >= 64
+	|| to_sq < 0 || to_sq >= 64
+	|| (flag == QUIET_MOVE && color_at[to_sq] != EMPTY)
+	|| (flag == CAPTURE_MOVE && color_at[to_sq] != xside)
+	|| (flag < NULL_MOVE || flag > QUEEN_PROMOTION)) {
+		return false;
+	}
 
+	piece = get_piece(from_sq);
+
+	// trivial conditions that must be met
+	if(from_sq == to_sq || piece == EMPTY || color_at[from_sq] != side || color_at[to_sq] == side) {
+		return false;
+    }
+
+	if(flag == CASTLING_MOVE) {
+		// this is the only place were we return true before the end of the function
+		uint8_t castling_type;
+
+		if(side == WHITE
+		&& (from_sq == E1 && to_sq == C1)
+		&& (castling_flag & 1)
+		&& !(occ_mask & castling_mask[WHITE_QUEEN_SIDE])) { 
+			castling_type = WHITE_QUEEN_SIDE;
+		} else if(side == WHITE
+		&& (from_sq == E1 && to_sq == G1)
+		&& (castling_flag & 2)
+		&& !(occ_mask & castling_mask[WHITE_KING_SIDE])) {
+			castling_type = WHITE_KING_SIDE;
+		} else if(side == BLACK
+		&& (from_sq == E8 && to_sq == C8)
+		&& (castling_flag & 4)
+		&& !(occ_mask & castling_mask[BLACK_QUEEN_SIDE])) {
+			castling_type = BLACK_QUEEN_SIDE;
+		} else if(side == BLACK
+		&& (from_sq == E8 && to_sq == G8)
+		&& (castling_flag & 8)	
+		&& !(occ_mask & castling_mask[BLACK_KING_SIDE])) { 
+			castling_type = BLACK_KING_SIDE;
 		} else {
-			if(pawn_attacks[xside][king_sq] & (get_pawn_mask(xside) & ~mask_sq(to_sq)))
+			return false;
+		}
+
+		// we don't check whether the position to_sq is attacked
+		// we will check that later using fast_move_valid
+
+		if(castling_type == WHITE_QUEEN_SIDE || castling_type == BLACK_QUEEN_SIDE) { 
+			return !is_attacked(from_sq) && !is_attacked(from_sq - 1);
+		} else if(castling_type == WHITE_KING_SIDE || castling_type == BLACK_KING_SIDE) {
+			return !is_attacked(from_sq) && !is_attacked(from_sq + 1);
+		} else {
+			return false;
+		}
+		
+	} else if(piece_at[from_sq] == PAWN) {
+		// check for diagonal movement
+		if(flag == CAPTURE_MOVE || flag == ENPASSANT_MOVE || (is_promotion && color_at[to_sq] != EMPTY)) {
+			if(side == WHITE) { 
+				if(get_to(move) <= get_from(move) 
+				|| abs(row(get_from(move)) - row(get_to(move))) != 1
+				|| abs(col(get_from(move)) - col(get_to(move))) != 1)
+					return false;
+			} else {
+				if(get_to(move) >= get_from(move) 
+				|| abs(row(get_from(move)) - row(get_to(move))) != 1
+				|| abs(col(get_from(move)) - col(get_to(move))) != 1)
+					return false;
+			}
+		} else if(flag != QUIET_MOVE && !is_promotion) {
+			return false; // invalid flag
+		} 
+		
+		if(flag == QUIET_MOVE) {
+			if(!((side == WHITE && to_sq == from_sq + 8)
+			|| (side == WHITE && row(from_sq) == 1 && to_sq == from_sq + 16)
+			|| (side == BLACK && to_sq == from_sq - 8)
+			|| (side == BLACK && row(from_sq) == 6 && to_sq == from_sq - 16))) {
 				return false;
-
-			const uint64_t occupation = (get_all_mask() ^ mask_sq(from_sq)) | mask_sq(to_sq);
-
-			if(Bmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_bishop_mask(xside) | get_queen_mask(xside)))
-			|| Rmagic(king_sq, occupation) & (~mask_sq(to_sq) & (get_rook_mask(xside) | get_queen_mask(xside))))
+			}
+			if(to_sq == from_sq + 16 && piece_at[from_sq + 8] != EMPTY) {
+				return false;
+			}
+			if(to_sq == from_sq - 16 && piece_at[from_sq - 8] != EMPTY) {
+				return false;
+			}
+		} else if(flag == ENPASSANT_MOVE) {
+			const uint8_t adjacent = (row(from_sq) << 3) | col(to_sq);
+			if(enpassant != col(adjacent)
+			|| (side == WHITE && row(to_sq) != 5)
+			|| (side == BLACK && row(to_sq) != 2))
+				return false;
+			// if this fails there is a bug regarding the enpassant flag	
+			assert(piece_at[adjacent] == PAWN && color_at[adjacent] == xside);
+		} else if(is_promotion) {
+			// must be at the last/first row
+			if((side == WHITE && row(from_sq) == 6 && row(to_sq) != 7) || (side == BLACK && row(from_sq) == 1 && row(to_sq) != 0))
+				return false;
+			if(piece_at[to_sq] == EMPTY
+			&& ((side == WHITE && to_sq != from_sq + 8) || (side == BLACK && to_sq != from_sq - 8)))
 				return false;
 		}
+	} else if(is_promotion) {
+		piece -= (side ? 6 : 0);
+		switch(piece) {
+			case KING:
+				if (!(mask_sq(to_sq) & king_attacks[from_sq]))
+					return false;
+				break;
+			case KNIGHT:
+				if (!(mask_sq(to_sq) & knight_attacks[from_sq]))
+					return false;
+				break;
+			case BISHOP:
+				if (!(mask_sq(to_sq) & Bmagic(from_sq, occ_mask)))
+					return false;
+				break;
+			case ROOK:
+				if(!(mask_sq(to_sq) & Rmagic(from_sq, occ_mask)))
+					return false;
+				break;
+			case QUEEN:
+				if(!(mask_sq(to_sq) & (Bmagic(from_sq, occ_mask | Rmagic(from_sq, occ_mask)))))
+					return false;
+				break;
+		}
+		piece += (side ? 6 : 0);
 	}
+
+	// update: we no longer simulate the make move function now
+	// we will check whether we put our king in check using fast_move_valid
 
 	return true;
 }
-
 
 
 ///////////////////////////////

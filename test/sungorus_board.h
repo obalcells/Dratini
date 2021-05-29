@@ -12,7 +12,7 @@ enum {WP, BP, WN, BN, WB, BB, WR, BR, WQ, BQ, WK, BK, NO_PC};
 enum {FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H};
 enum {RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8};
 enum {NORMAL, CASTLE, EP_CAP, EP_SET, N_PROM, B_PROM, R_PROM, Q_PROM};
-enum {NONE, UPPER, LOWER, EXACT};
+enum {NONE_, UPPER, LOWER, EXACT};
 
 #define RANK_1_BB       (U64)0x00000000000000FF
 #define RANK_2_BB       (U64)0x000000000000FF00
@@ -126,3 +126,6 @@ void SetPosition(POS *, char *);
 U64 Key(POS *);
 bool Legal(POS *, int);
 int Swap(POS *, int, int);
+int *GenerateCaptures(POS*, int*);
+int *GenerateQuiet(POS*, int*);
+void InitGen();
