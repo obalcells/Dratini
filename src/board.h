@@ -76,7 +76,9 @@ struct Board {
     void take_back(const UndoData&);
     void new_take_back(const UndoData&);
     int slow_see(const Move);
-    int fast_see(const Move);
+    int next_lva(const uint64_t&, const bool) const;
+    int lva(int) const;
+    int fast_see(const Move) const;
     void error_check() const;
     bool same(const Board& other) const;
     void check_classic();

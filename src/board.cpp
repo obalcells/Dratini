@@ -760,53 +760,49 @@ void Board::print_board() const {
 	for(i = 0; i < 8; i++)
 		std::cout << " " << char('a' + i);
 	std::cout << endl;
-	/*
-	std::cout << "Move count: " << move_count << endl;
-	std::cout << "Fifty move count: " << int(fifty_move_ply) << endl;
-	if(enpassant == 8) {
-		std::cout << "Enpassant: None" << endl;
-	} else {
-		std::cout << "Enpassant: " << int(enpassant) << endl;
-	}
-	// cout << "Key is:" << endl; 
-	// cout << key << endl;
-	std::cout << "Castling (WQ, WK, BQ, BK): ";
-	for(i = 0; i < 4; i++)
-		std::cout << (castling_rights[i] ? "Y " : "N ");
-	std::cout << endl;
-	*/
+	// std::cout << "Move count: " << move_count << endl;
+	// std::cout << "Fifty move count: " << int(fifty_move_ply) << endl;
+	// if(enpassant == 8) {
+	// 	std::cout << "Enpassant: None" << endl;
+	// } else {
+	// 	std::cout << "Enpassant: " << int(enpassant) << endl;
+	// }
+	// // cout << "Key is:" << endl; 
+	// // cout << key << endl;
+	// std::cout << "Castling (WQ, WK, BQ, BK): ";
+	// for(i = 0; i < 4; i++)
+	// 	std::cout << (castling_rights[i] ? "Y " : "N ");
+	// std::cout << endl;
 	std::cout << "Side: " << (side == WHITE ? "WHITE" : "BLACK") << endl;
 	assert(side != xside);
 }
 
 void Board::print_bitboard(uint64_t bb) const {
-	std::cout << endl;
+	cout << endl;
 	int i;
 	for(i = 56; i >= 0;) {
 		if(i % 8 == 0) std::cout << (i / 8) + 1 << "  ";
-		std::cout << " ";
-		if(bb & (uint64_t(1) << i)) {
-			if(get_piece(i) == EMPTY) {
-				std::cout << 'x';
-			} else {
-				std::cout << piece_char[get_piece(i)];
-			}
+		cout << ' ';
+		if(bb & mask_sq(i)) {
+			if(get_piece(i) == EMPTY)
+				cout << 'x';  
+			else
+				cout << piece_char[get_piece(i)];
 		} else {
-			std::cout << '.';
+			cout << '.'; 
 		}
-		// std::cout << RESET_COLOR;
 		if((i + 1) % 8 == 0) {
-			std::cout << '\n';
+			cout << '\n';
 			i -= 15;
 		} else {
 			i++;
 		}
 	}
-	std::cout << endl << endl << "   ";
+	cout << endl << endl << "   ";
 	for(i = 0; i < 8; i++) {
-		std::cout << " " << char('a' + i);
+		cout << ' ' << char('a' + i);
 	}
-	std::cout << endl;
+	cout << endl;
 }
 
 void Board::check_classic() {

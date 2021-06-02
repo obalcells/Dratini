@@ -1,5 +1,5 @@
 # compiler flags
-C_FLAGS = -DNDEBUG -g -w -s -lm --std=c++11 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
+C_FLAGS = -g -w -s -lm --std=c++11 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
 
 EXE =$(shell pwd)/dratini
 TEST_EXE=$(shell pwd)/test.sh

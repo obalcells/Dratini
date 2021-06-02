@@ -25,7 +25,7 @@ static const int pst[6][64] = {
 #define get_rook_mask(_side) (_side == WHITE ? bits[WHITE_ROOK] : bits[BLACK_ROOK])
 #define get_queen_mask(_side) (_side == WHITE ? bits[WHITE_QUEEN] : bits[BLACK_QUEEN])
 #define get_king_mask(_side) (_side == WHITE ? bits[WHITE_KING] : bits[BLACK_KING])
-#define get_piece(sq) (piece_at[sq] + (color_at[sq] == BLACK ? 6 : 0))
+#define get_piece(sq) (piece_at[sq] + (color_at[sq] ? 6 : 0))
 #define get_color(sq) (color_at[sq])
 #define in_check() bool(king_attackers)
 
@@ -479,112 +479,125 @@ bool Board::new_move_valid(const Move move) {
 
 
 ///////////////////////////////
-//
-//   For testing the SEE
-//   function and its
-//   subfunctions
-//
+//							 //
+//   For testing the SEE     //
+//   function and its        //
+//   subfunctions			 //
+//							 //
 ///////////////////////////////
 
-// static inline bool move_is_straight(const Move move) {
-// 	return row(get_from(move)) == row(get_to(move)) || col(get_from(move)) == col(get_to(move));
-// }
+static inline bool move_is_straight(int from_sq, int to_sq) {
+	return row(from_sq) == row(to_sq) || col(from_sq) == col(to_sq);
+}
 
-// static inline bool move_is_diagonal(const Move move) {
-// 	return abs(row(get_from(move)) - row(get_to(move))) == abs(col(get_from(move)) - col(get_to(move)));
-// }
+static inline bool move_is_diagonal(int from_sq, int to_sq) {
+	return abs(row(from_sq) - row(to_sq)) == abs(col(from_sq) - col(to_sq));
+}
 
-// // we assume attacker is side
-// // least valuable attacker - we assume that attacker side is 'side'
-// int Board::lva(int to_sq) const {
-//     if(board->side == BLACK) {
-// 		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && get_piece(to_sq + 7) == BLACK_PAWN)
-//         	return to_sq + 7;
-//         if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && get_piece(to_sq + 9) == BLACK_PAWN)
-//         	return to_sq + 9; 
-//     } else {
-//         if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && get_piece(to_sq - 9) == WHITE_PAWN)
-//         	return to_sq - 9; 
-//         if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && get_piece(to_sq - 7) == WHITE_PAWN) 
-//         	return to_sq - 7;
-//     }
-// 	if(knight_attacks[to_sq] & get_knight_mask(board->side))
-// 		return lsb(knight_attacks[to_sq] & get_knight_mask(board->side));
-//     if(Rmagic(to_sq, get_all_mask()) & (get_rook_mask(board->side) | get_queen_mask(board->side)))
-//     	return lsb(Rmagic(to_sq, get_all_mask()) & (get_rook_mask(board->side) | get_queen_mask(board->side)));
-//     if(Bmagic(to_sq, get_all_mask()) & (get_bishop_mask(board->side) | get_queen_mask(board->side)))
-//     	return lsb(Bmagic(to_sq, get_all_mask()) & (get_bishop_mask(board->side) | get_queen_mask(board->side)));
-//     return -1;
-// }
+// duplicated from move_picker
+int Board::next_lva(const uint64_t& attacker_mask, const bool attacker_side) const {
+	for(int piece = (attacker_side == WHITE ? WHITE_PAWN : BLACK_PAWN); piece < (attacker_side == WHITE ? BLACK_PAWN : 12); piece++) {
+		if(attacker_mask & bits[piece]) {
+			return lsb(attacker_mask & bits[piece]);
+		}
+	} 
+	return -1;
+}
 
-// int Board::fast_see(Move move) const {
-// 	int from_sq, to_sq, piece_at_to, depth, side;
-// 	uint64_t attacker_mask, occ_mask, _diagonal_mask;
-// 	std::vector<int> score(16, 0);
+// we assume attacker is side
+// least valuable attacker - we assume that attacker side is 'side'
+int Board::lva(int to_sq) const {
+    if(side == BLACK) {
+		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && get_piece(to_sq + 7) == BLACK_PAWN)
+        	return to_sq + 7;
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && get_piece(to_sq + 9) == BLACK_PAWN)
+        	return to_sq + 9; 
+    } else {
+        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && get_piece(to_sq - 9) == WHITE_PAWN)
+        	return to_sq - 9; 
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && get_piece(to_sq - 7) == WHITE_PAWN) 
+        	return to_sq - 7;
+    }
+	const uint8_t side_shift = side ? 6 : 0;
+	if(knight_attacks[to_sq] & bits[KNIGHT + side_shift])
+		return lsb(knight_attacks[to_sq] & bits[KNIGHT + side_shift]);
+    if(Rmagic(to_sq, occ_mask) & (bits[ROOK + side_shift] | bits[QUEEN + side_shift]))
+    	return lsb(Rmagic(to_sq, occ_mask) & (bits[ROOK + side_shift] | bits[QUEEN + side_shift]));
+    if(Bmagic(to_sq, occ_mask) & (bits[BISHOP + side_shift] | bits[QUEEN + side_shift]))
+    	return lsb(Bmagic(to_sq, occ_mask) & (bits[BISHOP + side_shift] | bits[QUEEN + side_shift]));
+    return -1;
+}
 
-// 	to_sq = get_to(move);
-// 	from_sq = get_from(move);
-// 	depth = 0;
-// 	side = board->side;
-// 	piece_at_to = get_piece(to_sq);
-// 	attacker_mask = get_attackers(to_sq, side) | get_attackers(to_sq, xside);	
+int Board::fast_see(const Move move) const {
+	uint8_t from_sq, to_sq, piece_at_to, depth, _side, i;
+	uint64_t attacker_mask = 0;
+	int score[16] = { 0 };
 
-// 	while(from_sq != -1) {
-// 		score[depth + 1] = piece_value[piece_at_to] - score[depth];
-// 		depth++;
-// 		piece_at_to = get_piece(from_sq);
-// 		attacker_mask ^= mask_sq(from_sq);
-// 		side = !side;
+	to_sq = get_to(move);
+	from_sq = get_from(move);
+	depth = 0;
+	piece_at_to = get_piece(to_sq);
+	get_attackers(to_sq, side, this, attacker_mask);
+	get_attackers(to_sq, xside, this, attacker_mask);
+	_side = side;
 
-// 		// check xrays
-// 		if(move_is_diagonal(move)) {
-// 			if(from_sq > to_sq) { // north
-// 				if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][NORTHEAST];
-// 				else _diagonal_mask = diagonal_mask[from_sq][NORTHWEST];
-// 			} else { // south
-// 				if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][SOUTHEAST];
-// 				else _diagonal_mask = diagonal_mask[from_sq][SOUTHWEST];
-// 			}
+	while(from_sq != 64) {
+		score[depth + 1] = piece_value[piece_at_to] - score[depth];
+		depth++;
+		piece_at_to = get_piece(from_sq);
+		attacker_mask ^= mask_sq(from_sq);
+		_side = !_side;
 
-// 			attacker_mask |= Bmagic(from_sq, board->occ_mask) & _diagonal_mask
-// 			& (get_queen_mask(side) | get_bishop_mask(side) | get_queen_mask(!side) | get_bishop_mask(!side)); 
-// 		} else if(move_is_straight(move)) {
-// 			if(row(from_sq) == row(to_sq)) {
-// 				attacker_mask |= Rmagic(from_sq, board->occ_mask) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
-// 				& (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
-// 			} else {
-// 				attacker_mask |= Rmagic(from_sq, board->occ_mask) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
-// 				& (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
-// 			}
-// 		}
+		// check xrays
+		if(abs(row(from_sq) - row(to_sq)) == abs(col(from_sq) - col(to_sq))) {
+			if(from_sq > to_sq) { // north
+				attacker_mask |= Bmagic(from_sq, occ_mask) & diagonal_mask[from_sq][(col(from_sq) < col(to_sq)) ? NORTHEAST : NORTHWEST]
+				& (bits[WHITE_BISHOP] | bits[BLACK_BISHOP] | bits[WHITE_QUEEN] | bits[BLACK_QUEEN]);
+			} else { // south
+				attacker_mask |= Bmagic(from_sq, occ_mask) & diagonal_mask[from_sq][(col(from_sq) < col(to_sq)) ? SOUTHEAST : SOUTHWEST]
+				& (bits[WHITE_BISHOP] | bits[BLACK_BISHOP] | bits[WHITE_QUEEN] | bits[BLACK_QUEEN]);
+			}
+		} else if(row(from_sq) == row(to_sq)) {
+			attacker_mask |= Rmagic(from_sq, occ_mask) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
+			& (bits[WHITE_ROOK] | bits[BLACK_ROOK] | bits[WHITE_QUEEN] | bits[BLACK_QUEEN]);
+		} else if(col(from_sq) == col(to_sq)) {
+			attacker_mask |= Rmagic(from_sq, occ_mask) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
+			& (bits[WHITE_ROOK] | bits[BLACK_ROOK] | bits[WHITE_QUEEN] | bits[BLACK_QUEEN]);
+		}
+		
+		from_sq = 64; // if we don't find any more attacker we stop the while loop
+		for(i = WHITE_PAWN + (_side ? 6 : 0); i < BLACK_PAWN + (_side ? 6 : 0); i++) if(attacker_mask & bits[i]) {
+			from_sq = lsb(attacker_mask & bits[i]);
+			break;
+		} 
 
-// 		// if next_lva returns -1 it means that there are no more attackers from current attacker side 
-// 		from_sq = next_lva(attacker_mask, side);
-// 		// the king has put himself in check
-// 		if(piece_at_to == WHITE_KING || piece_at_to == BLACK_KING) {
-// 			depth--;
-// 			from_sq = -1;
-// 		}
-// 	}
+		// the king has put himself in check
+		if(from_sq != 64 && (piece_at_to == WHITE_KING || piece_at_to == BLACK_KING)) {
+			depth--;
+			from_sq = 64;
+		}
+	}
 
-// 	score[0] = 10000; // we want to force the capture at the root
-// 	score[depth + 1] = -score[depth];
+	score[0] = 10000; // we want to force the capture at the root
+	score[depth + 1] = -score[depth];
 
-// 	while(depth > 0) {
-// 		// (Kind of) minimax optimization. At each node you can choose between not making the capture
-// 		// or making the capture and assuming that the other side will play optimally after that
-// 		score[depth] = std::max(-score[depth - 1], -score[depth + 1]);
-// 		depth--;
-// 	}
+	while(depth) {
+		// (Kind of) minimax optimization. At each node you can choose between not making the capture
+		// or making the capture and assuming that the other side will play optimally after that
+		score[depth] = std::max(-score[depth - 1], -score[depth + 1]);
+		depth--;
+	}
 
-// 	return score[1];
-// }
+	return score[1];
+}
 
 // int Board::slow_see(Move move, bool root) {
 // 	const int piece_from = get_piece(get_from(move));
 // 	const int piece_captured = get_piece(get_to(move));
 // 	const int from_sq = get_from(move);
 // 	const int to_sq = get_to(move);
+// 	// const uint8_t side_shift;
+// 	// const uint8_t xside_shift;
 
 // 	// making the capture
 // 	// setting the 'to' square
