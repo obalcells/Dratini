@@ -194,7 +194,7 @@ struct NewSearchMovePicker {
         if(piece_value[board->piece_at[get_from(move)]] >= piece_value[board->piece_at[get_to(move)]]) {
             return false; 
         }
-        return see(move) < 0; // static exchange eval
+        return board->fast_see(move) < 0; // static exchange eval
     }
 
     void score_captures() {
@@ -212,76 +212,6 @@ struct NewSearchMovePicker {
             );
         }
         assert(scores.size() == moves.size());
-    }
-
-    // Static Exchange Evaluation
-    int see(Move move) const {
-        const int to_sq = get_to(move);
-        int from_sq = get_from(move), depth = 0, side = board->side;	
-        int piece_at_to = board->piece_at[to_sq];
-        uint64_t attacker_mask = get_attackers(to_sq, board->side, board) | get_attackers(to_sq, board->xside, board);	
-        std::vector<int> score(16, 0);
-        score[0] = 0; // we want to force the capture at root
-
-        while(from_sq != -1) {
-            score[depth + 1] = piece_value[piece_at_to] - score[depth];
-            depth++;
-            piece_at_to = board->piece_at[from_sq];
-            attacker_mask ^= mask_sq(from_sq);
-            side = !side;
-
-            // check xrays
-            if(move_is_diagonal(move)) {
-                uint64_t _diagonal_mask;
-                if(from_sq > to_sq) { // north
-                    if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][NORTHEAST];
-                    else _diagonal_mask = diagonal_mask[from_sq][NORTHWEST];
-                } else { // south
-                    if(col(from_sq) < col(to_sq)) _diagonal_mask = diagonal_mask[from_sq][SOUTHEAST];
-                    else _diagonal_mask = diagonal_mask[from_sq][SOUTHWEST];
-                }
-
-                attacker_mask |= Bmagic(from_sq, board->occ_mask) & _diagonal_mask
-                & (get_queen_mask(side) | get_bishop_mask(side) | get_queen_mask(!side) | get_bishop_mask(!side)); 
-            } else if(move_is_straight(move)) {
-                if(row(from_sq) == row(to_sq)) {
-                    attacker_mask |= Rmagic(from_sq, get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? EAST : WEST]
-                    & (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
-                } else {
-                    attacker_mask |= Rmagic(from_sq, get_all_mask()) & straight_mask[from_sq][from_sq < to_sq ? SOUTH : NORTH]
-                    & (get_queen_mask(side) | get_rook_mask(side) | get_queen_mask(!side) | get_rook_mask(!side));
-                }
-            }
-
-            // if next_lva returns -1 it means that there are no more attackers from current attacker side 
-            from_sq = next_lva(attacker_mask, side);
-            // the king has put himself in check
-            if(piece_at_to == WHITE_KING || piece_at_to == BLACK_KING) {
-                depth--;
-                from_sq = -1;
-            }
-        }
-
-        score[0] = 10000; // we want to force the capture at the root
-        score[depth + 1] = -score[depth];
-
-        while(depth > 0) {
-            // (Kind of) minimax optimization. At each node you can choose between not making the capture
-            // or making the capture and assuming that the other side will play optimally after that
-            score[depth] = std::max(-score[depth - 1], -score[depth + 1]);
-            depth--;
-        }
-
-        return score[1];
-    }
-
-    int next_lva(const uint64_t& attacker_mask, const bool attacker_side) const {
-        for(int piece = (attacker_side == WHITE ? WHITE_PAWN : BLACK_PAWN); piece < (attacker_side == WHITE ? BLACK_PAWN : 12); piece++) {
-            if(attacker_mask & get_piece_mask(piece)) {
-                return lsb(attacker_mask & get_piece_mask(piece));
-            }
-        } 
-        return -1;
     }
 
     int mvvlva(const Move move) {

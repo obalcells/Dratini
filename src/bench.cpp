@@ -10,7 +10,6 @@
 #include "tt.h"
 
 void bench() {
-    cout << "Base Dratini" << endl;
 
     tt.allocate(16);
     
@@ -27,17 +26,14 @@ void bench() {
     for(int i = 0; strcmp(Benchmarks[i], ""); i++) {
         std::string line(Benchmarks[i]);
         engine.board = Board(line);
-        new_think(engine);
-
+        think(engine);
         printf("Bench #%2d score: %5d, bestmove: %s, ponder: %s, nodes: %7d, nps: %7dK, elapsed: %8dms\n",
                 i + 1, engine.score, move_to_str(engine.best_move).c_str(), move_to_str(engine.ponder_move).c_str(), engine.nodes, int(float(engine.nodes) / engine.search_time), engine.search_time); 
-        // printf("TT percentage: %d percent, totally tried save %d, totally replaced %d, total saved %d\n",
-        //        tt.how_full(), tt.total_tried_save, tt.totally_replaced, tt.total_saved);
-
         tt.clear();
         total_nodes += engine.nodes;
         total_time += engine.search_time;
     }
     
     printf("Total nps is: %dK\n", int(float(total_nodes) / total_time));
+    printf("Total time is %d\n", int(total_time));
 }

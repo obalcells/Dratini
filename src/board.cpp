@@ -292,7 +292,7 @@ void Board::set_from_fen(const std::string& fen) {
 	index++;
 	// castling
 	if(fen[index] == '-') {
-		castling_flag = 15;
+		castling_flag = 0;
 		index++;
 	} else {
 		castling_flag = 0;
@@ -732,12 +732,6 @@ bool Board::is_draw() const {
     return false;
 }
 
-// bool Board::in_check() const {
-// 	assert(is_attacked(lsb(get_king_mask(side))) == bool(king_attackers));
-// 	return bool(king_attackers);
-// }
-
-
 void Board::print_board() const {
 	std::cout << endl;
 	int i;
@@ -769,10 +763,10 @@ void Board::print_board() const {
 	// }
 	// // cout << "Key is:" << endl; 
 	// // cout << key << endl;
-	// std::cout << "Castling (WQ, WK, BQ, BK): ";
-	// for(i = 0; i < 4; i++)
-	// 	std::cout << (castling_rights[i] ? "Y " : "N ");
-	// std::cout << endl;
+	std::cout << "Castling (WQ, WK, BQ, BK): ";
+	for(i = 0; i < 4; i++)
+	    std::cout << ((castling_flag & (1 << i)) ? "Y " : "N ");
+	std::cout << endl;
 	std::cout << "Side: " << (side == WHITE ? "WHITE" : "BLACK") << endl;
 	assert(side != xside);
 }

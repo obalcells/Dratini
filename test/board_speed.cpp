@@ -7,39 +7,8 @@
 #include "../src/board.h"
 #include "sungorus_board.h"
 
-int StrToMove(POS * p, char * move_str) {
-	int from, to, type;
-
-	from = Sq(move_str[0] - 'a', move_str[1] - '1');
-	to = Sq(move_str[2] - 'a', move_str[3] - '1');
-	type = NORMAL;
-	if (TpOnSq(p, from) == K && Abs(to - from) == 2)
-		type = CASTLE;
-	else if (TpOnSq(p, from) == P) {
-		if (to == p -> ep_sq)
-			type = EP_CAP;
-		else if (Abs(to - from) == 16)
-			type = EP_SET;
-		else if (move_str[4] != '\0')
-			switch (move_str[4]) {
-			case 'n':
-				type = N_PROM;
-				break;
-			case 'b':
-				type = B_PROM;
-				break;
-			case 'r':
-				type = R_PROM;
-				break;
-			case 'q':
-				type = Q_PROM;
-				break;
-			}
-	}
-	return (type << 12) | (to << 6) | from;
-}
-
 bool check_same(POS * p, Board * board) {
+	int p1, p2;
 	for (int i = 0; i < 64; i++) {
 		if (p -> pc[i] == NO_PC && board -> piece_at[i] != EMPTY)
 			return false;
@@ -47,8 +16,8 @@ bool check_same(POS * p, Board * board) {
 			return false;
 		if (p -> pc[i] == NO_PC && board -> piece_at[i] == EMPTY)
 			continue;
-		int p1 = (p -> pc[i] >> 1) + ((p -> pc[i] & 1) ? 6 : 0);
-		int p2 = board -> piece_at[i] + (board -> color_at[i] == BLACK ? 6 : 0);
+		p1 = (p -> pc[i] >> 1) + ((p -> pc[i] & 1) ? 6 : 0);
+		p2 = board -> piece_at[i] + (board -> color_at[i] == BLACK ? 6 : 0);
 		if (p1 != p2) {
 			cerr << "At position " << i << " pieces are not the same" << endl;
 			cerr << (int) p -> pc[i] << " " << (int) board -> piece_at[i] << " " << int(board -> color_at[i] == BLACK ? 6 : 0) << endl;
@@ -71,7 +40,7 @@ void test_make_move_speed() {
 	Board first_board = Board();
 	Board board = Board();
 	Board new_board = Board();
-	UndoData _undo_data;
+	UndoData _undo_data = UndoData(new_board.king_attackers);
 
 	Init();
 	POS p;
@@ -151,8 +120,8 @@ void test_move_valid_speed() {
 	std::uniform_int_distribution < uint64_t > dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
 	std::chrono::time_point < std::chrono::high_resolution_clock > initial_time, end_time;
 	std::vector<Move> moves;
-	Board board;
-	UndoData _undo_data;
+	Board board = Board();
+	UndoData _undo_data = UndoData(board.king_attackers);
 	std::vector<Move> raw_moves, valid_moves;
 	Init();
 	POS p;
@@ -381,8 +350,8 @@ void test_see_speed() {
 	std::uniform_int_distribution < uint64_t > dist(std::llround(std::pow(2, 56)), std::llround(std::pow(2, 62)));
 	std::chrono::time_point < std::chrono::high_resolution_clock > initial_time, end_time;
 	std::vector<Move> raw_moves, valid_moves;
-	Board board;
-	UndoData _undo_data;
+	Board board = Board();
+	UndoData _undo_data = UndoData(board.king_attackers);
 	Init();
 	POS p;
 	UNDO undo_data;

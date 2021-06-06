@@ -10,5 +10,6 @@ void generate_evasions(std::vector<Move>&, const Board*);
 void generate_captures(std::vector<Move>&, const Board*);
 void generate_quiet(std::vector<Move>&, const Board*);
 
-int* new_generate_captures(int* moves, const Board*);
-int* new_generate_quiet(int* moves, const Board*);
+Move* new_generate_captures(Move* moves, const Board*);
+Move* new_new_generate_captures(Move* moves, const Board*, Move* move_p);
+Move* new_generate_quiet(Move* moves, const Board*);

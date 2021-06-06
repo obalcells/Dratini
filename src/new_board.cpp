@@ -2,8 +2,13 @@
 #include "defs.h"
 #include "bitboard.h"
 #include "magicmoves.h"
+#include "sungorus_eval.h"
 #include "board.h"
 #include "gen.h"
+
+static bool mat_ok(Board* board) {
+	return calculate_mat_p(board) == (board->b_mat[0] - board->b_mat[1] + board->b_pst[0] - board->b_pst[1]);
+}
 
 static const int pst[6][64] = {
   { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
@@ -71,7 +76,7 @@ void Board::new_take_back(const UndoData& undo) {
             break;
 		}
         case CASTLING_MOVE: {
-			int rook_from, rook_to;
+			uint8_t rook_from, rook_to;
 			if(from_sq > to_sq) {
 				rook_to = to_sq + 1;
 				rook_from = from_sq - 4;
@@ -152,12 +157,14 @@ void Board::new_take_back(const UndoData& undo) {
 }
 
 void Board::new_make_move(const Move move, UndoData& undo_data) {
-	int from_sq, to_sq, piece, side_piece;
+	uint8_t from_sq, to_sq, piece, side_piece, side_shift;
 
 	from_sq = get_from(move);
 	to_sq = get_to(move);
 	piece = piece_at[from_sq];
-	side_piece = get_piece(from_sq); // like piece but +6 if it's BLACK 
+	side_piece = piece_at[from_sq] + (color_at[from_sq] ? 6 : 0);
+	side_shift = (side ? 6 : 0);
+	assert(side_piece == get_piece(from_sq));
 
 	undo_data.move = move;
 	undo_data.enpassant = enpassant;
@@ -208,7 +215,7 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			break;
 		}
 		case CASTLING_MOVE: { 
-			undo_data.captured_piece = ROOK + (side ? 6 : 0); // I don't remember why we do this
+			undo_data.captured_piece = ROOK + side_shift; // I don't remember why we do this
 			b_pst[side] += pst[KING][to_sq] - pst[KING][from_sq];
 			key ^= zobrist_pieces[side_piece][from_sq] ^ zobrist_pieces[side_piece][to_sq]; 
 			color_at[to_sq] = side;
@@ -225,11 +232,11 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 				from_sq += 3;
 			}
 			b_pst[side] += pst[ROOK][to_sq] - pst[ROOK][from_sq];
-			key ^= zobrist_pieces[ROOK + (side ? 6 : 0)][from_sq] ^ zobrist_pieces[ROOK + (side ? 6 : 0)][to_sq]; 
+			key ^= zobrist_pieces[ROOK + side_shift][from_sq] ^ zobrist_pieces[ROOK + side_shift][to_sq]; 
 			color_at[to_sq] = side;
 			piece_at[to_sq] = ROOK;
 			color_at[from_sq] = piece_at[from_sq] = EMPTY;
-			bits[ROOK + (side ? 6 : 0)] ^= mask_sq(from_sq) | mask_sq(to_sq);
+			bits[ROOK + side_shift] ^= mask_sq(from_sq) | mask_sq(to_sq);
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq);
 			break;
 		}
@@ -237,7 +244,7 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			const int adjacent = (row(from_sq) << 3) | col(to_sq);
 			undo_data.captured_piece = PAWN + (side ? 0 : 6);
 			b_pst[side] += pst[piece][to_sq] - pst[piece][from_sq];
-			b_pst[xside] -= pst[piece_at[adjacent]][to_sq];
+			b_pst[xside] -= pst[piece_at[adjacent]][adjacent];
 			b_mat[xside] -= piece_value[PAWN];
 			key ^= zobrist_pieces[side_piece][from_sq] ^ zobrist_pieces[side_piece][to_sq] ^ zobrist_pieces[undo_data.captured_piece][adjacent];
 			color_at[to_sq] = side;
@@ -261,12 +268,12 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			}
 			b_pst[side] += pst[promotion_piece][to_sq] - pst[PAWN][from_sq];
 			b_mat[side] += piece_value[promotion_piece] - piece_value[PAWN];
-			key ^= zobrist_pieces[side_piece][from_sq] ^ zobrist_pieces[promotion_piece + (side ? 6 : 0)][to_sq]; 
+			key ^= zobrist_pieces[side_piece][from_sq] ^ zobrist_pieces[promotion_piece + side_shift][to_sq]; 
 			color_at[to_sq] = side;
 			piece_at[to_sq] = promotion_piece;
 			color_at[from_sq] = piece_at[from_sq] = EMPTY;
 			bits[side_piece] ^= mask_sq(from_sq); 
-			bits[promotion_piece + (side ? 6 : 0)] ^= mask_sq(to_sq);
+			bits[promotion_piece + side_shift] ^= mask_sq(to_sq);
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq);
 		}
 	}	
@@ -307,11 +314,12 @@ bool Board::new_fast_move_valid(const Move move) const {
 	// the problem is that we want the function to be const so we can't touch the board
    
 	if(piece_from == WHITE_KING || piece_from == BLACK_KING) {
-		return !(knight_attacks[to_sq] & get_knight_mask(xside))
-			&& !(king_attacks[to_sq] & get_king_mask(xside))
-			&& !(pawn_attacks[xside][to_sq] & get_pawn_mask(xside))
+		assert(!(get_flag(move) == CASTLING_MOVE && king_attackers));
+		return !(knight_attacks[to_sq] & bits[KNIGHT + xside_shift])
+			&& !(king_attacks[to_sq] & bits[KING + xside_shift])
+			&& !(pawn_attacks[xside][to_sq] & bits[PAWN + xside_shift])
 			&& !(Bmagic(to_sq, occ_mask ^ mask_sq(from_sq)) & (bits[BISHOP + xside_shift] | bits[QUEEN + xside_shift]))
-			&& !(Rmagic(to_sq, occ_mask ^ mask_sq(from_sq)) & (bits[ROOK   + xside_shift] | bits[QUEEN + xside_shift]));
+			&& !(Rmagic(to_sq, occ_mask ^ mask_sq(from_sq)) & (bits[ROOK + xside_shift] | bits[QUEEN + xside_shift]));
 	}
 		
 	// if we are here then the moved piece isn't the king
@@ -335,13 +343,14 @@ bool Board::new_fast_move_valid(const Move move) const {
 
 
 bool Board::new_move_valid(const Move move) {
-	uint8_t from_sq, to_sq, flag, piece;
+	uint8_t from_sq, to_sq, flag, piece, side_shift;
 	bool is_promotion;
 
 	from_sq = get_from(move);
 	to_sq = get_to(move);
 	flag = get_flag(move);
 	is_promotion = KNIGHT_PROMOTION <= flag && flag <= QUEEN_PROMOTION;
+	side_shift = (side ? 6 : 0);
 
 	if(from_sq < 0 || from_sq >= 64
 	|| to_sq < 0 || to_sq >= 64
@@ -354,11 +363,13 @@ bool Board::new_move_valid(const Move move) {
 	piece = get_piece(from_sq);
 
 	// trivial conditions that must be met
-	if(from_sq == to_sq || piece == EMPTY || color_at[from_sq] != side || color_at[to_sq] == side) {
+	if(from_sq == to_sq || piece == EMPTY || color_at[from_sq] != side || color_at[to_sq] == side)
 		return false;
-    }
 
 	if(flag == CASTLING_MOVE) {
+		if(king_attackers)
+			return false;
+
 		// this is the only place were we return true before the end of the function
 		uint8_t castling_type;
 
@@ -390,9 +401,9 @@ bool Board::new_move_valid(const Move move) {
 		// we will check that later using fast_move_valid
 
 		if(castling_type == WHITE_QUEEN_SIDE || castling_type == BLACK_QUEEN_SIDE) { 
-			return !is_attacked(from_sq) && !is_attacked(from_sq - 1);
+			return !is_attacked(from_sq - 1);
 		} else if(castling_type == WHITE_KING_SIDE || castling_type == BLACK_KING_SIDE) {
-			return !is_attacked(from_sq) && !is_attacked(from_sq + 1);
+			return !is_attacked(from_sq + 1);
 		} else {
 			return false;
 		}
@@ -444,32 +455,16 @@ bool Board::new_move_valid(const Move move) {
 			&& ((side == WHITE && to_sq != from_sq + 8) || (side == BLACK && to_sq != from_sq - 8)))
 				return false;
 		}
-	} else if(is_promotion) {
-		piece -= (side ? 6 : 0);
-		switch(piece) {
-			case KING:
-				if (!(mask_sq(to_sq) & king_attacks[from_sq]))
-					return false;
-				break;
-			case KNIGHT:
-				if (!(mask_sq(to_sq) & knight_attacks[from_sq]))
-					return false;
-				break;
-			case BISHOP:
-				if (!(mask_sq(to_sq) & Bmagic(from_sq, occ_mask)))
-					return false;
-				break;
-			case ROOK:
-				if(!(mask_sq(to_sq) & Rmagic(from_sq, occ_mask)))
-					return false;
-				break;
-			case QUEEN:
-				if(!(mask_sq(to_sq) & (Bmagic(from_sq, occ_mask | Rmagic(from_sq, occ_mask)))))
-					return false;
-				break;
+	} else {
+		switch(piece - side_shift) {
+			case KING: { if(!(mask_sq(to_sq) & king_attacks[from_sq])) return false; break; }
+			case KNIGHT: { if(!(mask_sq(to_sq) & knight_attacks[from_sq])) return false; break; } 
+			case BISHOP: { if(!(mask_sq(to_sq) & Bmagic(from_sq, occ_mask))) return false; break; }
+			case ROOK: { if(!(mask_sq(to_sq) & Rmagic(from_sq, occ_mask))) return false; break; }
+			case QUEEN: { if(!(mask_sq(to_sq) & (Bmagic(from_sq, occ_mask) | Rmagic(from_sq, occ_mask)))) return false; break; }
 		}
-		piece += (side ? 6 : 0);
 	}
+
 
 	// update: we no longer simulate the make move function now
 	// we will check whether we put our king in check using fast_move_valid
@@ -496,7 +491,7 @@ static inline bool move_is_diagonal(int from_sq, int to_sq) {
 
 // duplicated from move_picker
 int Board::next_lva(const uint64_t& attacker_mask, const bool attacker_side) const {
-	for(int piece = (attacker_side == WHITE ? WHITE_PAWN : BLACK_PAWN); piece < (attacker_side == WHITE ? BLACK_PAWN : 12); piece++) {
+	for(uint8_t piece = (attacker_side == WHITE ? WHITE_PAWN : BLACK_PAWN); piece < (attacker_side == WHITE ? BLACK_PAWN : 12); piece++) {
 		if(attacker_mask & bits[piece]) {
 			return lsb(attacker_mask & bits[piece]);
 		}
@@ -590,41 +585,3 @@ int Board::fast_see(const Move move) const {
 
 	return score[1];
 }
-
-// int Board::slow_see(Move move, bool root) {
-// 	const int piece_from = get_piece(get_from(move));
-// 	const int piece_captured = get_piece(get_to(move));
-// 	const int from_sq = get_from(move);
-// 	const int to_sq = get_to(move);
-// 	// const uint8_t side_shift;
-// 	// const uint8_t xside_shift;
-
-// 	// making the capture
-// 	// setting the 'to' square
-// 	bits[piece_from] ^= mask_sq(from_sq);
-// 	bits[piece_from] ^= mask_sq(to_sq);
-// 	bits[piece_captured] ^= mask_sq(to_sq); 	
-// 	side = xside;
-// 	xside = !xside;
-
-// 	const int captured_piece_value = piece_value[piece_captured];
-// 	const int lva_square = lva(to_sq);
-
-// 	int score;
-
-// 	if(lva_square == -1) {
-// 		score = captured_piece_value;
-// 	} else {
-// 		score = captured_piece_value - slow_see(Move(lva_square, get_to(move), CAPTURE_MOVE));
-// 	}
-
-// 	// unmaking move 
-// 	// clearing the 'to' square
-// 	bits[piece_from] ^= mask_sq(from_sq);
-// 	bits[piece_from] ^= mask_sq(to_sq);
-// 	bits[piece_captured] ^= mask_sq(to_sq); 	
-// 	side = xside;
-// 	xside = !xside;
-
-// 	return score;
-// }

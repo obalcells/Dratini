@@ -129,3 +129,4 @@ int Swap(POS *, int, int);
 int *GenerateCaptures(POS*, int*);
 int *GenerateQuiet(POS*, int*);
 void InitGen();
+int StrToMove(POS*, char*);

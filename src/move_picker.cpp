@@ -273,14 +273,14 @@ Move MovePicker::next_move() {
 			phase = GENERATE_CAPTURES;
             tt_move = NULL_MOVE;
 			if(tt_move != NULL_MOVE
-			&& board->move_valid(tt_move)) {
+			&& board->new_move_valid(tt_move)) {
 				return tt_move;
 			}
 		}
 
 		case GENERATE_CAPTURES: {
 			// if we are in check we skip ahead to the evasions
-			if(board->king_attackers) {
+			if(false && board->king_attackers) {
 				assert(move_stack.empty());
 				generate_evasions(move_stack, board);
 				sort_quiet();
@@ -303,7 +303,7 @@ Move MovePicker::next_move() {
 					best_index = get_best_index();
 				} else if(get_flag(move_stack[best_index]) != ENPASSANT_MOVE
 				&& board->piece_at[get_from(move_stack[best_index])] < board->piece_at[get_from(move_stack[best_index])] 
-				&& fast_see(move_stack[best_index]) < 0) { 
+				&& true) { // fast_see(move_stack[best_index]) < 0) { 
 				// } else if(fast_see(move_stack[best_index]) <= 0) {
 					scores[best_index] = -1;
 					best_index = get_best_index();
@@ -322,7 +322,7 @@ Move MovePicker::next_move() {
             if(!captures_only) {
 				if(thread->killers[thread->ply][0] != NULL_MOVE
 				&& thread->killers[thread->ply][0] != tt_move
-				&& board->move_valid(thread->killers[thread->ply][0])) {
+				&& board->new_move_valid(thread->killers[thread->ply][0])) {
 					return thread->killers[thread->ply][0];
 				}
             }
@@ -334,7 +334,7 @@ Move MovePicker::next_move() {
 				if(thread->killers[thread->ply][1] != NULL_MOVE
 				&& thread->killers[thread->ply][1] != tt_move
 				&& thread->killers[thread->ply][1] != thread->killers[thread->ply][0] 
-				&& board->move_valid(thread->killers[thread->ply][1])) {
+				&& board->new_move_valid(thread->killers[thread->ply][1])) {
 					return thread->killers[thread->ply][1];
 				}
 			}
@@ -343,7 +343,7 @@ Move MovePicker::next_move() {
 		case BAD_CAPTURES: {
 			while(!move_stack.empty()) {
 				const Move move = move_stack[0];
-				assert(thread->board.fast_move_valid(move));
+				// assert(thread->board.fast_move_valid(move));
 				delete_move(0);
 				if(move != tt_move) {
 					return move;
@@ -370,7 +370,11 @@ Move MovePicker::next_move() {
 				const Move move = move_stack[best_index];
 				delete_move(best_index);
 				assert(bool(thread->board.king_attackers) || get_flag(move) != CAPTURE_MOVE);
-				if(move != tt_move) {
+				if(move != NULL_MOVE
+				&& move != tt_move
+				&& move != thread->killers[thread->ply][0]
+				&& move != thread->killers[thread->ply][1]
+				&& !(get_flag(move) == CASTLING_MOVE && board->king_attackers)) { 
 					return move;
 				}
 				best_index = get_best_index(true);

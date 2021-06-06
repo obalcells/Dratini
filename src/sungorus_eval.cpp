@@ -176,6 +176,26 @@ int evaluate_king(const Board& board, int side)
   return -2 * pst[K][lsb(board.bits[KING + (side == BLACK ? 6 : 0)])];
 }
 
+int calculate_mat_p(Board* board) {
+  uint64_t pieces;
+  int score;
+
+  score = 0;
+  pieces = board->bits[WHITE_PAWN] | board->bits[WHITE_KNIGHT] | board->bits[WHITE_BISHOP] | board->bits[WHITE_ROOK] | board->bits[WHITE_QUEEN] | board->bits[WHITE_KING];
+  while(pieces) {
+    int sq = pop_first_bit(pieces);
+    score += piece_value[board->piece_at[sq]];
+    score += pst[board->piece_at[sq]][sq];
+  }
+  pieces = board->bits[BLACK_PAWN] | board->bits[BLACK_KNIGHT] | board->bits[BLACK_BISHOP] | board->bits[BLACK_ROOK] | board->bits[BLACK_QUEEN] | board->bits[BLACK_KING];
+  while(pieces) {
+    int sq = pop_first_bit(pieces);
+    score -= piece_value[board->piece_at[sq]];
+    score -= pst[board->piece_at[sq]][sq];
+  }
+  return score;
+}
+
 int calculate_mat(const Board& board) {
   uint64_t pieces;
   int score;
@@ -208,6 +228,8 @@ int evaluate(const Board& board) {
     << (board.b_mat[WHITE] - board.b_mat[BLACK] + board.b_pst[WHITE] - board.b_pst[BLACK]) << " "
     << calculate_mat(board)
     << RESET_COLOR << endl;
+    cerr << "Board is " << endl;
+    board.print_board();
   }
   assert((board.b_mat[WHITE] - board.b_mat[BLACK] + board.b_pst[WHITE] - board.b_pst[BLACK]) == calculate_mat(board));
   score = board.b_mat[WHITE] - board.b_mat[BLACK];

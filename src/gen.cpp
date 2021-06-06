@@ -100,11 +100,11 @@ uint64_t get_attackers(int sq, bool attacker_side, const Board* board) {
             attackers |= mask_sq(sq - 7);
     }
 
-    return      attackers 
-              | (king_attacks[sq] & get_king_mask(attacker_side))
-              | (Rmagic(sq, board->occ_mask) & (get_rook_mask(attacker_side) | get_queen_mask(attacker_side)))
-              | (Bmagic(sq, board->occ_mask) & (get_bishop_mask(attacker_side) | get_queen_mask(attacker_side)))
-              | (knight_attacks[sq] & get_knight_mask(attacker_side)); 
+    return    attackers 
+            | (king_attacks[sq] & get_king_mask(attacker_side))
+            | (Rmagic(sq, board->occ_mask) & (get_rook_mask(attacker_side) | get_queen_mask(attacker_side)))
+            | (Bmagic(sq, board->occ_mask) & (get_bishop_mask(attacker_side) | get_queen_mask(attacker_side)))
+            | (knight_attacks[sq] & get_knight_mask(attacker_side)); 
 }
 
 void get_attackers(int sq, bool attacker_side, const Board* board, uint64_t& bb) {
@@ -174,6 +174,8 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
             if(board->piece_at[from_sq] == PAWN && (mask_sq(attacker_pos) & (ROW_0 | ROW_7))) {
                 moves.push_back(Move(from_sq, attacker_pos, QUEEN_PROMOTION));
                 moves.push_back(Move(from_sq, attacker_pos, KNIGHT_PROMOTION));
+                moves.push_back(Move(from_sq, attacker_pos, BISHOP_PROMOTION));
+                moves.push_back(Move(from_sq, attacker_pos, ROOK_PROMOTION));
             } else {
                 moves.push_back(Move(from_sq, attacker_pos, CAPTURE_MOVE));
             }
@@ -207,6 +209,8 @@ void generate_evasions(std::vector<Move>& moves, const Board* board) {
                 if(board->piece_at[from_sq] == PAWN && (mask_sq(to_sq) & (ROW_0 | ROW_7))) {
                     moves.push_back(Move(from_sq, to_sq, QUEEN_PROMOTION));
                     moves.push_back(Move(from_sq, to_sq, KNIGHT_PROMOTION));
+                    moves.push_back(Move(from_sq, to_sq, BISHOP_PROMOTION));
+                    moves.push_back(Move(from_sq, to_sq, ROOK_PROMOTION));
                 } else {
                     moves.push_back(Move(from_sq, to_sq, QUIET_MOVE));
                 }
@@ -251,6 +255,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             // Move constructor:  'from'    'to'     'move type'    
             moves.push_back(Move(to_sq - 7, to_sq, QUEEN_PROMOTION));
             moves.push_back(Move(to_sq - 7, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq - 7, to_sq, BISHOP_PROMOTION));
+            moves.push_back(Move(to_sq - 7, to_sq, ROOK_PROMOTION));
         }
 
         // promotion eating diagonally to the right (sq -> sq + 9)
@@ -259,6 +265,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 9, to_sq, QUEEN_PROMOTION));
             moves.push_back(Move(to_sq - 9, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq - 9, to_sq, BISHOP_PROMOTION));
+            moves.push_back(Move(to_sq - 9, to_sq, ROOK_PROMOTION));
         }
 
         // promotion front (sq -> sq + 8)
@@ -267,6 +275,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq - 8, to_sq, QUEEN_PROMOTION));
             moves.push_back(Move(to_sq - 8, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq - 8, to_sq, BISHOP_PROMOTION));
+            moves.push_back(Move(to_sq - 8, to_sq, ROOK_PROMOTION));
         }
 
         // pawn capture to the left (sq -> sq + 7)
@@ -301,6 +311,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 9, to_sq, QUEEN_PROMOTION));
             moves.push_back(Move(to_sq + 9, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq + 9, to_sq, BISHOP_PROMOTION));
+            moves.push_back(Move(to_sq + 9, to_sq, ROOK_PROMOTION));
         }
 
         // promotion eating diagonally to the right (sq -> sq - 7)
@@ -309,6 +321,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 7, to_sq, QUEEN_PROMOTION));
             moves.push_back(Move(to_sq + 7, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq + 7, to_sq, BISHOP_PROMOTION));
+            moves.push_back(Move(to_sq + 7, to_sq, ROOK_PROMOTION));
         }
 
         // promotion front (sq -> sq - 8)
@@ -317,6 +331,8 @@ void generate_captures(std::vector<Move>& moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             moves.push_back(Move(to_sq + 8, to_sq, QUEEN_PROMOTION));
             moves.push_back(Move(to_sq + 8, to_sq, KNIGHT_PROMOTION));
+            moves.push_back(Move(to_sq + 8, to_sq, BISHOP_PROMOTION));
+            moves.push_back(Move(to_sq + 8, to_sq, ROOK_PROMOTION));
         }
 
         // pawn capture to the left (sq -> sq - 9)
@@ -424,7 +440,7 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
     }
 
     // generate the castling moves 
-    if(board->side == WHITE) {
+    if(board->side == WHITE && !board->king_attackers) {
         // white queen side castling
         if((board->castling_flag & 1)
         && !(board->occ_mask & castling_mask[WHITE_QUEEN_SIDE])
@@ -439,7 +455,7 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
             assert(board->piece_at[E1] == KING);
             moves.push_back(Move(E1, G1, CASTLING_MOVE));
         }
-    } else if(board->side == BLACK) {
+    } else if(board->side == BLACK && !board->king_attackers) {
         // black queen side castling
         if((board->castling_flag & 4)
         && !(board->occ_mask & castling_mask[BLACK_QUEEN_SIDE])
@@ -499,7 +515,8 @@ void generate_quiet(std::vector<Move>& moves, const Board* board) {
     }
 }
 
-int* new_generate_captures(int* moves, const Board* board) {
+
+Move* new_generate_captures(Move* moves, const Board* board) {
     uint64_t mask, attack_mask, pawn_mask = get_pawn_mask(board->side), xside_mask = get_side_mask(board->xside);
     int from_sq, to_sq;
 
@@ -524,6 +541,8 @@ int* new_generate_captures(int* moves, const Board* board) {
             // Move constructor:  'from'    'to'     'move type'    
             *moves++ = Move(to_sq - 7, to_sq, QUEEN_PROMOTION);
             *moves++ = Move(to_sq - 7, to_sq, KNIGHT_PROMOTION);
+            *moves++ = Move(to_sq - 7, to_sq, ROOK_PROMOTION);
+            *moves++ = Move(to_sq - 7, to_sq, BISHOP_PROMOTION);
         }
 
         // promotion eating diagonally to the right (sq -> sq + 9)
@@ -532,6 +551,8 @@ int* new_generate_captures(int* moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             *moves++ = Move(to_sq - 9, to_sq, QUEEN_PROMOTION);
             *moves++ = Move(to_sq - 9, to_sq, KNIGHT_PROMOTION);
+            *moves++ = Move(to_sq - 9, to_sq, ROOK_PROMOTION);
+            *moves++ = Move(to_sq - 9, to_sq, BISHOP_PROMOTION);
         }
 
         // promotion front (sq -> sq + 8)
@@ -540,6 +561,8 @@ int* new_generate_captures(int* moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             *moves++ = Move(to_sq - 8, to_sq, QUEEN_PROMOTION);
             *moves++ = Move(to_sq - 8, to_sq, KNIGHT_PROMOTION);
+            *moves++ = Move(to_sq - 8, to_sq, ROOK_PROMOTION);
+            *moves++ = Move(to_sq - 8, to_sq, BISHOP_PROMOTION);
         }
 
         // pawn capture to the left (sq -> sq + 7)
@@ -574,6 +597,8 @@ int* new_generate_captures(int* moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             *moves++ = Move(to_sq + 9, to_sq, QUEEN_PROMOTION);
             *moves++ = Move(to_sq + 9, to_sq, KNIGHT_PROMOTION);
+            *moves++ = Move(to_sq + 9, to_sq, ROOK_PROMOTION);
+            *moves++ = Move(to_sq + 9, to_sq, BISHOP_PROMOTION);
         }
 
         // promotion eating diagonally to the right (sq -> sq - 7)
@@ -582,6 +607,8 @@ int* new_generate_captures(int* moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             *moves++ = Move(to_sq + 7, to_sq, QUEEN_PROMOTION);
             *moves++ = Move(to_sq + 7, to_sq, KNIGHT_PROMOTION);
+            *moves++ = Move(to_sq + 7, to_sq, ROOK_PROMOTION);
+            *moves++ = Move(to_sq + 7, to_sq, BISHOP_PROMOTION);
         }
 
         // promotion front (sq -> sq - 8)
@@ -590,6 +617,8 @@ int* new_generate_captures(int* moves, const Board* board) {
             to_sq = pop_first_bit(mask);
             *moves++ = Move(to_sq + 8, to_sq, QUEEN_PROMOTION);
             *moves++ = Move(to_sq + 8, to_sq, KNIGHT_PROMOTION);
+            *moves++ = Move(to_sq + 8, to_sq, ROOK_PROMOTION);
+            *moves++ = Move(to_sq + 8, to_sq, BISHOP_PROMOTION);
         }
 
         // pawn capture to the left (sq -> sq - 9)
@@ -658,7 +687,7 @@ int* new_generate_captures(int* moves, const Board* board) {
 }
 
 // we assume that the king isn't in check
-int* new_generate_quiet(int* moves, const Board* board) {
+Move* new_generate_quiet(Move* moves, const Board* board) {
     uint64_t mask, attack_mask, pawn_mask = get_pawn_mask(board->side);
     int from_sq, to_sq;
 
@@ -695,7 +724,7 @@ int* new_generate_quiet(int* moves, const Board* board) {
     }
 
     // generate the castling moves 
-    if(board->side == WHITE) {
+    if(board->side == WHITE && !board->king_attackers) {
         // white queen side castling
         if((board->castling_flag & 1)
         && !(board->occ_mask & castling_mask[WHITE_QUEEN_SIDE])
@@ -710,7 +739,7 @@ int* new_generate_quiet(int* moves, const Board* board) {
             assert(board->piece_at[E1] == KING);
             *moves++ = Move(E1, G1, CASTLING_MOVE);
         }
-    } else if(board->side == BLACK) {
+    } else if(board->side == BLACK && !board->king_attackers) {
         // black queen side castling
         if((board->castling_flag & 4)
         && !(board->occ_mask & castling_mask[BLACK_QUEEN_SIDE])

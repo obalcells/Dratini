@@ -34,7 +34,7 @@ struct UndoData {
     uint8_t enpassant, castling_flag, moved_piece, captured_piece, fifty_move_ply;
     uint64_t king_attackers;
 
-    UndoData() {}
+    // UndoData() {}
 
     // UndoData(
     //     const Move _move, const uint8_t _enpassant, const uint8_t _castling_flag,

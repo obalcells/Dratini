@@ -290,7 +290,7 @@ bool Board::make_move_from_str(const std::string& str_move) {
         return false;
     }
 
-	UndoData undo_data;
+	UndoData undo_data = UndoData(king_attackers);
     make_move(move, undo_data);
 
     return true;

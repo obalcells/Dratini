@@ -1,7 +1,7 @@
 # compiler flags
-C_FLAGS = -g -w -s -lm --std=c++11 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
+C_FLAGS = -DNDEBUG -g -w -s -lm --std=c++11 -pthread -Wfatal-errors -pipe -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays 
 
-EXE =$(shell pwd)/dratini
+EXE=$(shell pwd)/dratini
 TEST_EXE=$(shell pwd)/test.sh
 SELF_PLAY_EXE=$(shell pwd) /self_play.sh
 
@@ -12,7 +12,7 @@ TEST_FILES += $(wildcard test/*.cpp)
 TEST_FILES := $(filter-out test/debug.cpp, $(TEST_FILES))
 DEBUG_FILES := $(filter-out src/main.cpp, $(SRC_FILES)) test/debug.cpp test/board_speed.cpp test/sungorus_board.cpp
 
-default: debug 
+default: build 
 
 debug:
 	g++ $(C_FLAGS) $(DEBUG_FILES) -o debug.sh

@@ -14,13 +14,13 @@ TranspositionTable tt;
 Engine engine;
 
 int main() {
-	// bench();
-	uci();
+	bench();
+	// uci();
 	return 0;
 		
 	engine.reset();
 	Board& board = engine.board;
-	UndoData undo_data;
+	UndoData undo_data = UndoData(0);
 	bool first_input = true;
 
 	while(true) {

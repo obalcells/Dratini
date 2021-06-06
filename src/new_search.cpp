@@ -34,7 +34,7 @@ int new_search(NewThread& thread, int ply, int alpha, int beta, int depth, std::
     int best, score, new_depth, bound;
     Move move;
     std::vector<Move> new_pv;
-    UndoData undo_data;
+    UndoData undo_data = UndoData(thread.board.king_attackers);
     if(depth <= 0) {
         int quiesce_score =  quiesce(thread, ply, alpha, beta, pv);
         return quiesce_score;
@@ -115,7 +115,7 @@ int quiesce(NewThread& thread, int ply, int alpha, int beta, std::vector<Move> p
     int best, score;
     Move move;
     std::vector<Move> new_pv;
-    UndoData undo_data;
+    UndoData undo_data = UndoData(thread.board.king_attackers);
 
     thread.nodes++;
     thread.check_time();

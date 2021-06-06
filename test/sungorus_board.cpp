@@ -846,3 +846,35 @@ int *GenerateQuiet(POS *p, int *list)
   }
   return list;
 }
+
+int StrToMove(POS * p, char * move_str) {
+	int from, to, type;
+
+	from = Sq(move_str[0] - 'a', move_str[1] - '1');
+	to = Sq(move_str[2] - 'a', move_str[3] - '1');
+	type = NORMAL;
+	if (TpOnSq(p, from) == K && Abs(to - from) == 2)
+		type = CASTLE;
+	else if (TpOnSq(p, from) == P) {
+		if (to == p -> ep_sq)
+			type = EP_CAP;
+		else if (Abs(to - from) == 16)
+			type = EP_SET;
+		else if (move_str[4] != '\0')
+			switch (move_str[4]) {
+			case 'n':
+				type = N_PROM;
+				break;
+			case 'b':
+				type = B_PROM;
+				break;
+			case 'r':
+				type = R_PROM;
+				break;
+			case 'q':
+				type = Q_PROM;
+				break;
+			}
+	}
+	return (type << 12) | (to << 6) | from;
+}

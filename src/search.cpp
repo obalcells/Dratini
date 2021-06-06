@@ -14,7 +14,6 @@
 #include "search.h"
 
 int elapsed_time();
-bool move_gives_check(Board&, const Move);
 
 static int max_search_time = 5000; 
 static int max_depth = MAX_PLY;
@@ -59,10 +58,6 @@ void think(Engine& engine) {
 
     for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= engine.max_depth; main_thread.depth += 1) {
         aspiration_window(main_thread);
-        // if(!(*main_thread.stop_search)) {
-        //     cout << "Max search time was " << max_search_time << endl;
-        //     cout << "Finished searching at depth = " << main_thread.depth << endl;
-        // }
     }
 
     assert(main_thread.best_move != NULL_MOVE);
@@ -125,6 +120,14 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_pv = (alpha != beta - 1);
     bool debug_mode = false;
 
+    if((thread.board.castling_flag & 4)
+    && thread.board.piece_at[E8] != KING) {
+        cerr << "Invalid board state" << endl;
+        cerr << "Board is" << endl;
+        thread.board.print_board();
+        assert(false);
+    }
+
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
         cout << "Alpha and beta are " << alpha << " " << beta << endl;
@@ -134,41 +137,28 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         thread.board.print_board(); 
     }
 
-    // early exit conditions
-    // if(thread.board.is_draw()) {
-    //     return thread.nodes & 2;
-    // } else 
-    if(thread.ply >= max_depth) {
-        return evaluate(thread.board);
-    }
-    
-    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time) {
-        *thread.stop_search = true;
-    }
+    if(thread.board.is_draw())
+        return thread.nodes & 2;
 
-    if(*thread.stop_search) { 
+    if(thread.ply >= max_depth)
+        return evaluate(thread.board);
+    
+    if((thread.nodes & 4095) == 0 && elapsed_time() >= max_search_time)
+        *thread.stop_search = true;
+
+    if(*thread.stop_search)
         return 0;
-    }
 
     bool in_check = bool(thread.board.king_attackers);
 
-    if(depth <= 0 && !in_check) {
-        return  q_search(thread, pv, alpha, beta);
-    }
+    if(depth <= 0 && !in_check)
+        return q_search(thread, pv, alpha, beta);
 
     thread.nodes++;
     
     pv.clear();
-    thread.killers[thread.ply + 1][0] = NULL_MOVE;
-    thread.killers[thread.ply + 1][1] = NULL_MOVE;
-    PV child_pv;
-    UndoData undo_data;
-    Move tt_move = NULL_MOVE, best_move = NULL_MOVE, move = NULL_MOVE;
-    std::vector<Move> captures_tried, quiets_tried;
-    int score, best_score = -CHECKMATE, tt_score = INF, tt_bound = -1, searched_moves = 0;
-
-    bool tt_cutoff = false;
-    Move tt_cutoff_move = NULL_MOVE;
+    Move tt_move = NULL_MOVE;
+    int tt_score = INF, tt_bound = -1;
 
     // it will return true if it causes a cutoff or is an exact value
     if(tt.retrieve(
@@ -177,24 +167,23 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     )) {
         pv.push_back(tt_move);
         return tt_score;
-        // should we reset the age of the entry?
-        // return tt_score;
-        // tt_cutoff_move = tt_move;
-        // tt_cutoff = tt_score >= beta;
-        // tt_score = -CHECKMATE;
-        // tt_move = NULL_MOVE;
-        // debug_mode = true;
     }
 
+    thread.killers[thread.ply + 1][0] = NULL_MOVE;
+    thread.killers[thread.ply + 1][1] = NULL_MOVE;
+    PV child_pv;
+    UndoData undo_data = UndoData(thread.board.king_attackers);
+    Move best_move = NULL_MOVE, move = NULL_MOVE;
+    std::vector<Move> captures_tried, quiets_tried;
+    int score, best_score = -CHECKMATE, searched_moves = 0, extended_depth, reduction;
     int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
 
     // beta pruning
     if(!is_pv
     && !in_check
     && depth >= MIN_BETA_PRUNING_DEPTH
-    && eval_score - BETA_MARGIN * depth > beta) {
+    && eval_score - BETA_MARGIN * depth > beta)
         return eval_score;
-    }
 
     // null move pruning
     if(!is_pv
@@ -228,62 +217,53 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_futile = (depth < futility_max_depth)
                   && (eval_score + futility_margin[std::max(0, depth)] < alpha);
 
-    // MovePicker move_picker = MovePicker(thread, tt_move);
     NewMovePicker move_picker = NewMovePicker(thread, tt_move);
+    // MovePicker move_picker = MovePicker(thread, tt_move);
 
     while(true) {
         move = move_picker.next_move();
 
-        if(move == NULL_MOVE || *thread.stop_search) {
+        if(move == NULL_MOVE 
+        || *thread.stop_search)
             break;
-        }
         
         if(!is_pv
         && get_flag(move) == QUIET_MOVE
         && !in_check
         && is_futile
-        && searched_moves > 0) {
+        && searched_moves > 0)
             continue;
-        }
 
         // we have already checked the validity of the captures
-        // unless we are in check
-        if(!thread.board.fast_move_valid(move)) {
-        // || (get_flag(move) == CASTLING_MOVE && in_check)) {
+        // if(!thread.board.fast_move_valid(move)) {
+        if(!thread.board.new_fast_move_valid(move)) {
             continue;
-        }
-
-        if(!thread.board.move_valid(move)) {
-            cout << "Flag of invalid move is " << (int)get_flag(move) << endl;
-            cout << "In check? " << in_check << endl;
-            cout << "Move is " << move_to_str(move) << endl;
-            cout << "Board looks like this:" << endl; 
-            thread.board.print_board();
         }
 
         assert(thread.board.move_valid(move));
         assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
         assert(thread.board.color_at[get_from(move)] == thread.board.side);
 
-        thread.board.make_move(move, undo_data);
+        thread.board.new_make_move(move, undo_data);
+        // thread.board.make_move(move, undo_data);
         thread.move_stack.push_back(move);
         thread.ply++;
 
-        int extended_depth = depth + ((is_pv && in_check) ? 1 : 0);
+        extended_depth = depth + ((is_pv && in_check) ? 1 : 0);
         
         if(searched_moves > 3) { // taken from Halogen (https://github.com/KierenP/Halogen)
-			int reduction = LMR[std::min(63, std::max(0, depth))][std::min(63, std::max(0, searched_moves))];
+			reduction = LMR[std::min(63, std::max(0, depth))][std::min(63, std::max(0, searched_moves))];
 
-            if(is_pv) {
+            if(is_pv)
                 reduction++;
-            }
 
 			reduction = std::max(0, reduction);
 
             score = -search(thread, child_pv, -alpha - 1, -alpha, extended_depth - 1 - reduction);
 
 			if(score <= alpha) {
-                thread.board.take_back(undo_data);
+                // thread.board.take_back(undo_data);
+                thread.board.new_take_back(undo_data);
                 thread.move_stack.pop_back();
                 thread.ply--;
 				continue;
@@ -307,7 +287,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             }
         }
 
-        thread.board.take_back(undo_data);
+        thread.board.new_take_back(undo_data);
+        // thread.board.take_back(undo_data);
         thread.move_stack.pop_back();
         thread.ply--;
 
@@ -329,16 +310,6 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                         printf(" %s", move_to_str(pv[i]).c_str());
                     }
                     printf("\n");
-                    // cout << "info"
-                    //      << " depth " << thread.depth
-                    //      << " time " << elapsed_time()
-                    //      << " nodes " << thread.nodes
-                    //      << " cp score " << thread.root_value
-                    //      << " pv";  
-                    // for(int i = 0; i < (int)pv.size(); i++) {
-                    //     cout << " " << move_to_str(pv[i]);
-                    // }
-                    // cout << endl;
                 }
 
                 alpha = score;
@@ -346,60 +317,37 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                 assert(!pv.empty());
 
                 if(alpha >= beta) {
-                    if(debug_mode) {
+                    if(debug_mode)
                         cout << "Breaking from the search" << endl;
-                    }
                     break;
                 }
             }
         }
     }
 
-    if(tt_cutoff) {
-        // assert(best_move == tt_cutoff_move);
-        if(false && best_score < beta - 15) {
-            cout << RED_COLOR << "Oh no! tt cutoff was wrong" << RESET_COLOR << endl;
-            cout << "Bound of tt is " << (tt_bound == EXACT_BOUND ? "EXACT" : (tt_bound == LOWER_BOUND ? "LOWER BOUND" : "UPPER BOUND")) << endl;
-            cout << "Score of tt is " << tt_score << endl;
-            cout << "Best score is " << best_score << endl;
-            cout << "Beta score is " << beta << endl;
-            cout << "Position is " << endl;
-            thread.board.print_board();
-            cout << "TT thought best move was " << move_to_str(tt_cutoff_move) << endl;
-            cout << "Actual best move is " << move_to_str(best_move) << endl;
-        }
-        assert(best_score >= beta - 15);
-    }
-
-    if(best_score == -CHECKMATE) {
+    if(best_score == -CHECKMATE)
         return in_check ? -CHECKMATE + thread.ply : 0; // checkmate or stalemate
-    }
 
-    if(best_score >= beta && get_flag(best_move) != CAPTURE_MOVE) {
+    if(best_score >= beta && get_flag(best_move) != CAPTURE_MOVE)
         update_quiet_history(thread, best_move, quiets_tried, depth);
-    } 
 
-    if(best_score >= beta) {
+    if(best_score >= beta)
         update_capture_history(thread, best_move, captures_tried, depth); 
-    }
 
     // if(true) {
-        // do nothing
+        // do nothing if we want to disable tt
     // } else
     if(best_score >= beta) {
-        // cout << "Saving something" << endl;
         tt.save(
             thread.board.key, best_move, best_score,
             LOWER_BOUND, depth, thread.ply
         );
     } else if(best_score <= alpha) {
-        // cout << "Saving something" << endl;
         tt.save(
             thread.board.key, best_move, alpha,
             UPPER_BOUND, depth, thread.ply
         );
     } else {
-        // cout << "Saving something" << endl;
         tt.save(
             thread.board.key, best_move, best_score,
             EXACT_BOUND, depth, thread.ply
@@ -422,22 +370,18 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
 int q_search(Thread& thread, PV& pv, int alpha, int beta) {
 
-    if((thread.nodes & 1023) == 0 && elapsed_time() >= max_search_time) {
+    if((thread.nodes & 4095) == 0 && elapsed_time() >= max_search_time) {
         *thread.stop_search = true;
     }
 
-    if(*thread.stop_search) {
+    if(*thread.stop_search)
         return 0;
-    }
 
-    // check early exit conditions
-    if(thread.board.is_draw()) {
+    if(thread.board.is_draw())
         return thread.nodes & 2;
-    }
 
-    if(thread.ply >= MAX_PLY) {
+    if(thread.ply >= MAX_PLY)
         return evaluate(thread.board);
-    }
 
     thread.nodes++;
     
@@ -454,7 +398,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     }
 
     PV child_pv;
-    UndoData undo_data;
+    UndoData undo_data = UndoData(thread.board.king_attackers);
     int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
     bool in_check = bool(thread.board.king_attackers);
 
@@ -464,30 +408,32 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
         return alpha;
     }
 
-    NewMovePicker move_picker(thread, tt_move, true);
+    NewMovePicker move_picker = NewMovePicker(thread, tt_move, true);
+    // MovePicker move_picker = MovePicker(thread, tt_move, true);
 
     while(true) {
-        Move move = move_picker.next_move(); 
+        Move move = move_picker.next_move();
 
-        if(move == NULL_MOVE) {
+        if(move == NULL_MOVE)
             break;
-        }
 
-        // ?!?
-        if(!thread.board.fast_move_valid(move)) {
-            // !thread.board.fast_move_valid(move)) {
-        // || (in_check && get_flag(move) == CASTLING_MOVE)) {
+
+        // if(!thread.board.fast_move_valid(move)) {
+        if(!thread.board.new_fast_move_valid(move)) {
+            assert(!thread.board.new_fast_move_valid(move));
             continue;
         }
 
         assert(!in_check || get_flag(move) != CASTLING_MOVE);
 
-        thread.board.make_move(move, undo_data);
+        thread.board.new_make_move(move, undo_data);
+        // thread.board.make_move(move, undo_data);
         thread.ply++;
 
-        int score = -q_search(thread, child_pv, -beta, -alpha);
+        score = -q_search(thread, child_pv, -beta, -alpha);
 
-        thread.board.take_back(undo_data); 
+        // thread.board.take_back(undo_data); 
+        thread.board.new_take_back(undo_data); 
         thread.ply--;
 
         if(score > best_score) {
@@ -567,22 +513,6 @@ void update_capture_history(Thread& thread, const Move best_move, const std::vec
         entry = std::max(-10000, std::min(10000, entry));
         thread.capture_history[piece][to][captured] = entry;
     }
-}
-
-bool move_gives_check(Board& board, const Move move) {
-    return !board.fast_move_valid(move);
-    // bool move_was_valid = board.move_valid(move);
-    // if(move_was_valid != board.fast_move_valid(move)) {
-    //     cout << RED_COLOR << "Horrible mistake, fmv produces illegal move" << RESET_COLOR << endl;
-    //     cout << "Move is " << move_to_str(move) << endl; 
-    //     cout << "Flag of move is " << (int)get_flag(move) << endl;
-    //     cout << "Move was valid " << (move_was_valid == true ? "true" : "false") << endl;
-    //     cout << "Fast move " << (board.fast_move_valid(move) == true ? "true" : "false") << endl;
-    //     cout << "Board is " << endl;
-    //     board.print_board();
-    //     assert(false);
-    // }
-    // return !move_was_valid;
 }
 
 int elapsed_time() {
