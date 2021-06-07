@@ -1,14 +1,11 @@
 #include <sys/timeb.h>
+#include <cassert>
 #include "defs.h"
 #include "bitboard.h"
 #include "magicmoves.h"
 #include "sungorus_eval.h"
 #include "board.h"
 #include "gen.h"
-
-static bool mat_ok(Board* board) {
-	return calculate_mat_p(board) == (board->b_mat[0] - board->b_mat[1] + board->b_pst[0] - board->b_pst[1]);
-}
 
 static const int pst[6][64] = {
   { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
@@ -18,21 +15,6 @@ static const int pst[6][64] = {
   { 0, 2, 4, 5, 5, 4, 2, 0, 2, 4, 6, 7, 7, 6, 4, 2, 4, 6, 8, 9, 9, 8, 6, 4, 5, 7, 9, 10, 10, 9, 7, 5, 5, 7, 9, 10, 10, 9, 7, 5, 4, 6, 8, 9, 9, 8, 6, 4, 2, 4, 6, 7, 7, 6, 4, 2, 0, 2, 4, 5, 5, 4, 2, 0 },
   { 0, 12, 24, 30, 30, 24, 12, 0, 12, 24, 36, 42, 42, 36, 24, 12, 24, 36, 48, 54, 54, 48, 36, 24, 30, 42, 54, 60, 60, 54, 42, 30, 30, 42, 54, 60, 60, 54, 42, 30, 24, 36, 48, 54, 54, 48, 36, 24, 12, 24, 36, 42, 42, 36, 24, 12, 0, 12, 24, 30, 30, 24, 12, 0 }
 };
-
-#define get_side_mask(_side) (_side == WHITE ? \
-	(bits[WHITE_PAWN] | bits[WHITE_KNIGHT] | bits[WHITE_BISHOP] | bits[WHITE_ROOK] | bits[WHITE_QUEEN] | bits[WHITE_KING]) : \
-	(bits[BLACK_PAWN] | bits[BLACK_KNIGHT] | bits[BLACK_BISHOP] | bits[BLACK_ROOK] | bits[BLACK_QUEEN] | bits[BLACK_KING]))
-#define get_piece_mask(piece) bits[piece]
-#define get_all_mask() occ_mask
-#define get_pawn_mask(_side) (_side == WHITE ? bits[WHITE_PAWN] : bits[BLACK_PAWN])
-#define get_knight_mask(_side) (_side == WHITE ? bits[WHITE_KNIGHT] : bits[BLACK_KNIGHT])
-#define get_bishop_mask(_side) (_side == WHITE ? bits[WHITE_BISHOP] : bits[BLACK_BISHOP])
-#define get_rook_mask(_side) (_side == WHITE ? bits[WHITE_ROOK] : bits[BLACK_ROOK])
-#define get_queen_mask(_side) (_side == WHITE ? bits[WHITE_QUEEN] : bits[BLACK_QUEEN])
-#define get_king_mask(_side) (_side == WHITE ? bits[WHITE_KING] : bits[BLACK_KING])
-#define get_piece(sq) (piece_at[sq] + (color_at[sq] ? 6 : 0))
-#define get_color(sq) (color_at[sq])
-#define in_check() bool(king_attackers)
 
 void Board::new_take_back(const UndoData& undo) {
 	uint8_t from_sq, to_sq, piece, captured_piece;
@@ -164,7 +146,6 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 	piece = piece_at[from_sq];
 	side_piece = piece_at[from_sq] + (color_at[from_sq] ? 6 : 0);
 	side_shift = (side ? 6 : 0);
-	assert(side_piece == get_piece(from_sq));
 
 	undo_data.move = move;
 	undo_data.enpassant = enpassant;
@@ -201,7 +182,7 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			break;
 		}
 		case CAPTURE_MOVE: {
-			undo_data.captured_piece = get_piece(to_sq);
+			undo_data.captured_piece = piece_at[to_sq] + (color_at[to_sq] ? 6 : 0); 
 			b_pst[side] += pst[piece][to_sq] - pst[piece][from_sq];
 			b_pst[xside] -= pst[piece_at[to_sq]][to_sq];
 			b_mat[xside] -= piece_value[piece_at[to_sq]];
@@ -259,7 +240,7 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 		case KNIGHT_PROMOTION: case BISHOP_PROMOTION: case ROOK_PROMOTION: case QUEEN_PROMOTION: { 
 			const int promotion_piece = KNIGHT + get_flag(move) - KNIGHT_PROMOTION; 
 			if(piece_at[to_sq] != EMPTY) { // promotion with capture
-				undo_data.captured_piece = get_piece(to_sq);
+				undo_data.captured_piece = piece_at[to_sq] + (color_at[to_sq] ? 6 : 0);
 				b_pst[xside] -= pst[piece_at[to_sq]][to_sq];	
 				b_mat[xside] -= piece_value[piece_at[to_sq]];
 				key ^= zobrist_pieces[undo_data.captured_piece][to_sq]; 
@@ -292,16 +273,16 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 
     keys.push_back(key);
 
-    king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
+    king_attackers = get_attackers(lsb(bits[KING + (side ? 6 : 0)]), xside, this);
 }
 
 bool Board::new_fast_move_valid(const Move move) const {
 	uint8_t piece_from, piece_to, from_sq, to_sq, flag, side_shift, xside_shift, king_sq;
 
-	piece_from = get_piece(get_from(move));
-	piece_to = get_piece(get_to(move));
 	from_sq = get_from(move);
 	to_sq = get_to(move);
+	piece_from = piece_at[from_sq] + (color_at[from_sq] ? 6 : 0);
+	piece_to   = piece_at[to_sq] + (color_at[to_sq] ? 6 : 0);
 	flag = get_flag(move);
 	side_shift = side ? 6 : 0;
 	xside_shift = xside ? 6 : 0;
@@ -360,7 +341,7 @@ bool Board::new_move_valid(const Move move) {
 		return false;
 	}
 
-	piece = get_piece(from_sq);
+	piece = piece_at[from_sq] + (color_at[from_sq] ? 6 : 0);
 
 	// trivial conditions that must be met
 	if(from_sq == to_sq || piece == EMPTY || color_at[from_sq] != side || color_at[to_sq] == side)
@@ -503,23 +484,25 @@ int Board::next_lva(const uint64_t& attacker_mask, const bool attacker_side) con
 // least valuable attacker - we assume that attacker side is 'side'
 int Board::lva(int to_sq) const {
     if(side == BLACK) {
-		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && get_piece(to_sq + 7) == BLACK_PAWN)
+		if((mask_sq(to_sq) & ~COL_0) && (to_sq + 7) >= 0 && (to_sq + 7) < 64 && piece_at[to_sq + 7] == PAWN && color_at[to_sq + 7] == BLACK)
         	return to_sq + 7;
-        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && get_piece(to_sq + 9) == BLACK_PAWN)
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq + 9) >= 0 && (to_sq + 9) < 64 && piece_at[to_sq + 9] == PAWN && color_at[to_sq + 9] == BLACK)
         	return to_sq + 9; 
     } else {
-        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && get_piece(to_sq - 9) == WHITE_PAWN)
+        if((mask_sq(to_sq) & ~COL_0) && (to_sq - 9) >= 0 && (to_sq - 9) < 64 && piece_at[to_sq - 9] == PAWN && color_at[to_sq - 9] == WHITE)
         	return to_sq - 9; 
-        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && get_piece(to_sq - 7) == WHITE_PAWN) 
+        if((mask_sq(to_sq) & ~COL_7) && (to_sq - 7) >= 0 && (to_sq - 7) < 64 && piece_at[to_sq - 7] == PAWN && color_at[to_sq - 7] == WHITE) 
         	return to_sq - 7;
     }
 	const uint8_t side_shift = side ? 6 : 0;
 	if(knight_attacks[to_sq] & bits[KNIGHT + side_shift])
 		return lsb(knight_attacks[to_sq] & bits[KNIGHT + side_shift]);
-    if(Rmagic(to_sq, occ_mask) & (bits[ROOK + side_shift] | bits[QUEEN + side_shift]))
-    	return lsb(Rmagic(to_sq, occ_mask) & (bits[ROOK + side_shift] | bits[QUEEN + side_shift]));
-    if(Bmagic(to_sq, occ_mask) & (bits[BISHOP + side_shift] | bits[QUEEN + side_shift]))
-    	return lsb(Bmagic(to_sq, occ_mask) & (bits[BISHOP + side_shift] | bits[QUEEN + side_shift]));
+    if(Bmagic(to_sq, occ_mask) & bits[BISHOP + side_shift])
+    	return lsb(Bmagic(to_sq, occ_mask) & (bits[BISHOP + side_shift]));
+    if(Rmagic(to_sq, occ_mask) & bits[ROOK + side_shift])
+    	return lsb(Rmagic(to_sq, occ_mask) & (bits[ROOK + side_shift]));
+	if((Rmagic(to_sq, occ_mask) | Bmagic(to_sq, occ_mask)) & bits[QUEEN + side_shift])
+    	return lsb((Bmagic(to_sq, occ_mask) | Rmagic(to_sq, occ_mask)) & (bits[QUEEN + side_shift]));
     return -1;
 }
 
@@ -531,7 +514,7 @@ int Board::fast_see(const Move move) const {
 	to_sq = get_to(move);
 	from_sq = get_from(move);
 	depth = 0;
-	piece_at_to = get_piece(to_sq);
+	piece_at_to = piece_at[to_sq] + (color_at[to_sq] ? 6 : 0);
 	get_attackers(to_sq, side, this, attacker_mask);
 	get_attackers(to_sq, xside, this, attacker_mask);
 	_side = side;
@@ -539,7 +522,7 @@ int Board::fast_see(const Move move) const {
 	while(from_sq != 64) {
 		score[depth + 1] = piece_value[piece_at_to] - score[depth];
 		depth++;
-		piece_at_to = get_piece(from_sq);
+		piece_at_to = piece_at[from_sq] + (color_at[from_sq] ? 6 : 0);
 		attacker_mask ^= mask_sq(from_sq);
 		_side = !_side;
 

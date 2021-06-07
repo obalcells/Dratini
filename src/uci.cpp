@@ -71,6 +71,7 @@ void* process_go(void* _go_struct) {
 
 void parse_option(const std::vector<std::string>& args) {
     cout << "Parsing some option..." << endl;
+    // (not doing anything)
 }
 
 void uci() {

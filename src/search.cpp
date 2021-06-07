@@ -13,7 +13,6 @@
 #include "new_move_picker.h"
 #include "search.h"
 
-int elapsed_time();
 
 static int max_search_time = 5000; 
 static int max_depth = MAX_PLY;
@@ -25,23 +24,30 @@ static const double LMR_constant = -1.75;
 static const double LMR_coeff = 1.03;
 static int LMR[64][64];
 static std::chrono::time_point<std::chrono::system_clock> initial_time;
+static std::chrono::duration<float, std::milli> duration;
+
+// returns elapsed time since search started in ms 
+static inline int elapsed_time() {
+    duration = std::chrono::system_clock::now() - initial_time;
+    return int(duration.count());
+}
 
 void think(Engine& engine) {
-    engine.stop_search = false;
     tt.total_saved = 0;
     tt.total_tried_save = 0;
     tt.totally_replaced = 0;
+    engine.stop_search = false;
     max_search_time = engine.max_search_time;
     max_depth = engine.max_depth;
+    assert(max_depth <= MAX_PLY);
     Thread main_thread = Thread(engine.board, &engine.stop_search);
-    initial_time = std::chrono::system_clock::now(); 
     tt.age();
 
     for(int depth = 0; depth < futility_max_depth; depth++) {
         futility_margin[depth] = futility_constant + futility_linear * depth;
     }
 
-	for (int depth = 0; depth < 64; depth++) {
+	for (int depth = 0; depth < MAX_PLY; depth++) {
 		for (int moves_searched = 0; moves_searched < 64; moves_searched++) {
             LMR[depth][moves_searched] = std::round(LMR_constant + LMR_coeff * log(depth + 1) * log(moves_searched + 1));
 		}
@@ -56,6 +62,7 @@ void think(Engine& engine) {
     //     }
     // }
 
+    initial_time = std::chrono::system_clock::now(); 
     for(main_thread.depth = 1; !(*main_thread.stop_search) && main_thread.depth <= engine.max_depth; main_thread.depth += 1) {
         aspiration_window(main_thread);
     }
@@ -69,18 +76,23 @@ void think(Engine& engine) {
 }
 
 void aspiration_window(Thread& thread) {
-    int alpha = -CHECKMATE, beta = CHECKMATE;
-    int delta = INITIAL_WINDOW_SIZE;
-    int depth = thread.depth;
+    int alpha, beta, delta, depth, score;
     PV pv;
+    pv.reserve(MAX_PLY);
+
+    delta = INITIAL_WINDOW_SIZE;
+    depth = thread.depth;
 
     if(thread.depth >= MIN_DEPTH_FOR_WINDOW) {
         alpha = std::max(-CHECKMATE, thread.root_value - delta); 
         beta = std::min(CHECKMATE, thread.root_value + delta);
+    } else {
+        alpha = -CHECKMATE;
+        beta = CHECKMATE;
     }
 
     while(!(*thread.stop_search)) {
-        int score = search(thread, pv, alpha, beta, depth);
+        score = search(thread, pv, alpha, beta, depth);
 
         assert(thread.ply == 0);
 
@@ -107,32 +119,15 @@ void aspiration_window(Thread& thread) {
     }
 }
 
-void debug_node(const Thread& thread) {
-    cout << "Moves taken to get here:";
-    for(int i = 0; i < (int)thread.move_stack.size(); i++) {
-        cout << " " << move_to_str(thread.move_stack[i]);
-    }
-    cout << endl;
-}
-
 int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool is_root = thread.ply == 0;    
-    bool is_pv = (alpha != beta - 1);
+    bool is_pv = (alpha != (beta - 1));
     bool debug_mode = false;
-
-    if((thread.board.castling_flag & 4)
-    && thread.board.piece_at[E8] != KING) {
-        cerr << "Invalid board state" << endl;
-        cerr << "Board is" << endl;
-        thread.board.print_board();
-        assert(false);
-    }
 
     if(debug_mode) {
         cout << MAGENTA_COLOR << "Debugging special position" << RESET_COLOR << endl;
         cout << "Alpha and beta are " << alpha << " " << beta << endl;
         cout << "Ply is " << thread.ply << " and depth left is " << depth << ", initial depth is " << thread.depth << endl;
-        debug_node(thread);
         cout << "Key is " << thread.board.key << endl;
         thread.board.print_board(); 
     }
@@ -152,7 +147,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     bool in_check = bool(thread.board.king_attackers);
 
     if(depth <= 0 && !in_check)
-        return q_search(thread, pv, alpha, beta);
+        return q_search(thread, alpha, beta);
 
     thread.nodes++;
     
@@ -172,9 +167,13 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     thread.killers[thread.ply + 1][0] = NULL_MOVE;
     thread.killers[thread.ply + 1][1] = NULL_MOVE;
     PV child_pv;
+    // child_pv.reserve(32);
     UndoData undo_data = UndoData(thread.board.king_attackers);
     Move best_move = NULL_MOVE, move = NULL_MOVE;
-    std::vector<Move> captures_tried, quiets_tried;
+    // std::vector<Move> captures_tried, quiets_tried;
+    Move captures_tried[64], quiets_tried[128];
+    Move *captures_p = captures_tried, *quiets_p = quiets_tried;
+
     int score, best_score = -CHECKMATE, searched_moves = 0, extended_depth, reduction;
     int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
 
@@ -186,19 +185,22 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return eval_score;
 
     // null move pruning
-    if(!is_pv
+    if(!is_root
+    && !is_pv
     && !in_check 
     && eval_score >= beta
     && depth >= MIN_NULL_MOVE_PRUNING_DEPTH
-    && thread.move_stack[thread.ply - 1] != NULL_MOVE
+    // && *(thread.move_stack_p - 1) != NULL_MOVE
     && (tt_bound == -1 || tt_score >= beta || tt_bound != UPPER_BOUND)) {
         thread.board.make_move(NULL_MOVE, undo_data);
-        thread.move_stack.push_back(NULL_MOVE);
+        // thread.move_stack.push_back(NULL_MOVE);
+        // (thread.move_stack_p++) = NULL_MOVE;
         thread.ply++;
 
         int null_move_value = -search(thread, child_pv, -beta, -beta + 1, depth - 3);
-        assert(thread.move_stack.back() == NULL_MOVE);
-        thread.move_stack.pop_back();
+        // assert(thread.move_stack.back() == NULL_MOVE);
+        // thread.move_stack.pop_back();
+        // (thread.move_stack_p--);
         thread.board.take_back(undo_data);
         thread.ply--;
 
@@ -236,9 +238,8 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
         // we have already checked the validity of the captures
         // if(!thread.board.fast_move_valid(move)) {
-        if(!thread.board.new_fast_move_valid(move)) {
+        if(!thread.board.new_fast_move_valid(move))
             continue;
-        }
 
         assert(thread.board.move_valid(move));
         assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
@@ -246,7 +247,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
         thread.board.new_make_move(move, undo_data);
         // thread.board.make_move(move, undo_data);
-        thread.move_stack.push_back(move);
+        // thread.move_stack.push_back(move);
         thread.ply++;
 
         extended_depth = depth + ((is_pv && in_check) ? 1 : 0);
@@ -264,16 +265,18 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 			if(score <= alpha) {
                 // thread.board.take_back(undo_data);
                 thread.board.new_take_back(undo_data);
-                thread.move_stack.pop_back();
+                // thread.move_stack.pop_back();
                 thread.ply--;
 				continue;
 			}
         }
 
         if(get_flag(move) == QUIET_MOVE || get_flag(move) == CASTLING_MOVE) {
-            quiets_tried.push_back(move);
+            // quiets_tried.push_back(move);
+            *(quiets_p++) = move;
         } else {
-            captures_tried.push_back(move);
+            // captures_tried.push_back(move);
+            *(captures_p++) = move;
         }
 
         if(best_score == -CHECKMATE) {
@@ -289,7 +292,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
 
         thread.board.new_take_back(undo_data);
         // thread.board.take_back(undo_data);
-        thread.move_stack.pop_back();
+        // thread.move_stack.pop_back();
         thread.ply--;
 
         if(score > best_score) {
@@ -299,9 +302,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             if(score > alpha) {
                 pv.clear();
                 pv.push_back(move);
-                for(int i = 0; i < (int)child_pv.size(); i++) {
-                    pv.push_back(child_pv[i]);
-                }
+                pv.insert(pv.end(), child_pv.begin(), child_pv.end());
 
                 if(is_root) {
                     printf("info depth %d time %d nodes %d cp score %d pv",
@@ -329,10 +330,10 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return in_check ? -CHECKMATE + thread.ply : 0; // checkmate or stalemate
 
     if(best_score >= beta && get_flag(best_move) != CAPTURE_MOVE)
-        update_quiet_history(thread, best_move, quiets_tried, depth);
+        update_quiet_history(thread, best_move, quiets_tried, quiets_p, depth);
 
     if(best_score >= beta)
-        update_capture_history(thread, best_move, captures_tried, depth); 
+        update_capture_history(thread, best_move, captures_tried, captures_p, depth); 
 
     // if(true) {
         // do nothing if we want to disable tt
@@ -368,7 +369,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     return best_score;
 }
 
-int q_search(Thread& thread, PV& pv, int alpha, int beta) {
+int q_search(Thread& thread, int alpha, int beta) {
 
     if((thread.nodes & 4095) == 0 && elapsed_time() >= max_search_time) {
         *thread.stop_search = true;
@@ -385,7 +386,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
 
     thread.nodes++;
     
-    pv.clear();
+    // pv.clear();
     Move tt_move = NULL_MOVE;
     int score, tt_score, tt_bound = -1;
 
@@ -393,11 +394,10 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     if(tt.retrieve(
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, 0, thread.ply
-    )) {
+    ))
        return tt_score; 
-    }
 
-    PV child_pv;
+    // PV child_pv;
     UndoData undo_data = UndoData(thread.board.king_attackers);
     int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
     bool in_check = bool(thread.board.king_attackers);
@@ -430,7 +430,7 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
         // thread.board.make_move(move, undo_data);
         thread.ply++;
 
-        score = -q_search(thread, child_pv, -beta, -alpha);
+        score = -q_search(thread, -beta, -alpha);
 
         // thread.board.take_back(undo_data); 
         thread.board.new_take_back(undo_data); 
@@ -442,11 +442,10 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
             if(best_score > alpha) {
                 alpha = best_score;
 
-                pv.clear();
-                pv.push_back(move);
-                pv.insert(pv.end(), child_pv.begin(), child_pv.end());
-
-                assert(!pv.empty());
+                // pv.clear();
+                // pv.push_back(move);
+                // pv.insert(pv.end(), child_pv.begin(), child_pv.end());
+                // assert(!pv.empty());
 
                 if(alpha >= beta) {
                     return alpha;
@@ -458,66 +457,68 @@ int q_search(Thread& thread, PV& pv, int alpha, int beta) {
     return best_score;
 }
 
-void update_quiet_history(Thread& thread, const Move best_move, const std::vector<Move>& quiets_tried, const int depth) {
+// void update_quiet_history(Thread& thread, const Move best_move, const std::vector<Move>& quiets_tried, const int depth) {
+void update_quiet_history(Thread& thread, const Move best_move, Move* quiets_p, Move* quiets_end, const int depth) {
     // the best move is a quiet move
     if(thread.killers[thread.ply][0] != best_move) {
         thread.killers[thread.ply][1] = thread.killers[thread.ply][1];
         thread.killers[thread.ply][0] = best_move;
     }
 
-    if(quiets_tried.size() == 1 && depth < 4) {
+    if((quiets_p - quiets_p) == 1 && depth < 4) {
         return;
     }
 
-    const int bonus = -std::min(depth * depth, MAX_HISTORY_BONUS);
-    const int side = thread.board.side;
+    const int bonus = std::min(depth * depth, MAX_HISTORY_BONUS);
 
-    for(int i = 0; i < quiets_tried.size(); i++) {
-        int delta = bonus;
-
-        if(quiets_tried[i] == best_move) {
-            delta = -bonus;
-        }
-
-        const int from = get_from(quiets_tried[i]);
-        const int to = get_to(quiets_tried[i]); 
-
-        int entry = thread.quiet_history[side][from][to];    
-        entry += HISTORY_MULTIPLIER * delta - entry * std::abs(delta) / HISTORY_DIVISOR;
-        thread.quiet_history[side][from][to] = entry;
+    // for(int i = 0; i < quiets_tried.size(); i++) {
+    for(; quiets_p < quiets_end; quiets_p++) {
+        // int entry = thread.quiet_history[thread.board.side][get_from(*quiets_p)][get_to(*quiets_p)];    
+        // entry += HISTORY_MULTIPLIER * (*quiets_p == best_move ? bonus : -bonus)
+        //         - entry * bonus / HISTORY_DIVISOR;
+        // entry += HISTORY_MULTIPLIER * delta - entry * std::abs(delta) / HISTORY_DIVISOR;
+        thread.quiet_history[thread.board.side][get_from(*quiets_p)][get_to(*quiets_p)] 
+            += HISTORY_MULTIPLIER * (*quiets_p == best_move ? bonus : -bonus)
+            - thread.quiet_history[thread.board.side][get_from(*quiets_p)][get_to(*quiets_p)] * bonus / HISTORY_DIVISOR;
     }
 }
 
-void update_capture_history(Thread& thread, const Move best_move, const std::vector<Move>& captures_tried, const int depth) {
+// void update_capture_history(Thread& thread, const Move best_move, const std::vector<Move>& captures_tried, const int depth) {
+void update_capture_history(Thread& thread, const Move best_move, Move* move_p, Move* captures_end, const int depth) {
     const int bonus = std::min(depth * depth, MAX_HISTORY_BONUS);
-    int delta, from, to, flag, piece, captured, entry;
+    uint8_t captured;
 
-    for(int i = 0; i < captures_tried.size(); i++) {
-        delta = captures_tried[i] == best_move ? bonus : -bonus;
-        from = get_from(captures_tried[i]);
-        to = get_to(captures_tried[i]);
-        flag = get_flag(captures_tried[i]);
-        piece = thread.board.piece_at[from];
-        captured = thread.board.piece_at[to];
+    // int delta, from, to, flag, piece, captured, entry;
 
-        assert(flag != NULL_MOVE && flag != QUIET_MOVE && flag != CASTLING_MOVE);
+    // for(int i = 0; i < captures_tried.size(); i++) {
+    for(; move_p < captures_end; move_p++) {
+        // delta = captures_tried[i] == best_move ? bonus : -bonus;
+        // from = get_from(captures_tried[i]);
+        // to = get_to(captures_tried[i]);
+        // flag = get_flag(captures_tried[i]);
+        // piece = thread.board.piece_at[from];
+        captured = thread.board.piece_at[get_to(*move_p)];
 
-        if(flag != CAPTURE_MOVE) {
+        assert(get_flag(*move_p) != NULL_MOVE
+            && get_flag(*move_p) != QUIET_MOVE
+            && get_flag(*move_p) != CASTLING_MOVE);
+
+        if(get_flag(*move_p) != CAPTURE_MOVE) // enpassant
             captured = PAWN;
-        }
         
         assert(captured >= PAWN && captured <= KING);
 
-        entry = thread.capture_history[piece][to][captured];
-        entry += HISTORY_MULTIPLIER * delta - entry * std::abs(delta) - HISTORY_DIVISOR;
-        entry = std::max(-10000, std::min(10000, entry));
-        thread.capture_history[piece][to][captured] = entry;
-    }
-}
+        thread.capture_history[thread.board.piece_at[get_from(*move_p)]][get_to(*move_p)][captured]
+            += HISTORY_MULTIPLIER * (*move_p == best_move ? bonus : -bonus)
+            -  thread.capture_history[thread.board.piece_at[get_from(*move_p)]][get_to(*move_p)][captured] * bonus / HISTORY_DIVISOR;
+        
+        assert(thread.capture_history[thread.board.piece_at[get_from(*move_p)]][get_to(*move_p)][captured] <=  100000000
+            && thread.capture_history[thread.board.piece_at[get_from(*move_p)]][get_to(*move_p)][captured] >= -100000000);
 
-int elapsed_time() {
-    auto time_now = std::chrono::system_clock::now();
-    std::chrono::duration<float, std::milli> duration = time_now - initial_time;
-    return int(duration.count()); // returns the elapsed time since search started in ms
+        // entry = thread.capture_history[piece][to][captured];
+        // entry += HISTORY_MULTIPLIER * delta - entry * std::abs(delta) - HISTORY_DIVISOR;
+        // entry = std::max(-10000, std::min(10000, entry));
+        // thread.capture_history[piece][to][captured] = entry;
+    }
 }
 

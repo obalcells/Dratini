@@ -13,13 +13,13 @@ struct Engine {
     int max_search_time;
 
     Engine() {
-        max_depth = 64;
+        max_depth = 16;
         nodes = score = 0;
         search_time = 0.0;
         stop_search = is_searching = false;
         best_move = ponder_move = NULL_MOVE; 
-        // max_search_time = 5000;
-        max_search_time = 999999999; // = INF
+        max_search_time = 10000;
+        // max_search_time = 999999999; // = INF
         board = Board();
     }
 
