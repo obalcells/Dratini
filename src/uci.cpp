@@ -77,16 +77,14 @@ void parse_option(const std::vector<std::string>& args) {
 void uci() {
     // freopen("log.txt", "w", stderr);
 
-	std::string read_uci;
-	cin >> read_uci;
-    // cerr << read_uci << endl;
-    if(read_uci != "uci")
-        cout << "We didn't read uci" << endl;
-	assert(read_uci == "uci");
+	// std::string read_uci;
+	// cin >> read_uci;
+    // // cerr << read_uci << endl;
+    // if(read_uci != "uci")
+    //     cout << "We didn't read uci" << endl;
+	// assert(read_uci == "uci");
 
-    std::string read_name;
-
-    cout << "id name ethereal search" << endl;
+    cout << "id name dratini MAR" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
 

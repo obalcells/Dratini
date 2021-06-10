@@ -38,9 +38,9 @@ static std::chrono::time_point<std::chrono::high_resolution_clock> t;
 
 int main() {
     // test_board_speed();
-    // test_move_valid_speed();
+    test_move_valid_speed();
     // test_see_speed();
-    // return 0;
+    return 0;
 
     Board board = Board("r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14");
     Init();

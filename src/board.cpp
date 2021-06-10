@@ -662,6 +662,16 @@ void Board::update_key(const UndoData& undo_data) {
     key ^= zobrist_side[xside];
 }
 
+bool Board::opp_king_attacked() const {
+	const uint8_t sq = lsb(bits[KING + (xside ? 6 : 0)]);
+	return 
+		   (knight_attacks[sq] & get_knight_mask(side))
+		|| (king_attacks[sq] & get_king_mask(side))
+    	|| (pawn_attacks[side][sq] & get_pawn_mask(side))
+		|| (Bmagic(sq, occ_mask) & (get_bishop_mask(side) | get_queen_mask(side))) 
+		|| (Rmagic(sq, occ_mask) & (get_rook_mask(side) | get_queen_mask(side)));
+}
+
 bool Board::is_attacked(const int sq) const {
 	return
 		   (knight_attacks[sq] & get_knight_mask(xside))

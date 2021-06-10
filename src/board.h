@@ -56,6 +56,7 @@ struct UndoData {
 struct Board {
     Board();
     Board(const std::string&);
+    bool opp_king_attacked() const;
 	bool is_attacked(const int) const;
     bool is_attacked(const int, bool) const;
     bool in_check() const;

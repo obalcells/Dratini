@@ -25,7 +25,7 @@ void Board::new_take_back(const UndoData& undo) {
 	captured_piece = undo.captured_piece == EMPTY ? EMPTY : undo.captured_piece - (side ? 6 : 0);
 
 	assert((bits[BLACK_PAWN] & ROW_0) == 0);
-	assert(get_flag(undo.move) == CASTLING_MOVE || captured_piece == EMPTY || (captured_piece >= WHITE_PAWN && captured_piece < BLACK_PAWN));
+	assert(get_flag(undo.move) == CASTLING_MOVE || captured_piece == EMPTY || (captured_piece >= WHITE_PAWN && captured_piece <= BLACK_PAWN));
 
     enpassant = undo.enpassant;
 

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include <sys/timeb.h>
-
+#include "magicmoves.h"
 #include "defs.h"
 #include "board.h"
 // #include "eval_tscp.h"
@@ -13,6 +13,12 @@
 #include "new_move_picker.h"
 #include "search.h"
 
+#define get_pawn_mask(_side) (_side == WHITE ? thread.board.bits[WHITE_PAWN] : thread.board.bits[BLACK_PAWN])
+#define get_knight_mask(_side) (_side == WHITE ? thread.board.bits[WHITE_KNIGHT] : thread.board.bits[BLACK_KNIGHT])
+#define get_bishop_mask(_side) (_side == WHITE ? thread.board.bits[WHITE_BISHOP] : thread.board.bits[BLACK_BISHOP])
+#define get_rook_mask(_side) (_side == WHITE ? thread.board.bits[WHITE_ROOK] : thread.board.bits[BLACK_ROOK])
+#define get_queen_mask(_side) (_side == WHITE ? thread.board.bits[WHITE_QUEEN] : thread.board.bits[BLACK_QUEEN])
+#define get_king_mask(_side) (_side == WHITE ? thread.board.bits[WHITE_KING] : thread.board.bits[BLACK_KING])
 
 static int max_search_time = 5000; 
 static int max_depth = MAX_PLY;
@@ -197,14 +203,14 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         // (thread.move_stack_p++) = NULL_MOVE;
         thread.ply++;
 
-        int null_move_value = -search(thread, child_pv, -beta, -beta + 1, depth - 3);
+        score = -search(thread, child_pv, -beta, -beta + 1, depth - 3);
         // assert(thread.move_stack.back() == NULL_MOVE);
         // thread.move_stack.pop_back();
         // (thread.move_stack_p--);
         thread.board.take_back(undo_data);
         thread.ply--;
 
-        if(null_move_value >= beta) {
+        if(score >= beta) {
             if(depth >= 7) { // verification search
                 score = search(thread, child_pv, -beta, beta - 1, depth - 3);
                 if(score >= beta) {
@@ -236,24 +242,18 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         && searched_moves > 0)
             continue;
 
-        // we have already checked the validity of the captures
-        // if(!thread.board.fast_move_valid(move)) {
-        if(!thread.board.new_fast_move_valid(move))
-            continue;
-
-        assert(thread.board.move_valid(move));
-        assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
-        assert(thread.board.color_at[get_from(move)] == thread.board.side);
-
         thread.board.new_make_move(move, undo_data);
-        // thread.board.make_move(move, undo_data);
-        // thread.move_stack.push_back(move);
+        if(thread.board.opp_king_attacked()) {
+            thread.board.new_take_back(undo_data);
+            continue;
+        }
+
         thread.ply++;
 
         extended_depth = depth + ((is_pv && in_check) ? 1 : 0);
         
         if(searched_moves > 3) { // taken from Halogen (https://github.com/KierenP/Halogen)
-			reduction = LMR[std::min(63, std::max(0, depth))][std::min(63, std::max(0, searched_moves))];
+			reduction = LMR[std::max(0, depth)][std::min(63, searched_moves)];
 
             if(is_pv)
                 reduction++;
@@ -263,19 +263,15 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
             score = -search(thread, child_pv, -alpha - 1, -alpha, extended_depth - 1 - reduction);
 
 			if(score <= alpha) {
-                // thread.board.take_back(undo_data);
                 thread.board.new_take_back(undo_data);
-                // thread.move_stack.pop_back();
                 thread.ply--;
 				continue;
 			}
         }
 
         if(get_flag(move) == QUIET_MOVE || get_flag(move) == CASTLING_MOVE) {
-            // quiets_tried.push_back(move);
             *(quiets_p++) = move;
         } else {
-            // captures_tried.push_back(move);
             *(captures_p++) = move;
         }
 
@@ -291,8 +287,11 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         }
 
         thread.board.new_take_back(undo_data);
-        // thread.board.take_back(undo_data);
-        // thread.move_stack.pop_back();
+
+        assert(thread.board.move_valid(move));
+        assert(get_flag(move) != QUIET_MOVE || thread.board.color_at[get_to(move)] == EMPTY);
+        assert(thread.board.color_at[get_from(move)] == thread.board.side);
+
         thread.ply--;
 
         if(score > best_score) {
@@ -327,7 +326,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     }
 
     if(best_score == -CHECKMATE)
-        return in_check ? -CHECKMATE + thread.ply : 0; // checkmate or stalemate
+        return in_check ? (-CHECKMATE + thread.ply) : 0; // checkmate or stalemate
 
     if(best_score >= beta && get_flag(best_move) != CAPTURE_MOVE)
         update_quiet_history(thread, best_move, quiets_tried, quiets_p, depth);
@@ -408,31 +407,31 @@ int q_search(Thread& thread, int alpha, int beta) {
         return alpha;
     }
 
+    Move move;
     NewMovePicker move_picker = NewMovePicker(thread, tt_move, true);
-    // MovePicker move_picker = MovePicker(thread, tt_move, true);
 
     while(true) {
-        Move move = move_picker.next_move();
+        move = move_picker.next_move();
 
         if(move == NULL_MOVE)
             break;
 
-
-        // if(!thread.board.fast_move_valid(move)) {
-        if(!thread.board.new_fast_move_valid(move)) {
-            assert(!thread.board.new_fast_move_valid(move));
-            continue;
-        }
+        // if(!thread.board.new_fast_move_valid(move))
+        //     continue;
 
         assert(!in_check || get_flag(move) != CASTLING_MOVE);
 
-        thread.board.new_make_move(move, undo_data);
-        // thread.board.make_move(move, undo_data);
+        thread.board.new_make_move(move, undo_data); 
+
+        if(thread.board.opp_king_attacked()) {
+            thread.board.new_take_back(undo_data);
+            continue;
+        }
+
         thread.ply++;
 
         score = -q_search(thread, -beta, -alpha);
 
-        // thread.board.take_back(undo_data); 
         thread.board.new_take_back(undo_data); 
         thread.ply--;
 
