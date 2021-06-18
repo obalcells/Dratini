@@ -75,16 +75,14 @@ void parse_option(const std::vector<std::string>& args) {
 }
 
 void uci() {
-    // freopen("log.txt", "w", stderr);
+    freopen("/Users/balce/log.txt", "w", stderr);
 
-	// std::string read_uci;
-	// cin >> read_uci;
-    // // cerr << read_uci << endl;
-    // if(read_uci != "uci")
-    //     cout << "We didn't read uci" << endl;
-	// assert(read_uci == "uci");
+	std::string read_uci;
+	cin >> read_uci;
+    cerr << read_uci << endl;
+	assert(read_uci == "uci");
 
-    cout << "id name dratini MAR" << endl;
+    cout << "id name Dratini NNUE" << endl;
     cout << "id author Oscar Balcells" << endl;
     cout << "uciok" << endl;
 
@@ -96,15 +94,15 @@ void uci() {
 
     while(true) {
         getline(cin, line);
+        cerr << line << endl;
 
-        if(line.size() <= 1) {
+        if(line.size() <= 1)
             continue;
-        }
-
-        // cerr << line << endl;
 
         if(line.size() == 0) {
-            std::cout << "error" << endl;
+            printf("error\n");
+            fflush(stdout);
+            cerr << "Error, line read is too short" << endl;
             return;
         }
 
@@ -112,16 +110,10 @@ void uci() {
         command = args[0];
 
         if(command == "debug") {
-            if(args.size() == 2 && args[1] == "on") {
-                // engine.debug_mode = true;
-            } else if(args.size() == 2 && args[1] == "off") {
-                // engine.debug_mode = false;
-            } else {
-                // engine.debug_mode = !engine.debug_mode;
-            }
+
         } else if(command == "isready") {
             cout << "readyok" << endl;
-            // cerr << "out: readyok" << endl;
+            cerr << "readyok" << endl;
         } else if(command == "setoption") {
             parse_option(args);
         } else if(command == "ucinewgame") {
@@ -139,15 +131,15 @@ void uci() {
                 for(; idx < line.size(); idx++) {
                     fen_string += line[idx];
                 }
-                cout << "Fen string read is " << fen_string << endl;
+                cerr << "Fen string read is " << fen_string << endl;
                 engine.set_position(fen_string); // args[1] is the fen
             }
             if(args.size() > 2 && args[2] == "moves") {
                 for(int i = 3; i < (int)args.size(); i++) {
                     bool prev_side = engine.board.side;
                     if(!engine.board.make_move_from_str(args[i])) {
-                        cout << "There was an error making move *" << args[i] << "*" << endl;
-                        cout << "Current position is:" << endl;
+                        cerr << "There was an error making move *" << args[i] << "*" << endl;
+                        cerr << "Current position is:" << endl;
                         engine.board.print_board();
                         return;
                     }
@@ -155,10 +147,16 @@ void uci() {
                 }
             }
             if(engine.board.is_draw()) {
-                cout << "Draw" << endl;
+                printf("Draw\n");
+                fflush(stdout);
             } else if(engine.board.checkmate()) {
-                cout << "Checkmate" << endl;
-                cout << (engine.board.side == WHITE ? "Black" : "White") << " wins" << endl;
+                printf("Checkmate\n");
+                if(engine.board.side == WHITE)
+                    printf("Black wins\n");
+                else
+                    printf("White wins\n");
+                fflush(stdout);
+                cerr << "Game over, checkmate" << endl;
             }
             // cout << "Position is now:" << endl;
             // engine.board.print_board();

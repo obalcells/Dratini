@@ -6,6 +6,7 @@
 #include "sungorus_eval.h"
 #include "board.h"
 #include "gen.h"
+#include "my_nnue.h"
 
 static const int pst[6][64] = {
   { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
@@ -236,7 +237,6 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq) | mask_sq(adjacent);
 			break;
 		}
-		// default: { 
 		case KNIGHT_PROMOTION: case BISHOP_PROMOTION: case ROOK_PROMOTION: case QUEEN_PROMOTION: { 
 			const int promotion_piece = KNIGHT + get_flag(move) - KNIGHT_PROMOTION; 
 			if(piece_at[to_sq] != EMPTY) { // promotion with capture
@@ -274,6 +274,7 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
     keys.push_back(key);
 
     king_attackers = get_attackers(lsb(bits[KING + (side ? 6 : 0)]), xside, this);
+	acc.has_been_computed = false;
 }
 
 bool Board::new_fast_move_valid(const Move move) const {

@@ -9,13 +9,21 @@
 #include "tt.h"
 #include "engine.h"
 #include "bench.h"
+#include "nnue.h"
+#include "misc.h"
+#include "my_nnue.h"
  
 TranspositionTable tt;
 Engine engine;
 
+#define NNUE_PATH "/Users/balce/maia-net.bin"
+
 int main() {
-	// bench();
-	uci();
+	// my_nnue_init(NNUE_PATH);
+	// nnue_init(NNUE_PATH);
+
+	bench();
+	// uci();
 	return 0;
 		
 	engine.reset();

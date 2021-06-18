@@ -5,6 +5,7 @@
 #include <cinttypes>
 #include <vector>
 #include "defs.h"
+#include "nnue.h"
 
 extern std::vector<std::vector<uint64_t> > pawn_attacks;
 extern std::vector<uint64_t> knight_attacks;
@@ -103,6 +104,7 @@ struct Board {
     int b_mat[2]; // for sungorus eval
     int b_pst[2];
 
+    Accumulator acc;
 
 private:
 	void update_key(const UndoData&);

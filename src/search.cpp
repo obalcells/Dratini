@@ -141,8 +141,11 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     if(thread.board.is_draw())
         return thread.nodes & 2;
 
-    if(thread.ply >= max_depth)
-        return evaluate(thread.board);
+    if(thread.ply >= max_depth) {
+        cerr << "C 1" << endl;
+        return nnue_eval(thread.board);
+        // return evaluate(thread.board);
+    }
     
     if((thread.nodes & 4095) == 0 && elapsed_time() >= max_search_time)
         *thread.stop_search = true;
@@ -166,7 +169,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         thread.board.key, tt_move,
         tt_score, tt_bound, alpha, beta, depth, thread.ply
     )) {
-        pv.push_back(tt_move);
+        // we don't add it to the pv because it could be illegal move
         return tt_score;
     }
 
@@ -181,7 +184,9 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     Move *captures_p = captures_tried, *quiets_p = quiets_tried;
 
     int score, best_score = -CHECKMATE, searched_moves = 0, extended_depth, reduction;
-    int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
+    if(tt_score == INF) cerr << "C 2" << endl;
+    int eval_score = tt_score != INF ? tt_score : nnue_eval(thread.board);
+    // int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
 
     // beta pruning
     if(!is_pv
@@ -310,6 +315,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
                         printf(" %s", move_to_str(pv[i]).c_str());
                     }
                     printf("\n");
+                    fflush(stdout);
                 }
 
                 alpha = score;
@@ -380,8 +386,11 @@ int q_search(Thread& thread, int alpha, int beta) {
     if(thread.board.is_draw())
         return thread.nodes & 2;
 
-    if(thread.ply >= MAX_PLY)
-        return evaluate(thread.board);
+    if(thread.ply >= max_depth) {
+        // return evaluate(thread.board);
+        cerr << "C 3" << endl;
+        return nnue_eval(thread.board);
+    }
 
     thread.nodes++;
     
@@ -398,7 +407,9 @@ int q_search(Thread& thread, int alpha, int beta) {
 
     // PV child_pv;
     UndoData undo_data = UndoData(thread.board.king_attackers);
-    int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
+    if(tt_bound == -1) cerr << "C 4" << endl;
+    int best_score = tt_bound != -1 ? tt_score : nnue_eval(thread.board);
+    // int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
     bool in_check = bool(thread.board.king_attackers);
 
     // eval pruning

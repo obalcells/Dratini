@@ -1,4 +1,3 @@
 uci
-isready
-out: readyok
-go
+Loading NNUE /Users/balce/maia-net.bin
+NNUE loaded!
