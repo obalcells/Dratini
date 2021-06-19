@@ -185,10 +185,11 @@ Board::Board() {
 	keys.push_back(key);
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
     update_material_values(); // sungorus
-	acc.has_been_computed = false;
+	acc_stack_size = 0;
+	acc_stack[0].has_been_computed = false;
 }
 
-Board::Board(const std::string& str) { // bool read_from_file = false) {
+Board::Board(const std::string& str) {
 	occ_mask = 0;
 	b_pst[WHITE] = b_pst[BLACK] = b_mat[WHITE] = b_mat[BLACK] = 0;
 	castling_flag = 15;
@@ -198,7 +199,8 @@ Board::Board(const std::string& str) { // bool read_from_file = false) {
 	keys.push_back(key);
     king_attackers = get_attackers(lsb(get_king_mask(side)), xside, this);
     update_material_values(); // to be able to use sungorus' eval function
-	acc.has_been_computed = false;
+	acc_stack_size = 0;
+	acc_stack[0].has_been_computed = false;
 }
 
 void Board::set_from_fen(const std::string& fen) {
@@ -413,7 +415,6 @@ void Board::clear_board() {
 	occ_mask = 0;
 	king_attackers = 0;
 	enpassant = NO_ENPASSANT;
-	acc.has_been_computed = false;
 }
 
 uint64_t Board::calculate_key(bool is_assert) const {

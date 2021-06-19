@@ -15,7 +15,7 @@ using clipped_t = int8_t;
 
 #define clamp(a, b, c) ((a < b) ? b : ((a > c) ? c : a))
 
-// #define INCREMENTAL_NNUE
+#define INCREMENTAL_NNUE
 // #define AVX2
 
 static int16_t ft_weights alignas(64) [256 * 41024];
@@ -82,14 +82,8 @@ inline int orient(int sq, bool side) {
 }
 
 inline int make_acc_index(int pc, int sq, int ksq, bool perspective) {
-    // cerr << pc << " " << sq << " " << ksq << " " << perspective << " "; 
-    // cerr << (orient(sq, perspective) + pieceToIndex[perspective][pc] + ksq * INDEX_END); 
-    return (orient(sq, perspective) + pieceToIndex[perspective][pc] + ksq * INDEX_END); // * kHalfDimensions; 
+    return 256 * (orient(sq, perspective) + pieceToIndex[perspective][pc] + ksq * INDEX_END); // * kHalfDimensions; 
 }
-
-// inline int clamp(int a, int b, int c) {
-//     return (a < b) ? b : ((a > c) ? c : a);
-// }
 
 inline uint32_t readu_le_u32(const void *p) {
   const uint8_t *q = (const uint8_t*) p;
@@ -115,42 +109,36 @@ void append_active_indices(IndexList* index_list, Board* board) {
     }
 } 
 
-// void append_changed_indices(IndexList* added_indices, IndexList* removed_indices, Board* board, DirtyPiece* dp, bool perspective) {
-//     uint8_t ksq = perspective ? lsb(board->bits[BLACK_KING]) : lsb(board->bits[WHITE_KING]);
-//     for(uint8_t i = 0; i < dp->dirty_num; i++) {
-//         if(get_to(dp->moves[i]) != NO_SQ)
-//             added_indices->values[perspective][added_indices->size++] = make_acc_index(dp->piece[i], get_to(dp->moves[i]), ksq, perspective);
-//         if(get_from(dp->moves[i]) != NO_SQ)
-//             removed_indices->values[perspective][removed_indices->size++] = make_acc_index(dp->piece[i], get_from(dp->moves[i]), ksq, perspective);
-//     }
-// }
-
-enum {
-    wtf = 256
-};
+void append_changed_indices(IndexList* added_indices, IndexList* removed_indices, Board* board, DirtyPiece* dp) {
+    int w_ksq = lsb(board->bits[WHITE_KING]);
+    int b_ksq = orient(lsb(board->bits[BLACK_KING]), BLACK);
+    for(int i = 0; i < dp->dirtyNum; i++) {
+        if(dp->to[i] != NO_SQ) {
+            added_indices->values[WHITE][added_indices->size] = make_acc_index(dp->pc[i], dp->to[i], w_ksq, WHITE);
+            added_indices->values[BLACK][added_indices->size++] = make_acc_index(dp->pc[i], dp->to[i], b_ksq, BLACK);
+        }
+        if(dp->from[i] != NO_SQ) {
+            removed_indices->values[WHITE][removed_indices->size] = make_acc_index(dp->pc[i], dp->from[i], w_ksq, WHITE);
+            removed_indices->values[BLACK][removed_indices->size++] = make_acc_index(dp->pc[i], dp->from[i], b_ksq, BLACK);
+        }
+    }
+}
 
 void compute_acc(Accumulator* acc, IndexList* indices) {
 #if defined(AVX2)
     assert(false);
 #else
-    // memcpy((void*)acc->accumulation[WHITE], (void*)ft_biases, wtf * sizeof(int16_t));
-    // memcpy((void*)acc->accumulation[BLACK], (void*)ft_biases, wtf * sizeof(int16_t));
-    memcpy(acc->accumulation[WHITE], ft_biases, wtf * sizeof(int16_t));
-    memcpy(acc->accumulation[BLACK], ft_biases, wtf * sizeof(int16_t));
+    memcpy(acc->accumulation[WHITE], ft_biases, 256 * sizeof(int16_t));
+    memcpy(acc->accumulation[BLACK], ft_biases, 256 * sizeof(int16_t));
 
-    int i, j;
+    unsigned i, j;
 
-    cerr << "Offsets ";
     for(i = 0; i < indices->size; i++) {
-        unsigned offset_w = indices->values[WHITE][i] * kHalfDimensions; 
-        unsigned offset_b = indices->values[BLACK][i] * kHalfDimensions; 
-        cerr << offset_b << " "; 
         for(j = 0; j < kHalfDimensions; j++) {
-            acc->accumulation[WHITE][j] += ft_weights[offset_w + j]; 
-            acc->accumulation[BLACK][j] += ft_weights[offset_b + j]; 
+            acc->accumulation[WHITE][j] += ft_weights[indices->values[WHITE][i] + j]; 
+            acc->accumulation[BLACK][j] += ft_weights[indices->values[BLACK][i] + j]; 
         }
     }
-    cerr << endl;
 
     acc->has_been_computed = true;
 #endif
@@ -161,8 +149,9 @@ void update_acc(Accumulator* acc, Accumulator* prev_acc, IndexList* added_indice
 
 #else
     assert(prev_acc->has_been_computed);
+
     memcpy(acc, prev_acc, sizeof(Accumulator));
-    int i, j;
+    unsigned i, j;
 
     for(i = 0; i < removed_indices->size; i++) {
         for(j = 0; j < kHalfDimensions; j++) {
@@ -171,12 +160,14 @@ void update_acc(Accumulator* acc, Accumulator* prev_acc, IndexList* added_indice
         }
     }
 
-    for(i = 0; i < removed_indices->size; i++) {
+    for(i = 0; i < added_indices->size; i++) {
         for(j = 0; j < kHalfDimensions; j++) {
-            acc->accumulation[WHITE][j] -= ft_weights[added_indices->values[WHITE][i] + j]; 
-            acc->accumulation[BLACK][j] -= ft_weights[added_indices->values[BLACK][i] + j]; 
+            acc->accumulation[WHITE][j] += ft_weights[added_indices->values[WHITE][i] + j]; 
+            acc->accumulation[BLACK][j] += ft_weights[added_indices->values[BLACK][i] + j]; 
         }
     }
+
+    assert(acc->has_been_computed);
 #endif
 }
 
@@ -245,15 +236,9 @@ static bool load_eval_file(const char *file_name) {
     bool success = verify_net(data, size);
     if (success)
         read_net(data);
-    else
-        cerr << RED_COLOR << "Net verification error" << endl << RED_COLOR;
     if(size && data)
         munmap((void *)data, size);
     return success;
-}
-
-static void print_ptr(const void* ptr) {
-    cerr << ptr << endl;
 }
 
 void my_nnue_init(const char* file_name) {
@@ -272,88 +257,31 @@ void affine_txfm(clipped_t *input, clipped_t *output, clipped_t *weights, int32_
 #if defined(AVX2)
 
 #else
-    cerr << "A 1" << endl;
-
     unsigned i, j;
     int32_t tmp[output_dim];
 
-    cerr << "A 2" << endl;
-
-    int64_t checksum_1 = 0, checksum_2 = 0, checksum_3 = 0;
-
-    cerr << "A 3" << endl;
-
-    // memcpy(tmp, biases, output_dim * sizeof(int32_t));
-    // memcpy(tmp, biases, 32 * sizeof(int32_t));
-    cerr << "Biases are: ";
-    for(i = 0; i < output_dim; i++) {
-        tmp[i] = biases[i];
-        cerr << biases[i] << " ";
-        checksum_1 += (int64_t)biases[i];
-    }
-    cerr << endl;
-
-    cerr << BLUE_COLOR << "Bias checksum is " << checksum_1 << endl << RESET_COLOR;
-
-    cerr << "A 4" << endl;
+    memcpy(tmp, biases, output_dim * sizeof(int32_t));
 
     for(i = 0; i < input_dim; i++) if(input[i]) { 
         for(j = 0; j < output_dim; j++) {
-            // cerr << output_dim * i + j << endl;
-            assert((output_dim * i + j) < 18000);
             tmp[j] += (clipped_t)input[i] * weights[output_dim * i + j];
-            checksum_2 += (int64_t)weights[output_dim * i + j] * (int64_t)(output_dim * i + j);
-            checksum_3 += (int64_t)input[i] * (int64_t)i;
         }
     }
 
-//   for (unsigned idx = 0; idx < inDims; idx++)
-//     if (input[idx])
-//       for (unsigned i = 0; i < outDims; i++) {
-//         tmp[i] += (int8_t)input[idx] * weights[outDims * idx + i];
-//         checksum_2 += (int64_t)weights[outDims * idx + i] * (int64_t)(outDims * idx + i);
-//         checksum_3 += (int64_t)input[idx] * (int64_t)i;
-//       }
-
-    cerr << "A 5" << endl;
-
-    cerr << BLUE_COLOR;
-    cerr << "Checksums" << endl;
-    cerr << checksum_1 << endl;
-    cerr << checksum_2 << endl;
-    cerr << checksum_3 << endl;
-    cerr << RESET_COLOR;
-
-    cerr << "Output dim is " << output_dim << endl;
-
-    int64_t checksum_4 = 0;
-
-    // clipped_t* out_vec = (clipped_t*)output;
-    // (clipped_t*)output;
-    // print_ptr(output);
     for(i = 0; i < output_dim; i++) {
         output[i] = (int8_t)clamp((tmp[i] >> SHIFT), 0, 127);
-        checksum_4 += (int64_t)output[i];
     }
-
-    cerr << "Checksum 4 is " << checksum_4 << endl;
 #endif
 }
 
 int32_t affine_propagate(clipped_t* input, clipped_t* weights, int32_t* biases, 
-                         int input_dim) {
+                         unsigned input_dim) {
 #if defined(AVX2)  
 
 #else
     int32_t ans = biases[0];
-    cerr << "Bias is " << biases[0] << endl;
-    cerr << "Weights are " << endl;
-    for(int i = 0; i < input_dim; i++) {
-        cerr << (int32_t)input[i] << " ";
-        cerr << (int32_t)weights[i] << " ";
-        cerr << int32_t(input[i] * weights[i]) << " ";
-        cerr << ans << endl;
-        ans += int32_t(input[i]) * int32_t(weights[i]);
+    for(unsigned i = 0; i < input_dim; i++) {
+        ans += input[i] * weights[i];
     }
     return ans;
 #endif
@@ -379,130 +307,91 @@ struct NetData {
 
 #define NNUE_PATH "/Users/balce/maia-net.bin"
 
-#if defined(INCREMENTAL_NNUE)
-int my_nnue_eval(const Board* board, UndoData* undo_data) {
-    Accumulator* prev_acc = undo_data->prev_acc;
-    DirtyPiece* dp = undo_data->dp;
-#else 
+// #undef INCREMENTAL_NNUE
+
+bool is_acc_ok(Accumulator* acc1, Accumulator* acc2) {
+    if(acc1->has_been_computed != acc2->has_been_computed)
+        return false;
+    for(int c = 0; c < 2; c++) {
+        for(int i = 0; i < 256; i++) {
+            if(acc1->accumulation[c][i] != acc2->accumulation[c][i]) {
+                cerr << "Accs don't match at c = " << c << ", i = " << i << " "; 
+                cerr << (int)acc1->accumulation[c][i] << " " << (int)acc2->accumulation[c][i] << endl;
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// static int total_calcs = 0;
+// static int no_calcs = 0;
+// static int incremental_calcs = 0;
+// static int normal_calcs = 0;
+
 int my_nnue_eval(Board* board) {
-#endif
     if(!nnue_initialized)
         my_nnue_init(NNUE_PATH);
 
-    cerr << "We will calculate score for the following board" << endl;
-    board->print_board();
+    // total_calcs++;
+    // if(total_calcs % 1000000 == 0) {
+    //     cerr << "No calc   " << (no_calcs * 100) / total_calcs << "%" << endl;
+    //     cerr << "Inc calc  " << (incremental_calcs * 100) / total_calcs << "%" << endl;
+    //     cerr << "Norm calc " << (normal_calcs * 100) / total_calcs << "%" << endl;
+    //     cerr << "******" << endl;
+    // }
 
-    board->acc.has_been_computed = false;
+    Accumulator* acc = &board->acc_stack[board->acc_stack_size];
+    DirtyPiece* dp = board->acc_stack_size ? &board->dp_stack[board->acc_stack_size - 1] : NULL;
+    Accumulator* prev_acc = board->acc_stack_size ? &board->acc_stack[board->acc_stack_size - 1] : NULL;
 
-    if(board->acc.has_been_computed) {
+    // cerr << "We will calculate score for the following board" << endl;
+    // board->print_board();
+
+    acc->has_been_computed = false;
+
+    if(acc->has_been_computed) {
         // don't do anything
+        // no_calcs++;
 #if defined(INCREMENTAL_NNUE)
-    } else if(prev_acc->has_been_computed && dp->no_king_move) {
+    } else if(prev_acc != NULL && prev_acc->has_been_computed && dp->no_king) {
+        // incremental_calcs++;
         IndexList added_indices, removed_indices;
-        append_changed_indices(&added_indices, &removed_indices, board, dp, WHITE);
-        append_changed_indices(&added_indices, &removed_indices, board, dp, WHITE);
-        update_acc(&board->acc, prev_acc, &added_indices, &removed_indices);
+        added_indices.size = removed_indices.size = 0;
+        append_changed_indices(&added_indices, &removed_indices, board, dp);
+        update_acc(acc, prev_acc, &added_indices, &removed_indices);
+
+        // // we check that the updated acc is okay
+        // Accumulator acc_tmp;
+        // IndexList index_list;
+        // index_list.size = 0;
+        // append_active_indices(&index_list, board);
+        // compute_acc(&acc_tmp, &index_list);
+        // assert(is_acc_ok(acc, &acc_tmp));
 #endif
     } else {
+        // normal_calcs++;
         IndexList index_list;
         index_list.size = 0;
-        cerr << "Before appending indices" << endl;
         append_active_indices(&index_list, board);
-        cerr << "The values are: " << endl;
-        for(int i = 0; i < index_list.size; i++)
-            cerr << " " << index_list.values[WHITE][i];
-        cerr << endl;
-        for(int i = 0; i < index_list.size; i++)
-            cerr << " " << index_list.values[BLACK][i];
-        cerr << endl;
-        cerr << "Before computing acc" << endl;
-        compute_acc(&board->acc, &index_list);
+        compute_acc(acc, &index_list);
     }
 
-    assert(board->acc.has_been_computed);
+    assert(acc->has_been_computed);
 
     struct NetData buf;
-    int32_t tmp[32];
     unsigned i, j;
-    int64_t acc_checksum = 0;
-    int64_t inp_checksum = 0;
-    int64_t checksum_1 = 0, checksum_2 = 0, checksum_3 = 0;
 
     for(i = 0; i < kHalfDimensions; i++) {
-        buf.input[i] = clamp(board->acc.accumulation[board->side][i], 0, 127);
-        inp_checksum += (int64_t)buf.input[i];
-        acc_checksum += board->acc.accumulation[board->side][i];
+        buf.input[i] = clamp(acc->accumulation[board->side][i], 0, 127);
+        buf.input[i + 256] = clamp(acc->accumulation[board->xside][i], 0, 127);
     }
-
-    for(i = kHalfDimensions; i < 2 * kHalfDimensions; i++) {
-        buf.input[i] = clamp(board->acc.accumulation[board->xside][i - kHalfDimensions], 0, 127);
-        inp_checksum += (int64_t)buf.input[i];
-        acc_checksum += board->acc.accumulation[board->xside][i - kHalfDimensions];
-    }
-
-    cerr << MAGENTA_COLOR << "Acc checksum is " << acc_checksum << endl << RESET_COLOR;
-    cerr << MAGENTA_COLOR << "Inp checksum is " << inp_checksum << endl << RESET_COLOR;
-
-    print_ptr(buf.hidden_1_out);
-
-    // ******************
 
     affine_txfm(buf.input, buf.hidden_1_out, hidden_1_weights, hidden_1_biases, 512, 32);
 
-    // memcpy(tmp, biases, output_dim * sizeof(int32_t));
-    // memcpy(tmp, biases, 32 * sizeof(int32_t));
-    // for(i = 0; i < 32; i++) {
-    //     tmp[i] = hidden_1_biases[i];
-    //     checksum_1 += (int64_t)hidden_1_biases[i];
-    // }
-
-    // for(i = 0; i < 512; i++) if(buf.input[i]) { 
-    //     for(j = 0; j < 32; j++) {
-    //         tmp[i] += (clipped_t)buf.input[i] * hidden_1_weights[32 * i + j];
-    //         checksum_2 += hidden_1_weights[32 * i + j] * (32 * i + j);
-    //         checksum_3 += (int64_t)buf.input[i] * i;
-    //     }
-    // }
-
-    // cerr << BLUE_COLOR;
-    // cerr << "Checksums for first hidden layer" << endl;
-    // cerr << checksum_1 << endl;
-    // cerr << checksum_2 << endl;
-    // cerr << checksum_3 << endl;
-    // cerr << RESET_COLOR;
-
-    // for(i = 0; i < 32; i++)
-    //     buf.hidden_1_out[i] = clamp(tmp[i] >> SHIFT, 0, 127);
-
-    // **************************
-
-    int64_t h1_checksum = 0;
-    for(int i = 0; i < 32; i++)
-        h1_checksum += (int64_t)buf.hidden_1_out[i];
-
-    cerr << MAGENTA_COLOR << "H1 checksum is " << h1_checksum << endl << RESET_COLOR;
-
     affine_txfm(buf.hidden_1_out, buf.hidden_2_out, hidden_2_weights, hidden_2_biases, 32, 32);
 
-    cerr << BLUE_COLOR << "CXX" << endl << RESET_COLOR; 
-
-    int64_t h2_checksum = 0;
-    cerr << "Hidden2 out ";
-    for(int i = 0; i < 32; i++) { 
-        h2_checksum += (int64_t)buf.hidden_2_out[i];
-        cerr << (int64_t)buf.hidden_2_out[i] << " ";
-    }
-    cerr << endl;
-
-    cerr << MAGENTA_COLOR << "H2 checksum is " << h2_checksum << endl << RESET_COLOR;
-
-    cerr << "Before running affine propagate" << endl;
     int32_t nnue_score = affine_propagate(buf.hidden_2_out, output_weights, output_biases, 32);
-    cerr << "After finishing everything (: score is " << nnue_score << endl;
-
-    int32_t s = (nnue_score / FV_SCALE);
-    cerr << "Score " << (nnue_score / FV_SCALE) << " calculated for the following board " << endl;
-    board->print_board();
 
     return (nnue_score / FV_SCALE);
 }

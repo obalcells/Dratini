@@ -84,8 +84,6 @@ struct Board {
     void error_check() const;
     bool same(const Board& other) const;
     void check_classic();
-    void clear_board();
-    void set_from_fen(const std::string&);
     void update_material_values();
     uint64_t calculate_key(bool is_assert = true) const;
 
@@ -104,9 +102,16 @@ struct Board {
     int b_mat[2]; // for sungorus eval
     int b_pst[2];
 
-    Accumulator acc;
+    // NNUE accumulator
+    size_t acc_stack_size;
+    Accumulator acc_stack[64];
+    // Accumulator* acc;
+    DirtyPiece dp_stack[64];
+    // DirtyPiece* dp;
 
 private:
+    void set_from_fen(const std::string&);
+    void clear_board();
 	void update_key(const UndoData&);
     bool move_diagonal(const Move) const;
     bool castling_valid(const Move) const;
