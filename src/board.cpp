@@ -187,6 +187,7 @@ Board::Board() {
     update_material_values(); // sungorus
 	acc_stack_size = 0;
 	acc_stack[0].has_been_computed = false;
+	move_stack.clear();
 }
 
 Board::Board(const std::string& str) {
@@ -201,6 +202,7 @@ Board::Board(const std::string& str) {
     update_material_values(); // to be able to use sungorus' eval function
 	acc_stack_size = 0;
 	acc_stack[0].has_been_computed = false;
+	move_stack.clear();
 }
 
 void Board::set_from_fen(const std::string& fen) {

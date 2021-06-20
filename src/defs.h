@@ -15,6 +15,8 @@ using std::cout;
 using std::cin;
 using std::cerr;
 
+#define NNUE_PATH "/Users/balce/maia-net.bin"
+
 #define RESET_COLOR "\033[0m"
 #define EMPTY_COLOR "\033[37m"
 #define BLACK_COLOR "\033[36m"
@@ -28,6 +30,8 @@ using std::cerr;
 
 #define row(x)(x >> 3)
 #define col(x)(x & 7)
+
+#define clamp(a, b, c) ((a < b) ? b : ((a > c) ? c : a))
 
 #define make_piece(non_side_piece, side) (non_side_piece + (side ? 6 : 0))
 

@@ -4,7 +4,6 @@
 #include "board.h"
 #include "misc.h"
 #include "nnue.h"
-#include "my_nnue.h"
 
 enum {WC, BC, NO_CL};
 enum {P, N, B, R, Q, K, NO_TP};
@@ -219,56 +218,51 @@ int calculate_mat(const Board& board) {
   return score;
 }
 
-static const int p_conv[12] = {
-  wpawn, wknight, wbishop, wrook, wqueen, wking,
-  bpawn, bknight, bbishop, brook, bqueen, bking
-};
+// static const int p_conv[12] = {
+//   wpawn, wknight, wbishop, wrook, wqueen, wking,
+//   bpawn, bknight, bbishop, brook, bqueen, bking
+// };
 
-// p_conv[WHITE_KING] = wking
-// p_conv[BLACK_KNIGHT] = bknight 
-// ...
+// int nnue_eval_centr(Board& board) {
+  // int player = board.side;
+  // int pieces[64], squares[64];
 
+  // int j = 2;
+  // for(int i = 0; i < 64; i++) {
+  //   if(board.piece_at[i] == KING && board.color_at[i] == WHITE) {
+  //     pieces[0] = wking;
+  //     squares[0] = i;
+  //   } else if(board.piece_at[i] == KING) {
+  //     pieces[1] = bking;
+  //     squares[1] = i;
+  //   } else if(board.piece_at[i] != EMPTY) {
+  //     pieces[j] = p_conv[board.piece_at[i] + (board.color_at[i] ? 6 : 0)];
+  //     squares[j++] = i;
+  //   }
+  // }
 
-int nnue_eval(Board& board) {
-  int player = board.side;
-  int pieces[64], squares[64];
-
-  int j = 2;
-  for(int i = 0; i < 64; i++) {
-    if(board.piece_at[i] == KING && board.color_at[i] == WHITE) {
-      pieces[0] = wking;
-      squares[0] = i;
-    } else if(board.piece_at[i] == KING) {
-      pieces[1] = bking;
-      squares[1] = i;
-    } else if(board.piece_at[i] != EMPTY) {
-      pieces[j] = p_conv[board.piece_at[i] + (board.color_at[i] ? 6 : 0)];
-      squares[j++] = i;
-    }
-  }
-
-  pieces[j] = 0;
-  squares[j] = 0;
+  // pieces[j] = 0;
+  // squares[j] = 0;
 
   // cerr << "Calculating NNUE score of board" << endl;
   // board.print_board();
 
-  // assert(pieces[0] != -1 && squares[0] != -1
-  //     && pieces[1] != -1 && squares[1] != -1);
-
-  // int score = nnue_evaluate(player, pieces, squares);
-  int score2 = my_nnue_eval(&board);
+  // int score = nnue_eval(&board);
+  // int score2 = nnue_eval(&board);
+  // score = score2;
 
   // if(score != score2) {
   //   cerr << BLUE_COLOR << "Scores are different for the following position" << endl << RESET_COLOR;
+  //   cerr << score << " " << score2 << " " << score3 << endl;
   //   board.print_board();
   // }
-  // assert(score == score2);
-  // if(score != score2)
+
+  // assert(score == score2 && score == score3);
+  // if(score != score2 || score != score3)
   //   while(1);
 
-  return score2;
-}
+  // return score;
+// }
 
 int evaluate(const Board& board) {
   if(!data_initialized) {

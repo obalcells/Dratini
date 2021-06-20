@@ -9,18 +9,31 @@
 #include <stdint.h>
 #include "defs.h"
 #include "board.h"
-#include "my_nnue.h"
+#include "nnue.h"
 
-using clipped_t = int8_t;
-
-#define clamp(a, b, c) ((a < b) ? b : ((a > c) ? c : a))
+typedef int8_t clipped_t;
+typedef uint32_t mask_t;
+typedef uint64_t mask2_t;
+typedef int8_t weight_t;
 
 #define INCREMENTAL_NNUE
-// #define AVX2
+#define USE_AVX2
+
+#if defined(USE_AVX2)
+#include <immintrin.h>
+#define SIMD_WIDTH 256
+typedef __m256i vec16_t;
+typedef __m256i vec8_t;
+#define vec_add_16(a,b) _mm256_add_epi16(a,b)
+#define vec_sub_16(a,b) _mm256_sub_epi16(a,b)
+#define vec_packs(a,b) _mm256_packs_epi16(a,b)
+#define vec_mask_pos(a) _mm256_movemask_epi8(_mm256_cmpgt_epi8(a,_mm256_setzero_si256()))
+#define NUM_REGS 16
+#endif
 
 static int16_t ft_weights alignas(64) [256 * 41024];
-static clipped_t hidden_1_weights alignas(64) [2 * 256 * 32];
-static clipped_t hidden_2_weights alignas(64) [32 * 32];
+static weight_t hidden_1_weights alignas(64) [2 * 256 * 32];
+static weight_t hidden_2_weights alignas(64) [32 * 32];
 static clipped_t output_weights alignas(64) [1 * 32];
 
 static int16_t ft_biases alignas(64) [256];
@@ -60,30 +73,10 @@ static const int kHalfDimensions = 256;
 static const int FtInDims = INDEX_END * 64;
 static bool nnue_initialized = false;
 
-// struct Accumulator {
-//     bool has_been_computed;
-//     alignas(64) int16_t accumulation[2][256];
-//     int computedAccumulation;
-// };
-
-// struct DirtyPiece {
-//     uint8_t piece[3];
-//     Move moves[3]; // contains from and to but no flag
-//     uint8_t dirty_num;
-// };
-
 struct IndexList {
     int values[2][32];
     size_t size;
 };
-
-inline int orient(int sq, bool side) {
-    return side ? (sq ^ 63) : sq;
-}
-
-inline int make_acc_index(int pc, int sq, int ksq, bool perspective) {
-    return 256 * (orient(sq, perspective) + pieceToIndex[perspective][pc] + ksq * INDEX_END); // * kHalfDimensions; 
-}
 
 inline uint32_t readu_le_u32(const void *p) {
   const uint8_t *q = (const uint8_t*) p;
@@ -100,6 +93,14 @@ inline uint16_t readu_le_u8(const void *p) {
   return q[0];
 }
 
+inline int orient(int sq, bool side) {
+    return side ? (sq ^ 63) : sq;
+}
+
+inline int make_acc_index(int pc, int sq, int ksq, bool perspective) {
+    return 256 * (orient(sq, perspective) + pieceToIndex[perspective][pc] + ksq * INDEX_END); // * kHalfDimensions; 
+}
+
 void append_active_indices(IndexList* index_list, Board* board) {
     int w_ksq = lsb(board->bits[WHITE_KING]);
     int b_ksq = orient(lsb(board->bits[BLACK_KING]), BLACK);
@@ -112,22 +113,22 @@ void append_active_indices(IndexList* index_list, Board* board) {
 void append_changed_indices(IndexList* added_indices, IndexList* removed_indices, Board* board, DirtyPiece* dp) {
     int w_ksq = lsb(board->bits[WHITE_KING]);
     int b_ksq = orient(lsb(board->bits[BLACK_KING]), BLACK);
-    for(int i = 0; i < dp->dirtyNum; i++) {
-        if(dp->to[i] != NO_SQ) {
-            added_indices->values[WHITE][added_indices->size] = make_acc_index(dp->pc[i], dp->to[i], w_ksq, WHITE);
-            added_indices->values[BLACK][added_indices->size++] = make_acc_index(dp->pc[i], dp->to[i], b_ksq, BLACK);
-        }
+    for(int i = 0; i < dp->dirtyNum; i++) if(dp->pc[i] != WHITE_KING && dp->pc[i] != BLACK_KING) {
         if(dp->from[i] != NO_SQ) {
             removed_indices->values[WHITE][removed_indices->size] = make_acc_index(dp->pc[i], dp->from[i], w_ksq, WHITE);
             removed_indices->values[BLACK][removed_indices->size++] = make_acc_index(dp->pc[i], dp->from[i], b_ksq, BLACK);
+        }
+        if(dp->to[i] != NO_SQ) {
+            added_indices->values[WHITE][added_indices->size] = make_acc_index(dp->pc[i], dp->to[i], w_ksq, WHITE);
+            added_indices->values[BLACK][added_indices->size++] = make_acc_index(dp->pc[i], dp->to[i], b_ksq, BLACK);
         }
     }
 }
 
 void compute_acc(Accumulator* acc, IndexList* indices) {
-#if defined(AVX2)
-    assert(false);
-#else
+// #if defined(AVX2)
+//     to be implemented...
+// #else
     memcpy(acc->accumulation[WHITE], ft_biases, 256 * sizeof(int16_t));
     memcpy(acc->accumulation[BLACK], ft_biases, 256 * sizeof(int16_t));
 
@@ -141,16 +142,17 @@ void compute_acc(Accumulator* acc, IndexList* indices) {
     }
 
     acc->has_been_computed = true;
-#endif
+// #endif
 }
 
 void update_acc(Accumulator* acc, Accumulator* prev_acc, IndexList* added_indices, IndexList* removed_indices) {
-#if defined(AVX2)
-
-#else
+// #ifdef USE_AVX2
+//     to be implemented...
+// #else
     assert(prev_acc->has_been_computed);
 
     memcpy(acc, prev_acc, sizeof(Accumulator));
+
     unsigned i, j;
 
     for(i = 0; i < removed_indices->size; i++) {
@@ -168,7 +170,7 @@ void update_acc(Accumulator* acc, Accumulator* prev_acc, IndexList* added_indice
     }
 
     assert(acc->has_been_computed);
-#endif
+// #endif
 }
 
 static bool verify_net(const void *eval_data, size_t size) {
@@ -186,6 +188,34 @@ static bool verify_net(const void *eval_data, size_t size) {
   return true;
 }
 
+#ifdef USE_AVX2
+static void permute_biases(int32_t *biases) {
+  __m128i *b = (__m128i *)biases;
+  __m128i tmp[8];
+  tmp[0] = b[0];
+  tmp[1] = b[4];
+  tmp[2] = b[1];
+  tmp[3] = b[5];
+  tmp[4] = b[2];
+  tmp[5] = b[6];
+  tmp[6] = b[3];
+  tmp[7] = b[7];
+  memcpy(b, tmp, 8 * sizeof(__m128i));
+}
+#endif
+
+inline unsigned wt_idx(unsigned r, unsigned c, unsigned dims) {
+    (void)dims;
+#ifdef USE_AVX2
+  if (dims > 32) {
+    unsigned b = c & 0x18;
+    b = (b << 1) | (b >> 1);
+    c = (c & ~0x18) | (b & 0x18);
+  }
+#endif
+  return c * 32 + r;
+}
+
 void read_net(const void* eval_data) {
     const char* d = (const char*)eval_data + TransformerStart + 4;
     int i, j;
@@ -195,22 +225,27 @@ void read_net(const void* eval_data) {
     for(i = 0; i < kHalfDimensions * FtInDims; i++, d += 2)
         ft_weights[i] = readu_le_u16(d);
 
-    d += 4;
+    d += 4; // very important!
 
     for(i = 0; i < 32; i++, d += 4)
         hidden_1_biases[i] = readu_le_u32(d);
     for(j = 0; j < 32; j++)
         for(i = 0; i < 512; i++, d += 1)
-            hidden_1_weights[i * 32 + j] = *d;
+            hidden_1_weights[wt_idx(j, i, 512)] = *d;
     for(i = 0; i < 32; i++, d += 4)
         hidden_2_biases[i] = readu_le_u32(d);
     for(j = 0; j < 32; j++)
         for(i = 0; i < 32; i++, d += 1)
-            hidden_2_weights[i * 32 + j] = *d;
+            hidden_2_weights[wt_idx(j, i, 32)] = *d;
     for(i = 0; i < 1; i++, d += 4)
         output_biases[i] = readu_le_u32(d);
     for(i = 0; i < 32; i++, d += 1)
         output_weights[i] = readu_le_u8(d);
+
+#ifdef USE_AVX2
+    permute_biases(hidden_1_biases);
+    permute_biases(hidden_2_biases);
+#endif
 }
 
 static size_t file_size(int fd) {
@@ -241,7 +276,7 @@ static bool load_eval_file(const char *file_name) {
     return success;
 }
 
-void my_nnue_init(const char* file_name) {
+void nnue_init(const char* file_name) {
     if (load_eval_file(file_name)) {
         cerr << GREEN_COLOR << "NNUE loaded " << file_name << "!" << endl << RESET_COLOR;
         nnue_initialized = true;
@@ -252,11 +287,95 @@ void my_nnue_init(const char* file_name) {
     while(1); // in case we have -DNDEBUG flag 
 }
 
+#ifdef USE_AVX2
+void transform(const bool side, Accumulator* acc, clipped_t* output, mask_t* out_mask) {
+    const bool xside = !side;
+    unsigned i;
+    int16_t (*accumulation)[2][256] = &acc->accumulation;
+
+    const unsigned num_chunks = (16 * kHalfDimensions) / SIMD_WIDTH;
+
+    vec8_t* out = (vec8_t*)&output[0];
+    for(i = 0; i < num_chunks / 2; i++) {
+        vec16_t s0 = ((vec16_t*)(*accumulation)[side])[i * 2];
+        vec16_t s1 = ((vec16_t *)(*accumulation)[side])[i * 2 + 1];
+        out[i] = _mm256_packs_epi16(s0, s1);
+        *(out_mask++) = _mm256_movemask_epi8(_mm256_cmpgt_epi8(out[i] ,_mm256_setzero_si256()));
+    }
+
+    out = (vec8_t*)&output[kHalfDimensions];
+    for(i = 0; i < num_chunks / 2; i++) {
+        vec16_t s0 = ((vec16_t*)(*accumulation)[xside])[i * 2];
+        vec16_t s1 = ((vec16_t *)(*accumulation)[xside])[i * 2 + 1];
+        out[i] = _mm256_packs_epi16(s0, s1);
+        *(out_mask++) = _mm256_movemask_epi8(_mm256_cmpgt_epi8(out[i] ,_mm256_setzero_si256()));
+    }
+}
+#endif
+
+inline bool next_idx(unsigned *idx, unsigned *offset, mask2_t *v,
+    mask_t *mask, unsigned inDims) {
+  while (*v == 0) {
+    *offset += 8 * sizeof(mask2_t);
+    if (*offset >= inDims) return false;
+    memcpy(v, (char *)mask + (*offset / 8), sizeof(mask2_t));
+  }
+  *idx = *offset + __builtin_ctzll(*v);
+  *v &= *v - 1;
+  return true;
+}
+
+#ifdef USE_AVX2
+inline void affine_txfm(int8_t *input, void *output, unsigned inDims,
+                        unsigned outDims, const int32_t *biases, const weight_t *weights,
+                        mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask) {
+  assert(outDims == 32);
+
+  const __m256i kZero = _mm256_setzero_si256();
+  __m256i out_0 = ((__m256i *)biases)[0];
+  __m256i out_1 = ((__m256i *)biases)[1];
+  __m256i out_2 = ((__m256i *)biases)[2];
+  __m256i out_3 = ((__m256i *)biases)[3];
+  __m256i first, second;
+  mask2_t v;
+  unsigned idx;
+
+  memcpy(&v, inMask, sizeof(mask2_t));
+  for (unsigned offset = 0; offset < inDims;) {
+    if (!next_idx(&idx, &offset, &v, inMask, inDims))
+      break;
+    first = ((__m256i *)weights)[idx];
+    uint16_t factor = input[idx];
+    if (next_idx(&idx, &offset, &v, inMask, inDims)) {
+      second = ((__m256i *)weights)[idx];
+      factor |= input[idx] << 8;
+    } else {
+      second = kZero;
+    }
+    __m256i mul = _mm256_set1_epi16(factor), prod, signs;
+    prod = _mm256_maddubs_epi16(mul, _mm256_unpacklo_epi8(first, second));
+    signs = _mm256_cmpgt_epi16(kZero, prod);
+    out_0 = _mm256_add_epi32(out_0, _mm256_unpacklo_epi16(prod, signs));
+    out_1 = _mm256_add_epi32(out_1, _mm256_unpackhi_epi16(prod, signs));
+    prod = _mm256_maddubs_epi16(mul, _mm256_unpackhi_epi8(first, second));
+    signs = _mm256_cmpgt_epi16(kZero, prod);
+    out_2 = _mm256_add_epi32(out_2, _mm256_unpacklo_epi16(prod, signs));
+    out_3 = _mm256_add_epi32(out_3, _mm256_unpackhi_epi16(prod, signs));
+  }
+
+  __m256i out16_0 = _mm256_srai_epi16(_mm256_packs_epi32(out_0, out_1), SHIFT);
+  __m256i out16_1 = _mm256_srai_epi16(_mm256_packs_epi32(out_2, out_3), SHIFT);
+
+  __m256i *outVec = (__m256i *)output;
+  outVec[0] = _mm256_packs_epi16(out16_0, out16_1);
+  if (pack8_and_calc_mask)
+    outMask[0] = _mm256_movemask_epi8(_mm256_cmpgt_epi8(outVec[0], kZero));
+  else
+    outVec[0] = _mm256_max_epi8(outVec[0], kZero);
+}
+#else
 void affine_txfm(clipped_t *input, clipped_t *output, clipped_t *weights, int32_t* biases,
                  unsigned input_dim, unsigned output_dim) {
-#if defined(AVX2)
-
-#else
     unsigned i, j;
     int32_t tmp[output_dim];
 
@@ -271,13 +390,20 @@ void affine_txfm(clipped_t *input, clipped_t *output, clipped_t *weights, int32_
     for(i = 0; i < output_dim; i++) {
         output[i] = (int8_t)clamp((tmp[i] >> SHIFT), 0, 127);
     }
-#endif
 }
+#endif
 
 int32_t affine_propagate(clipped_t* input, clipped_t* weights, int32_t* biases, 
                          unsigned input_dim) {
-#if defined(AVX2)  
-
+#ifdef USE_AVX2
+  __m256i *iv = (__m256i *)input;
+  __m256i *row = (__m256i *)weights;
+  __m256i prod = _mm256_maddubs_epi16(iv[0], row[0]);
+  prod = _mm256_madd_epi16(prod, _mm256_set1_epi16(1));
+  __m128i sum = _mm_add_epi32(
+      _mm256_castsi256_si128(prod), _mm256_extracti128_si256(prod, 1));
+  sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, 0x1b));
+  return _mm_cvtsi128_si32(sum) + _mm_extract_epi32(sum, 1) + biases[0];
 #else
     int32_t ans = biases[0];
     for(unsigned i = 0; i < input_dim; i++) {
@@ -287,102 +413,61 @@ int32_t affine_propagate(clipped_t* input, clipped_t* weights, int32_t* biases,
 #endif
 }
 
-// InputLayer = InputSlice<256 * 2>
-// out: 512 x clipped_t
-
-// Hidden1Layer = ClippedReLu<AffineTransform<InputLayer, 32>>
-// 512 x clipped_t -> 32 x int32_t -> 32 x clipped_t
-
-// Hidden2Layer = ClippedReLu<AffineTransform<hidden1, 32>>
-// 32 x clipped_t -> 32 x int32_t -> 32 x clipped_t
-
-// OutputLayer = AffineTransform<HiddenLayer2, 1>
-// 32 x clipped_t -> 1 x int32_t
-
 struct NetData {
     alignas(64) clipped_t input[512];
     clipped_t hidden_1_out[32];
     clipped_t hidden_2_out[32];
 };
 
-#define NNUE_PATH "/Users/balce/maia-net.bin"
+int nnue_eval(Board* board) {
+    if(!nnue_initialized)
+        nnue_init(NNUE_PATH);
 
-// #undef INCREMENTAL_NNUE
+    Accumulator* acc = &board->acc_stack[board->acc_stack_size & 7];
+    struct NetData buf;
 
-bool is_acc_ok(Accumulator* acc1, Accumulator* acc2) {
-    if(acc1->has_been_computed != acc2->has_been_computed)
-        return false;
-    for(int c = 0; c < 2; c++) {
-        for(int i = 0; i < 256; i++) {
-            if(acc1->accumulation[c][i] != acc2->accumulation[c][i]) {
-                cerr << "Accs don't match at c = " << c << ", i = " << i << " "; 
-                cerr << (int)acc1->accumulation[c][i] << " " << (int)acc2->accumulation[c][i] << endl;
-                return false;
+#ifdef INCREMENTAL_NNUE
+    if(!acc->has_been_computed) {
+        bool found_computed = false;
+        // most of the updates (99%) are made with the newest or the second-newest accumulator
+        // so there's no need to check older ones
+        int i;
+        for(i = board->acc_stack_size - 1; i >= 0 && i >= board->acc_stack_size - 2; i--) {
+            if(!board->dp_stack[i & 7].no_king)
+                break;
+            if(board->acc_stack[i & 7].has_been_computed) {
+                found_computed = true;
+                break;
             }
         }
+
+        if(found_computed) {
+            IndexList added_indices, removed_indices;
+            added_indices.size = removed_indices.size = 0;
+            for(int j = i; j < board->acc_stack_size; j++)
+                append_changed_indices(&added_indices, &removed_indices, board, &board->dp_stack[j & 7]);
+            assert(board->acc_stack[i & 7].has_been_computed);
+            update_acc(acc, &board->acc_stack[i & 7], &added_indices, &removed_indices);
+        } else {
+            IndexList index_list;
+            index_list.size = 0;
+            append_active_indices(&index_list, board);
+            compute_acc(acc, &index_list);
+        }
     }
-    return true;
-}
-
-// static int total_calcs = 0;
-// static int no_calcs = 0;
-// static int incremental_calcs = 0;
-// static int normal_calcs = 0;
-
-int my_nnue_eval(Board* board) {
-    if(!nnue_initialized)
-        my_nnue_init(NNUE_PATH);
-
-    // total_calcs++;
-    // if(total_calcs % 1000000 == 0) {
-    //     cerr << "No calc   " << (no_calcs * 100) / total_calcs << "%" << endl;
-    //     cerr << "Inc calc  " << (incremental_calcs * 100) / total_calcs << "%" << endl;
-    //     cerr << "Norm calc " << (normal_calcs * 100) / total_calcs << "%" << endl;
-    //     cerr << "******" << endl;
-    // }
-
-    Accumulator* acc = &board->acc_stack[board->acc_stack_size];
-    DirtyPiece* dp = board->acc_stack_size ? &board->dp_stack[board->acc_stack_size - 1] : NULL;
-    Accumulator* prev_acc = board->acc_stack_size ? &board->acc_stack[board->acc_stack_size - 1] : NULL;
-
-    // cerr << "We will calculate score for the following board" << endl;
-    // board->print_board();
-
-    acc->has_been_computed = false;
-
-    if(acc->has_been_computed) {
-        // don't do anything
-        // no_calcs++;
-#if defined(INCREMENTAL_NNUE)
-    } else if(prev_acc != NULL && prev_acc->has_been_computed && dp->no_king) {
-        // incremental_calcs++;
-        IndexList added_indices, removed_indices;
-        added_indices.size = removed_indices.size = 0;
-        append_changed_indices(&added_indices, &removed_indices, board, dp);
-        update_acc(acc, prev_acc, &added_indices, &removed_indices);
-
-        // // we check that the updated acc is okay
-        // Accumulator acc_tmp;
-        // IndexList index_list;
-        // index_list.size = 0;
-        // append_active_indices(&index_list, board);
-        // compute_acc(&acc_tmp, &index_list);
-        // assert(is_acc_ok(acc, &acc_tmp));
-#endif
-    } else {
-        // normal_calcs++;
+#else
+    if(!acc->has_been_computed) {
         IndexList index_list;
         index_list.size = 0;
         append_active_indices(&index_list, board);
         compute_acc(acc, &index_list);
     }
+#endif
 
     assert(acc->has_been_computed);
 
-    struct NetData buf;
-    unsigned i, j;
-
-    for(i = 0; i < kHalfDimensions; i++) {
+#ifndef USE_AVX2
+    for(unsigned i = 0; i < kHalfDimensions; i++) {
         buf.input[i] = clamp(acc->accumulation[board->side][i], 0, 127);
         buf.input[i + 256] = clamp(acc->accumulation[board->xside][i], 0, 127);
     }
@@ -390,6 +475,18 @@ int my_nnue_eval(Board* board) {
     affine_txfm(buf.input, buf.hidden_1_out, hidden_1_weights, hidden_1_biases, 512, 32);
 
     affine_txfm(buf.hidden_1_out, buf.hidden_2_out, hidden_2_weights, hidden_2_biases, 32, 32);
+#else
+    alignas(8) mask_t input_mask[512 / (8 * sizeof(mask_t))];
+    alignas(8) mask_t hidden1_mask[8 / sizeof(mask_t)] = { 0 };
+
+    transform(board->side, acc, buf.input, input_mask);
+
+    affine_txfm(buf.input, buf.hidden_1_out, 512, 32, hidden_1_biases,
+        hidden_1_weights, input_mask, hidden1_mask, true); 
+
+    affine_txfm(buf.hidden_1_out, buf.hidden_2_out, 32, 32, hidden_2_biases,
+        hidden_2_weights, hidden1_mask, NULL, false); 
+#endif
 
     int32_t nnue_score = affine_propagate(buf.hidden_2_out, output_weights, output_biases, 32);
 

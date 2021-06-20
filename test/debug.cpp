@@ -8,7 +8,6 @@
 #include "../src/board.h"
 #include "../src/gen.h"
 #include "../src/engine.h"
-#include "sungorus_board.h"
 #include "board_speed.h"
 
 TranspositionTable tt;
@@ -26,10 +25,8 @@ static std::vector<std::string> split(const std::string &str) {
     return tokens;
 }
 
-uint64_t s_perft(POS*, int);
 uint64_t new_perft(Board&, int); 
 uint64_t old_perft(Board&, int); 
-void perft_check(Board&, POS*, int);
 
 static const int max_depth = 5;
 static const int n_runs = 10;
@@ -43,13 +40,7 @@ int main() {
     return 0;
 
     Board board = Board("r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14");
-    Init();
-    POS pos;
-    SetPosition(&pos, "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14");
     std::chrono::time_point < std::chrono::high_resolution_clock > initial_time;
-
-    perft_check(board, &pos, 0);
-    cerr << BLUE_COLOR << "Done checking" << RESET_COLOR << endl; 
 
     uint64_t duration_1 = 0, duration_2 = 0, duration_3 = 0;
     uint64_t p1, p2, p3;
@@ -62,30 +53,17 @@ int main() {
         initial_time = std::chrono::high_resolution_clock::now();
         p2 = new_perft(board, 0);
         duration_2 += (long long)(std::chrono::high_resolution_clock::now() - initial_time).count();
-
-        initial_time = std::chrono::high_resolution_clock::now();
-        p3 = s_perft(&pos, 0);
-        duration_3 += (long long)(std::chrono::high_resolution_clock::now() - initial_time).count();
-
-        if(p2 != p3) {
-            cerr << "Board is" << endl;
-            board.print_board();
-        }
-        assert(p2 == p3);
     } 
 
     // adjusted rates
     duration_1 /= (long long)1e3 * n_runs;
     duration_2 /= (long long)1e3 * n_runs;
-    duration_3 /= (long long)1e3 * n_runs;
     // time_gen /= (long long)1e3 * n_runs;
 
     // cerr << BLUE_COLOR << "Dratini with vector" << endl << RESET_COLOR;
     // cerr << duration_1 << endl;
     cerr << MAGENTA_COLOR << "Dratini with array" << endl << RESET_COLOR;
     cerr << duration_2 << endl;
-    cerr << GREEN_COLOR << "Sungorus" << endl << RESET_COLOR;
-    cerr << duration_3 << endl;
 
     return 0;
 }

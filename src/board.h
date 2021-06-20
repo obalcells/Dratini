@@ -103,11 +103,15 @@ struct Board {
     int b_pst[2];
 
     // NNUE accumulator
-    size_t acc_stack_size;
-    Accumulator acc_stack[64];
-    // Accumulator* acc;
-    DirtyPiece dp_stack[64];
-    // DirtyPiece* dp;
+    // int oldest_calc_idx; // acc_stack[oldest_calc_idx].has_been_computed = true
+    //                      // acc_stack[oldest_calc_idx - 1].has_been_computed = false
+    int acc_stack_size;
+    Accumulator acc_stack[8];
+    DirtyPiece dp_stack[8];
+    // Accumulator acc_stack[64];
+    // DirtyPiece dp_stack[64];
+
+    std::vector<Move> move_stack;
 
 private:
     void set_from_fen(const std::string&);

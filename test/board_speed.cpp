@@ -5,27 +5,6 @@
 #include <iomanip>
 #include "../src/gen.h"
 #include "../src/board.h"
-#include "sungorus_board.h"
-
-bool check_same(POS * p, Board * board) {
-	int p1, p2;
-	for (int i = 0; i < 64; i++) {
-		if (p -> pc[i] == NO_PC && board -> piece_at[i] != EMPTY)
-			return false;
-		if (p -> pc[i] != NO_PC && board -> piece_at[i] == EMPTY)
-			return false;
-		if (p -> pc[i] == NO_PC && board -> piece_at[i] == EMPTY)
-			continue;
-		p1 = (p -> pc[i] >> 1) + ((p -> pc[i] & 1) ? 6 : 0);
-		p2 = board -> piece_at[i] + (board -> color_at[i] == BLACK ? 6 : 0);
-		if (p1 != p2) {
-			cerr << "At position " << i << " pieces are not the same" << endl;
-			cerr << (int) p -> pc[i] << " " << (int) board -> piece_at[i] << " " << int(board -> color_at[i] == BLACK ? 6 : 0) << endl;
-			return false;
-		}
-	}
-	return true;
-}
 
 void test_make_move_speed() {
 	std::string rng_seed_str = "Dratini";
@@ -42,17 +21,11 @@ void test_make_move_speed() {
 	Board new_board = Board();
 	UndoData _undo_data = UndoData(new_board.king_attackers);
 
-	Init();
-	POS p;
-	UNDO undo_data;
-
 	double first_duration = 0.0;
 	double old_duration = 0.0;
 	double new_duration = 0.0;
-	double sungorus_duration = 0.0;
 
 	for (int game_idx = 0; game_idx < (int) 4e4; game_idx++) {
-		SetPosition( & p, START_POS);
 		first_board = board = new_board = Board();
 		moves.clear();
 
@@ -79,15 +52,6 @@ void test_make_move_speed() {
 		duration = end_time - initial_time;
 		first_duration += duration.count();
 
-		// sungorus 
-		initial_time = std::chrono::high_resolution_clock::now();
-		for (int move_idx = 0; move_idx < moves.size(); move_idx++) {
-			DoMove(&p, StrToMove(&p, const_cast<char*>(move_to_str(moves[move_idx]).c_str())), &undo_data);
-		}
-		end_time = std::chrono::high_resolution_clock::now();
-		duration = end_time - initial_time;
-		sungorus_duration += duration.count();
-
 		// dev
 		initial_time = std::chrono::high_resolution_clock::now();
 		for (int move_idx = 0; move_idx < moves.size(); move_idx++) {
@@ -110,7 +74,6 @@ void test_make_move_speed() {
 	printf("Total duration for FIRST board is: %lf\n", first_duration);
 	printf("Total duration for OLD   board is: %lf\n", old_duration);
 	printf("Total duration for NEW   board is: %lf\n", new_duration);
-	printf("Total duration for sungorus	is: %lf\n", sungorus_duration);
 }
 
 void test_move_valid_speed() {
@@ -123,9 +86,6 @@ void test_move_valid_speed() {
 	Board board = Board();
 	UndoData _undo_data = UndoData(board.king_attackers);
 	std::vector<Move> raw_moves, valid_moves;
-	Init();
-	POS p;
-	UNDO undo_data;
 	int move_picked;
 	Move move;
 
@@ -136,14 +96,12 @@ void test_move_valid_speed() {
 	double new_movevalid_duration = 0.0;
 	double fast_duration = 0.0;
 	double old_mar_control_duration = 0.0;
-	double sungorus_mar_duration = 0.0;
 
 	int n_games = 50000, game_repetitions = 1;
 	long long fingerprint = 0, prev_fingerprint, fingerprint_diff;
 	uint64_t prev_king_attackers;
 
 	for(int game_idx = 0; game_idx < n_games; game_idx++) {
-		// SetPosition(&p, START_POS);
 		board = Board();
 
 		for(int move_idx = 0; move_idx < 200; move_idx++) {
@@ -152,26 +110,6 @@ void test_move_valid_speed() {
 
 			generate_captures(raw_moves, &board);
 			generate_quiet(raw_moves, &board);
-
-			// std::vector<int> s_moves;
-			// for(int i = 0; i < raw_moves.size(); i++) {
-			// 	s_moves.push_back(StrToMove(&p, const_cast<char*>(move_to_str(raw_moves[i]).c_str())));	
-			// 	if(board.piece_at[get_from(raw_moves[i])] == PAWN && get_from(raw_moves[i]) == C2 && get_to(raw_moves[i]) == D1 && get_flag(raw_moves[i]) == 2) {
-			// 		cerr << "Move as int is " << (int)raw_moves[i] << endl;
-			// 	}
-			// 	if(board.piece_at[get_from(raw_moves[i])] == PAWN
-			// 	&& (row(get_to(raw_moves[i])) == 0 || row(get_to(raw_moves[i]) == 7))
-			// 	&& (get_flag(raw_moves[i]) == QUIET_MOVE)) {
-			// 		cerr << "Board is:" << endl;
-			// 		board.print_board();
-			// 		cerr << "Move is " << move_to_str(raw_moves[i]) << endl;
-			// 		cerr << "Move as int is " << (int)raw_moves[i];
-			// 	}
-			// 	assert(!(board.piece_at[get_from(raw_moves[i])] == PAWN
-			// 	    && (row(get_to(raw_moves[i])) == 0 || row(get_to(raw_moves[i]) == 7))
-			// 		&& get_flag(raw_moves[i]) == CAPTURE_MOVE));
-			// }
-			// assert(s_moves.size() == raw_moves.size());
 
             for(int j = 0; j < game_repetitions; j++) {
 				prev_fingerprint = fingerprint;
@@ -295,24 +233,12 @@ void test_move_valid_speed() {
                 // old_mar_control_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
 				// assert(fingerprint_diff == fingerprint - prev_fingerprint);
 				// prev_fingerprint = fingerprint;
-
-                // // Sungorus MAR 
-                // initial_time = std::chrono::high_resolution_clock::now();
-                // for(int i = 0; i < s_moves.size(); i++) {
-                //     DoMove(&p, s_moves[i], &undo_data);
-				// 	if(!Attacked(&p, p.king_sq[Opp(p.side)], p.side)) fingerprint++;
-                //     UndoMove(&p, s_moves[i], &undo_data);
-                // }
-                // sungorus_mar_duration += (std::chrono::high_resolution_clock::now() - initial_time).count();
-				// assert(fingerprint_diff == (fingerprint - prev_fingerprint));
-				// prev_fingerprint = fingerprint;
             }
 
 			// we pick a random move and apply it to all the boards
 			if(valid_moves.empty()) break;
 			move_picked = dist(rng) % int(valid_moves.size());
 			board.new_make_move(valid_moves[move_picked], _undo_data);
-			// DoMove(&p, StrToMove(&p, const_cast<char*>(move_to_str(valid_moves[move_picked]).c_str())), &undo_data);
 		}
 	}
 
@@ -325,9 +251,8 @@ void test_move_valid_speed() {
 	// cout << "M valid   " << std::setw(12) << int(movevalid_duration / double(n_games)) << endl; 
 	// cout << "Fast      " << std::setw(12) << int(fast_duration / double(n_games)) << endl; 
 	// cout << "OLD MAR C " << std::setw(12) << int(old_mar_control_duration / double(n_games)) << endl; 
-	// cout << "S MAR     " << std::setw(12) << int(sungorus_mar_duration / double(n_games)) << endl; 
 	cout << "Fingerprint " << fingerprint << endl;
-	// cout << "Fingerprint should be " << 3681050660 << endl;
+	// cout << "Fingerprint should be " << 0 << endl;
 }
 
 void check_occ(Board& board) {
@@ -349,21 +274,16 @@ void test_see_speed() {
 	std::vector<Move> raw_moves, valid_moves;
 	Board board = Board();
 	UndoData _undo_data = UndoData(board.king_attackers);
-	Init();
-	POS p;
-	UNDO undo_data;
-	int score, s_score, move_picked;
+	int score, move_picked;
 	Move move;
 
 	long long dratini_see = 0;
-	long long sungorus_see = 0;
 
 	// constants
 	int n_games = (int)1e6;
     const int game_repetitions = 1;
 
 	for(int game_idx = 0; game_idx < n_games; game_idx++) {
-		SetPosition(&p, START_POS);
 		board = Board();
 
 		for(int move_idx = 0; move_idx < 200; move_idx++) {
@@ -381,23 +301,6 @@ void test_see_speed() {
 				}
 			}
 
-			for(int j = 0; j < game_repetitions; j++) {
-				for(int i = 0; i < valid_moves.size(); i++) if(get_flag(valid_moves[i]) == CAPTURE_MOVE) { 
-					score = board.fast_see(valid_moves[i]);	
-					check_occ(board);
-					s_score = Swap(&p, get_from(valid_moves[i]), get_to(valid_moves[i]));
-					if(score != s_score) {
-						cerr << "Scores are different" << endl;
-						cerr << MAGENTA_COLOR << "Move is " << move_to_str(valid_moves[i]) << endl << RESET_COLOR;
-						cerr << BLUE_COLOR << "Dratini score is " << score << endl << RESET_COLOR; 
-						cerr << GREEN_COLOR << "Sungorus score is " << s_score << endl << RESET_COLOR; 
-						cerr << "Board is:" << endl;
-						board.print_board();
-					}
-					assert(score == s_score);
-				}	
-			}
-
 			initial_time = std::chrono::high_resolution_clock::now();
 			for(int j = 0; j < game_repetitions; j++) {
 				for(int i = 0; i < valid_moves.size(); i++) if(get_flag(valid_moves[i]) == CAPTURE_MOVE) { 
@@ -406,20 +309,11 @@ void test_see_speed() {
 			}
 			dratini_see += (long long)(std::chrono::high_resolution_clock::now() - initial_time).count();
 
-			initial_time = std::chrono::high_resolution_clock::now();
-			for(int j = 0; j < game_repetitions; j++) {
-				for(int i = 0; i < valid_moves.size(); i++) if(get_flag(valid_moves[i]) == CAPTURE_MOVE) { 
-					Swap(&p, get_from(valid_moves[i]), get_to(valid_moves[i]));	
-				}	
-			}
-			sungorus_see += (long long)(std::chrono::high_resolution_clock::now() - initial_time).count(); 
-
 			// we pick a random move and apply it to all the boards
 			if(valid_moves.empty()) break;
 			move_picked = dist(rng) % int(valid_moves.size());
 			move = valid_moves[move_picked];
 			board.make_move(valid_moves[move_picked], _undo_data);
-			DoMove(&p, StrToMove(&p, const_cast<char*>(move_to_str(move).c_str())), &undo_data);
 		}		
 	}
 
@@ -427,5 +321,4 @@ void test_see_speed() {
 
 	cout << "Per game duration:" << endl;
 	cout << "Dratini    " << std::setw(10) << int(dratini_see / double(n_games)) / 100 << endl; 
-	cout << "Sungorus   " << std::setw(10) << int(sungorus_see / double(n_games)) / 100 << endl; 
 }

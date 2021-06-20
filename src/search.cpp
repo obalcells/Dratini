@@ -6,7 +6,6 @@
 #include "magicmoves.h"
 #include "defs.h"
 #include "board.h"
-// #include "eval_tscp.h"
 #include "sungorus_eval.h"
 #include "tt.h"
 #include "move_picker.h"
@@ -142,8 +141,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
         return thread.nodes & 2;
 
     if(thread.ply >= max_depth) {
-        cerr << "C 1" << endl;
-        return nnue_eval(thread.board);
+        return nnue_eval(&thread.board);
         // return evaluate(thread.board);
     }
     
@@ -184,8 +182,7 @@ int search(Thread& thread, PV& pv, int alpha, int beta, int depth) {
     Move *captures_p = captures_tried, *quiets_p = quiets_tried;
 
     int score, best_score = -CHECKMATE, searched_moves = 0, extended_depth, reduction;
-    if(tt_score == INF) cerr << "C 2" << endl;
-    int eval_score = tt_score != INF ? tt_score : nnue_eval(thread.board);
+    int eval_score = tt_score != INF ? tt_score : nnue_eval(&thread.board);
     // int eval_score = tt_score != INF ? tt_score : evaluate(thread.board);
 
     // beta pruning
@@ -388,8 +385,7 @@ int q_search(Thread& thread, int alpha, int beta) {
 
     if(thread.ply >= max_depth) {
         // return evaluate(thread.board);
-        cerr << "C 3" << endl;
-        return nnue_eval(thread.board);
+        return nnue_eval(&thread.board);
     }
 
     thread.nodes++;
@@ -407,8 +403,7 @@ int q_search(Thread& thread, int alpha, int beta) {
 
     // PV child_pv;
     UndoData undo_data = UndoData(thread.board.king_attackers);
-    if(tt_bound == -1) cerr << "C 4" << endl;
-    int best_score = tt_bound != -1 ? tt_score : nnue_eval(thread.board);
+    int best_score = tt_bound != -1 ? tt_score : nnue_eval(&thread.board);
     // int best_score = tt_bound != -1 ? tt_score : evaluate(thread.board);
     bool in_check = bool(thread.board.king_attackers);
 

@@ -6,7 +6,7 @@
 #include "sungorus_eval.h"
 #include "board.h"
 #include "gen.h"
-#include "my_nnue.h"
+#include "nnue.h"
 
 static const int pst[6][64] = {
   { 0, 4, 8, 10, 10, 8, 4, 0, 4, 8, 12, 14, 14, 12, 8, 4, 8, 12, 16, 18, 18, 16, 12, 8, 10, 14, 18, 20, 20, 18, 14, 10, 10, 14, 18, 20, 20, 18, 14, 10, 8, 12, 16, 18, 18, 16, 12, 8, 4, 8, 12, 14, 14, 12, 8, 4, 0, 4, 8, 10, 10, 8, 4, 0 },
@@ -18,6 +18,7 @@ static const int pst[6][64] = {
 };
 
 void Board::new_take_back(const UndoData& undo) {
+	move_stack.pop_back();
 	uint8_t from_sq, to_sq, piece, captured_piece;
 
 	from_sq = get_from(undo.move);
@@ -134,12 +135,15 @@ void Board::new_take_back(const UndoData& undo) {
     side = xside;
 	xside = !xside;
 
-	// we store this in undo data now
-	// king_attackers = undo.king_attackers;
 	king_attackers = undo.king_attackers;
+
+	acc_stack[acc_stack_size & 7].has_been_computed = false;
+	if(acc_stack_size)
+		acc_stack_size--;
 }
 
 void Board::new_make_move(const Move move, UndoData& undo_data) {
+	move_stack.push_back(move);
 	uint8_t from_sq, to_sq, piece, side_piece, side_shift;
 
 	from_sq = get_from(move);
@@ -164,8 +168,25 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 	castling_flag &= castling_bitmasks[from_sq] & castling_bitmasks[to_sq];
 	key ^= zobrist_castling[castling_flag];
 
+	DirtyPiece* dp = &dp_stack[acc_stack_size & 7];
+	dp->no_king = piece != KING;
+	dp->dirtyNum = 1;
+	dp->pc[0] = (int)side_piece;
+	dp->from[0] = (int)from_sq;
+	dp->to[0] = (int)to_sq;
+
+	// typedef struct DirtyPiece {
+	// bool no_king;
+	// int dirtyNum;
+	// int pc[3];
+	// int from[3];
+	// int to[3];
+	// } DirtyPiece;
+
 	switch(get_flag(move)) {
 		case NULL_MOVE:
+			dp->dirtyNum = 0;
+			dp->no_king = true;
 			break;
 		case QUIET_MOVE: {
 			assert(piece_at[to_sq] == EMPTY);
@@ -194,6 +215,10 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			bits[side_piece] ^= mask_sq(from_sq) | mask_sq(to_sq);
 			bits[undo_data.captured_piece] ^= mask_sq(to_sq);
 			occ_mask ^= mask_sq(from_sq);
+			dp->dirtyNum = 2;
+			dp->from[1] = to_sq;
+			dp->to[1] = NO_SQ;
+			dp->pc[1] = undo_data.captured_piece;
 			break;
 		}
 		case CASTLING_MOVE: { 
@@ -220,6 +245,10 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			color_at[from_sq] = piece_at[from_sq] = EMPTY;
 			bits[ROOK + side_shift] ^= mask_sq(from_sq) | mask_sq(to_sq);
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq);
+			dp->dirtyNum = 2;
+			dp->from[1] = from_sq;
+			dp->to[1] = to_sq;
+			dp->pc[1] = ROOK + side_shift;
 			break;
 		}
 		case ENPASSANT_MOVE: {
@@ -235,6 +264,10 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			bits[side_piece] ^= mask_sq(from_sq) | mask_sq(to_sq);
 			bits[undo_data.captured_piece] ^= mask_sq(adjacent);
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq) | mask_sq(adjacent);
+			dp->dirtyNum = 2;
+			dp->from[1] = adjacent;
+			dp->to[1] = NO_SQ;
+			dp->pc[1] = undo_data.captured_piece;
 			break;
 		}
 		case KNIGHT_PROMOTION: case BISHOP_PROMOTION: case ROOK_PROMOTION: case QUEEN_PROMOTION: { 
@@ -246,6 +279,12 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 				key ^= zobrist_pieces[undo_data.captured_piece][to_sq]; 
 				bits[undo_data.captured_piece] ^= mask_sq(to_sq);
 				occ_mask ^= mask_sq(to_sq);
+				dp->dirtyNum = 3;
+				dp->to[2] = NO_SQ;
+				dp->from[2] = to_sq;
+				dp->pc[2] = undo_data.captured_piece;
+			} else {
+				dp->dirtyNum = 2;
 			}
 			b_pst[side] += pst[promotion_piece][to_sq] - pst[PAWN][from_sq];
 			b_mat[side] += piece_value[promotion_piece] - piece_value[PAWN];
@@ -256,6 +295,11 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
 			bits[side_piece] ^= mask_sq(from_sq); 
 			bits[promotion_piece + side_shift] ^= mask_sq(to_sq);
 			occ_mask ^= mask_sq(from_sq) | mask_sq(to_sq);
+			// dp->dirtyNum = 2;
+			dp->to[0] = NO_SQ; // moving pawn goes off board
+			dp->from[1] = NO_SQ; // prom piece appears from nowhere
+			dp->to[1] = to_sq;
+			dp->pc[1] = promotion_piece + side_shift;
 		}
 	}	
 
@@ -274,7 +318,10 @@ void Board::new_make_move(const Move move, UndoData& undo_data) {
     keys.push_back(key);
 
     king_attackers = get_attackers(lsb(bits[KING + (side ? 6 : 0)]), xside, this);
-	acc.has_been_computed = false;
+
+	acc_stack_size++;
+	acc_stack[acc_stack_size & 7].has_been_computed = false;
+	assert(acc_stack_size < 64);
 }
 
 bool Board::new_fast_move_valid(const Move move) const {
@@ -283,7 +330,7 @@ bool Board::new_fast_move_valid(const Move move) const {
 	from_sq = get_from(move);
 	to_sq = get_to(move);
 	piece_from = piece_at[from_sq] + (color_at[from_sq] ? 6 : 0);
-	piece_to   = piece_at[to_sq] + (color_at[to_sq] ? 6 : 0);
+	piece_to = piece_at[to_sq] + (color_at[to_sq] ? 6 : 0);
 	flag = get_flag(move);
 	side_shift = side ? 6 : 0;
 	xside_shift = xside ? 6 : 0;
