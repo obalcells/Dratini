@@ -2,7 +2,7 @@
 
 This may not be the best chess engine, but it is a chess engine.
 
-It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (; It's ELO lies around 1400.
+It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (; It's ELO lies around 1800.
 
 ## Other engines and chess programming resources
 
@@ -39,7 +39,9 @@ It does minimax search with alpha-beta pruning together with some other optimiza
 - [X] Implement move making and move validity checking benchmark
 - [X] Implement perft and compare old versus new board functions versus Sungorus
 - [X] Implement SEE Benchmark and improve SEE function speed
-- [ ] Implement changes in search function and test against previous version
-- [ ] Integrate NNUE code (only FEN probing) and test against previous version
+- [X] Implement changes in search function and test against previous version
+- [X] Integrate NNUE code (only FEN probing) and test against previous version
+- [ ] Finish AVX2 implementation and try to use AVX512
+- [ ] Clean up unused code and macros
 
 [What does Dratini mean?](https://www.pokemon.com/en/pokedex/dratini)
