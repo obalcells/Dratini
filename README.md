@@ -1,8 +1,7 @@
 ![Title](https://i.imgur.com/5wb21Si.png)
 
-This may not be the best chess engine, but it is a chess engine.
-
-It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (; It's ELO lies around 1800.
+It does minimax search with alpha-beta pruning together with some other optimizations such as magic-move generation, null-move optimization and quiescence search. The board representation is based on bitboards. The engine isn't that good yet, although it's not easy to defeat it (:
+It's ELO lies around 1800.
 
 ## Other engines and chess programming resources
 
